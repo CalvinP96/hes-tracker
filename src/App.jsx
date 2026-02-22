@@ -9,11 +9,10 @@ const STAGES = [
   { id:1, label:"Schedule", icon:"📅", color:"#8b5cf6" },
   { id:2, label:"Assess", icon:"🔍", color:"#a855f7" },
   { id:3, label:"Scope", icon:"📋", color:"#d946ef" },
-  { id:4, label:"Prep", icon:"🔧", color:"#ec4899" },
-  { id:5, label:"Approve", icon:"✅", color:"#f43f5e" },
-  { id:6, label:"Install", icon:"🏗️", color:"#f97316" },
-  { id:7, label:"Post-QC", icon:"📊", color:"#eab308" },
-  { id:8, label:"Closeout", icon:"📦", color:"#22c55e" },
+  { id:4, label:"Approve", icon:"✅", color:"#f43f5e" },
+  { id:5, label:"Install", icon:"🏗️", color:"#f97316" },
+  { id:6, label:"Post-QC", icon:"📊", color:"#eab308" },
+  { id:7, label:"Closeout", icon:"📦", color:"#22c55e" },
 ];
 
 const ROLES = [
@@ -238,16 +237,24 @@ function blank() {
 }
 
 function calcStage(p) {
-  if (p.paymentSubmitted && p.finalPassed && p.customerSignoff) return 8;
-  if (p.installScheduled && (p.postCFM50 || p.finalPassed || p.customerSignoff)) return 7;
-  if (p.installScheduled && p.installDate) return 6;
-  if (p.scopeApproved && p.mechNeeded && p.mechStatus === "approved") return 5;
-  if (p.scopeApproved && !p.mechNeeded) return 5;
-  if (p.riseStatus === "approved" || p.scopeApproved) return 5;
-  if (p.riseStatus === "pending" || p.measures.length > 0) return 3;
-  if (p.preCFM50 || Object.keys(p.photos||{}).filter(k=>hasPhoto(p.photos,k)).length > 5) return 3;
+  // 7 Closeout — final passed + signed + payment
+  if (p.finalPassed && p.customerSignoff && p.paymentSubmitted) return 7;
+  // 6 Post-QC — post readings exist (work done, verifying)
+  if (p.postCFM50) return 6;
+  // 5 Install — install confirmed + date set
+  if (p.installScheduled && p.installDate) return 5;
+  // 4 Approve — RISE approved + mech sorted
+  if (p.scopeApproved || p.riseStatus === "approved") {
+    if (p.mechNeeded && p.mechStatus !== "approved") return 4; // waiting on mech
+    return 4;
+  }
+  // 3 Scope — has measures or CFM50 or RISE pending
+  if (p.riseStatus === "pending" || p.measures.length > 0 || p.preCFM50 || Object.keys(p.photos||{}).filter(k=>hasPhoto(p.photos,k)).length > 5) return 3;
+  // 2 Assess — assessment scheduled/dated
   if (p.assessmentScheduled || p.assessmentDate) return 2;
+  // 1 Schedule — has name + address
   if (p.customerName && p.address) return 1;
+  // 0 Intake
   return 0;
 }
 
@@ -256,7 +263,7 @@ function getAlerts(p) {
   const cs = calcStage(p);
   if (cs > p.currentStage) a.push({ type:"advance", msg:`Ready → ${STAGES[cs].label}`, stage:cs });
   if (p.customerName && p.address && !p.assessmentScheduled && !p.assessmentDate && p.currentStage < 2) a.push({ type:"schedule", msg:"Needs assessment scheduling" });
-  if (p.scopeApproved && !p.installScheduled && !p.installDate && p.currentStage < 6) a.push({ type:"schedule", msg:"Needs install scheduling" });
+  if (p.scopeApproved && !p.installScheduled && !p.installDate && p.currentStage < 5) a.push({ type:"schedule", msg:"Needs install scheduling" });
   if (p.riseStatus === "corrections") a.push({ type:"warn", msg:"RISE corrections requested" });
   if (p.mechNeeded && !p.mechStatus) a.push({ type:"warn", msg:"Mech replacement needs approval" });
   const pendingCO = (p.changeOrders||[]).filter(c=>c.status==="pending").length;
@@ -674,10 +681,10 @@ export default function App() {
 
         // Pipeline counts
         const byStage = STAGES.map(st=>({...st, count:projects.filter(p=>p.currentStage===st.id).length}));
-        const active = projects.filter(p=>p.currentStage>=1 && p.currentStage<8);
-        const completed = projects.filter(p=>p.currentStage>=8);
+        const active = projects.filter(p=>p.currentStage>=1 && p.currentStage<7);
+        const completed = projects.filter(p=>p.currentStage>=7);
         const needsScheduling = projects.filter(p=>p.customerName && p.address && !p.assessmentScheduled && !p.assessmentDate && p.currentStage<2).length;
-        const needsInstallSched = projects.filter(p=>p.scopeApproved && !p.installScheduled && !p.installDate && p.currentStage<6).length;
+        const needsInstallSched = projects.filter(p=>p.scopeApproved && !p.installScheduled && !p.installDate && p.currentStage<5).length;
 
         // Aging / stuck — days in current stage
         const aging = active.map(p=>{
@@ -688,8 +695,8 @@ export default function App() {
         const stuck = aging.filter(p=>p.daysInStage>=7);
 
         // Throughput
-        const completedThisWeek = projects.filter(p=>p.currentStage>=8 && p.activityLog?.find(a=>a.txt?.includes("Closeout") && thisWeek(a.ts))).length;
-        const completedThisMonth = projects.filter(p=>p.currentStage>=8 && p.activityLog?.find(a=>a.txt?.includes("Closeout") && thisMonth(a.ts))).length;
+        const completedThisWeek = projects.filter(p=>p.currentStage>=7 && p.activityLog?.find(a=>a.txt?.includes("Closeout") && thisWeek(a.ts))).length;
+        const completedThisMonth = projects.filter(p=>p.currentStage>=7 && p.activityLog?.find(a=>a.txt?.includes("Closeout") && thisMonth(a.ts))).length;
         const assessThisWeek = projects.filter(p=>thisWeek(p.assessmentDate)).length;
         const installsThisWeek = projects.filter(p=>thisWeek(p.installDate)).length;
 
