@@ -73,6 +73,92 @@ const QAQC_SECTIONS = {
 const FI_SAFETY = [{k:"ambient_co",l:"Ambient CO",r:true,u:"PPM"},{k:"gas_sniff",l:"Gas Sniffing (all lines)"},{k:"caz_test",l:"CAZ Testing"},{k:"spillage",l:"Spillage Test"},{k:"worst_case",l:"Worst Case Depress.",r:true,u:"PA"},{k:"oven_co",l:"Gas Oven CO",r:true,u:"PPM"},{k:"heat_co",l:"Heating System CO",r:true,u:"PPM"},{k:"wh_co",l:"Water Heater CO",r:true,u:"PPM"},{k:"dryer",l:"Dryer properly vented"},{k:"smoke_co",l:"Smoke/CO detectors"}];
 
 // ═══════════════════════════════════════════════════════════════
+// PROGRAM RULES — HES Retrofits 2026
+// ═══════════════════════════════════════════════════════════════
+const PROGRAM = {
+  // Insulation targets
+  attic: { threshold: 19, target: 49, label: "Attic insulation when existing ≤R19 → bring to R-49" },
+  collar: { threshold: 19, target: 49, label: "Collar beam → R-49" },
+  outerCeiling: { threshold: 19, target: 49, label: "Outer ceiling joists → R-49" },
+  kneeWall: { threshold: 0, target: 20, label: "Knee wall → R-13+5 or R-20 (min R-11)" },
+  extWall1: { threshold: 0, target: 13, label: "Exterior walls → dense pack when possible" },
+  extWall2: { threshold: 0, target: 13, label: "Exterior walls 2nd floor → dense pack when possible" },
+  fnd: { threshold: 0, target: 10, label: "Basement/crawl wall → min R-10/13" },
+  rimJoist: { threshold: 0, target: 10, label: "Rim joist → min R-10" },
+  floorAboveCrawl: { threshold: 0, target: 20, label: "Floor above crawl → min R-20" },
+  crawlCeiling: { threshold: 0, target: 30, label: "Crawlspace ceiling → R-30" },
+  // Mechanical thresholds
+  furnaceMinAFUE: 95,
+  boilerMinAFUE: 95,
+  dhwMinEF: 0.67,
+  furnaceRepairCap: 950,
+  dhwRepairCap: 650,
+  airSealGoal: 25, // % reduction
+  airSealMinCFM50pct: 1.1, // ≥110% of sqft
+  // DHW efficiency by type (fuel + system → avg efficiency %)
+  dhwEff: {
+    "Natural Gas|Storage Tank": 60,
+    "Natural Gas|On Demand": 82,
+    "Electric|Storage Tank": 95,
+    "Electric|On Demand": 99,
+    "Electric|Heat Pump": 300,
+    "Propane|Storage Tank": 60,
+    "Propane|On Demand": 82,
+    "Natural Gas|Indirect": 80,
+    "Electric|Indirect": 90,
+  },
+};
+
+// Smart recommendation badge
+function Rec({type,children}) {
+  const colors = {
+    rec: {bg:"rgba(34,197,94,.1)",border:"rgba(34,197,94,.3)",color:"#22c55e",icon:"✓"},
+    warn: {bg:"rgba(245,158,11,.1)",border:"rgba(245,158,11,.3)",color:"#f59e0b",icon:"⚠"},
+    info: {bg:"rgba(99,102,241,.1)",border:"rgba(99,102,241,.3)",color:"#818cf8",icon:"ℹ"},
+    flag: {bg:"rgba(239,68,68,.1)",border:"rgba(239,68,68,.3)",color:"#ef4444",icon:"⛔"},
+  };
+  const c = colors[type] || colors.info;
+  return <div style={{marginTop:6,padding:"6px 10px",borderRadius:6,background:c.bg,border:`1px solid ${c.border}`,fontSize:11,color:c.color,lineHeight:1.4}}>{c.icon} {children}</div>;
+}
+
+// Auto-calc R to Add based on program rules
+function calcRtoAdd(section, preR) {
+  const rule = PROGRAM[section];
+  if (!rule) return null;
+  const pre = Number(preR) || 0;
+  if (pre > rule.threshold && section !== "kneeWall" && section !== "extWall1" && section !== "extWall2" && section !== "fnd") return null;
+  if (section === "kneeWall" && pre >= 20) return null;
+  if ((section === "extWall1" || section === "extWall2") && pre > 0) return null;
+  if (section === "fnd" && pre >= 10) return null;
+  return Math.max(0, rule.target - pre);
+}
+
+// Insulation section smart recommendation
+function InsulRec({section, preR, addR}) {
+  const rule = PROGRAM[section];
+  if (!rule) return null;
+  const pre = Number(preR) || 0;
+  const add = Number(addR) || 0;
+  const total = pre + add;
+  const suggested = calcRtoAdd(section, preR);
+  const recs = [];
+
+  if (preR && suggested !== null && suggested > 0) {
+    recs.push({t:"rec", m:`${rule.label}. Existing R-${pre} → add R-${suggested} to reach R-${rule.target}.`});
+  }
+  if (preR && suggested === null) {
+    recs.push({t:"info", m:`Existing R-${pre} — above threshold. Insulation not required per program rules.`});
+  }
+  if (preR && addR && total < rule.target && suggested !== null) {
+    recs.push({t:"warn", m:`R-${add} to add will reach R-${total}, short of R-${rule.target} target. Consider increasing to R-${suggested}.`});
+  }
+  if (preR && addR && total >= rule.target) {
+    recs.push({t:"rec", m:`Total R-${total} meets/exceeds R-${rule.target} target. ✓`});
+  }
+  return recs.map((r,i) => <Rec key={i} type={r.t}>{r.m}</Rec>);
+}
+
+// ═══════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
@@ -760,9 +846,9 @@ function AuditTab({p,u,onLog,user}) {
 
       <Sec title="Basic Info">
         <Gr>
-          <F label="5. Number of Occupants *" value={a.occupants||""} onChange={v=>sa("occupants",v)}/>
+          <F label="5. Number of Occupants *" value={a.occupants||""} onChange={v=>sa("occupants",v)} num/>
           <Sel label="6. Tenant Type *" value={a.tenantType||""} onChange={v=>sa("tenantType",v)} opts={["Owned","Rented"]}/>
-          <F label="7. Roof Age (guesstimate) *" value={a.roofAge||""} onChange={v=>sa("roofAge",v)}/>
+          <F label="7. Roof Age (guesstimate) *" value={a.roofAge||""} onChange={v=>sa("roofAge",v)} num/>
         </Gr>
       </Sec>
 
@@ -779,10 +865,10 @@ function AuditTab({p,u,onLog,user}) {
 
       <Sec title="Pressure Pan / Fan Testing">
         <Gr>
-          <F label="12. Bath Fan 1 CFM *" value={a.bathFan1||""} onChange={v=>sa("bathFan1",v)}/>
-          <F label="13. Bath Fan 2 CFM" value={a.bathFan2||""} onChange={v=>sa("bathFan2",v)}/>
-          <F label="14. Bath Fan 3 CFM" value={a.bathFan3||""} onChange={v=>sa("bathFan3",v)}/>
-          <F label="15. Kitchen Fan CFM" value={a.kitchenFan||""} onChange={v=>sa("kitchenFan",v)}/>
+          <F label="12. Bath Fan 1 CFM *" value={a.bathFan1||""} onChange={v=>sa("bathFan1",v)} num/>
+          <F label="13. Bath Fan 2 CFM" value={a.bathFan2||""} onChange={v=>sa("bathFan2",v)} num/>
+          <F label="14. Bath Fan 3 CFM" value={a.bathFan3||""} onChange={v=>sa("bathFan3",v)} num/>
+          <F label="15. Kitchen Fan CFM" value={a.kitchenFan||""} onChange={v=>sa("kitchenFan",v)} num/>
         </Gr>
         <p style={{fontSize:10,color:"#64748b",marginTop:4}}>Q13-14 only if additional full baths present</p>
         <p style={{fontSize:10,color:"#f59e0b",marginTop:2}}>⚠ If a fan is present but not operational or CFM is unknown, enter 0. Leave blank if no fan exists.</p>
@@ -790,19 +876,19 @@ function AuditTab({p,u,onLog,user}) {
 
       <Sec title="Smoke / CO Detectors">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <F label="16. Smoke — present *" value={a.smokePresent||""} onChange={v=>sa("smokePresent",v)}/>
-          <F label="17. Smoke — to install *" value={a.smokeNeeded||""} onChange={v=>sa("smokeNeeded",v)}/>
+          <F label="16. Smoke — present *" value={a.smokePresent||""} onChange={v=>sa("smokePresent",v)} num/>
+          <F label="17. Smoke — to install *" value={a.smokeNeeded||""} onChange={v=>sa("smokeNeeded",v)} num/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:6}}>
-          <F label="18. CO — present *" value={a.coPresent||""} onChange={v=>sa("coPresent",v)}/>
-          <F label="19. CO — to install *" value={a.coNeeded||""} onChange={v=>sa("coNeeded",v)}/>
+          <F label="18. CO — present *" value={a.coPresent||""} onChange={v=>sa("coPresent",v)} num/>
+          <F label="19. CO — to install *" value={a.coNeeded||""} onChange={v=>sa("coNeeded",v)} num/>
         </div>
       </Sec>
 
       <Sec title="Weatherization">
         <Gr>
-          <F label="20. Tenmats Needed *" value={a.tenmats||""} onChange={v=>sa("tenmats",v)}/>
-          <F label="21. Doors Need Sweeps/WS *" value={a.doorSweeps||""} onChange={v=>sa("doorSweeps",v)}/>
+          <F label="20. Tenmats Needed *" value={a.tenmats||""} onChange={v=>sa("tenmats",v)} num/>
+          <F label="21. Doors Need Sweeps/WS *" value={a.doorSweeps||""} onChange={v=>sa("doorSweeps",v)} num/>
         </Gr>
       </Sec>
 
@@ -816,9 +902,9 @@ function AuditTab({p,u,onLog,user}) {
 
       <Sec title="Blower Door">
         <Gr>
-          <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/>
+          <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})} num/>
           <F label="BD Location" value={p.bdLoc} onChange={v=>u({bdLoc:v})} placeholder="Front/Side"/>
-          <F label="Ext. Temp" value={p.extTemp} onChange={v=>u({extTemp:v})} placeholder="°F"/>
+          <F label="Ext. Temp" value={p.extTemp} onChange={v=>u({extTemp:v})} placeholder="°F" num/>
         </Gr>
         {p.preCFM50 && p.sqft && <div style={S.calc}><span>Pre CFM50: <b>{p.preCFM50}</b></span><span style={{color:Number(p.preCFM50)>=Number(p.sqft)*1.1?"#22c55e":"#f59e0b",marginLeft:10}}>{Number(p.preCFM50)>=Number(p.sqft)*1.1?"✓ ≥110% sqft":"⚠ <110% sqft"}</span></div>}
       </Sec>
@@ -1329,12 +1415,13 @@ function ScopeTab({p,u,onLog}) {
       <Sec title="Building Property Type">
         <Gr>
           <Sel label="Style" value={s.style||""} onChange={v=>ss("style",v)} opts={["Single Family, Detached","Townhouse, Single Unit","Duplex, Single Unit","Multi-Family (Any Type), Multiple Units","Mobile Home","Multi-Family 3+ Units, Single Tenant Unit","Condo 3+ Units, Single Unit","Condo 3+ Units, Common Area","2-Flat","Apartment","Manufactured Home"]}/>
-          <F label="Year Built" value={p.yearBuilt} onChange={v=>u({yearBuilt:v})}/>
-          <F label="Stories" value={p.stories} onChange={v=>u({stories:v})}/>
-          <F label="Bedrooms" value={s.bedrooms||""} onChange={v=>ss("bedrooms",v)}/>
-          <F label="Occupants" value={p.occupants} onChange={v=>u({occupants:v})}/>
-          <F label="Sq Footage" value={p.sqft} onChange={v=>u({sqft:v})}/>
+          <F label="Year Built" value={p.yearBuilt} onChange={v=>u({yearBuilt:v})} num/>
+          <F label="Stories" value={p.stories} onChange={v=>u({stories:v})} num/>
+          <F label="Bedrooms" value={s.bedrooms||""} onChange={v=>ss("bedrooms",v)} num/>
+          <F label="Occupants" value={p.occupants} onChange={v=>u({occupants:v})} num/>
+          <F label="Sq Footage" value={p.sqft} onChange={v=>u({sqft:v})} num/>
           <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>Volume</label><div style={{...S.inp,background:"rgba(99,102,241,.08)",color:"#a5b4fc",display:"flex",alignItems:"center",marginTop:"auto"}}>{Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() : "—"}<span style={{fontSize:10,color:"#64748b",marginLeft:6}}>ft³ (sqft × 8)</span></div></div>
+          <F label="Home Age" computed={p.yearBuilt ? (new Date().getFullYear() - Number(p.yearBuilt)) + " yrs" : "—"} suffix="auto"/>
           <Sel label="Tenant Type" value={s.tenantType||""} onChange={v=>ss("tenantType",v)} opts={["Own","Rent"]}/>
         </Gr>
         <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#818cf8",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Gutters</div>
@@ -1347,7 +1434,7 @@ function ScopeTab({p,u,onLog}) {
         <Gr>
           <Sel label="Condition" value={s.roofCondition||""} onChange={v=>ss("roofCondition",v)} opts={["Good","Average","Poor"]}/>
           <Sel label="Type" value={s.roofType||""} onChange={v=>ss("roofType",v)} opts={["Architecture","3-Tab","Flat"]}/>
-          <F label="Approx. Age" value={s.roofAge||""} onChange={v=>ss("roofAge",v)}/>
+          <F label="Approx. Age" value={s.roofAge||""} onChange={v=>ss("roofAge",v)} num/>
         </Gr>
         <div style={{marginTop:4}}><CK checked={s.roofRepair} onChange={v=>ss("roofRepair",v)} label="Roof Repairs Needed"/></div>
         <div style={{marginTop:4,display:"flex",alignItems:"center",gap:12}}>
@@ -1369,16 +1456,16 @@ function ScopeTab({p,u,onLog}) {
       {/* ══ SMOKE / CO / WEATHERIZATION ══ */}
       <Sec title="Smoke / CO / Weatherization">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <F label="Smoke — present" value={s.smokePresent||""} onChange={v=>ss("smokePresent",v)}/>
-          <F label="Smoke — to install" value={s.smokeNeeded||""} onChange={v=>ss("smokeNeeded",v)}/>
+          <F label="Smoke — present" value={s.smokePresent||""} onChange={v=>ss("smokePresent",v)} num/>
+          <F label="Smoke — to install" value={s.smokeNeeded||""} onChange={v=>ss("smokeNeeded",v)} num/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:6}}>
-          <F label="CO — present" value={s.coPresent||""} onChange={v=>ss("coPresent",v)}/>
-          <F label="CO — to install" value={s.coNeeded||""} onChange={v=>ss("coNeeded",v)}/>
+          <F label="CO — present" value={s.coPresent||""} onChange={v=>ss("coPresent",v)} num/>
+          <F label="CO — to install" value={s.coNeeded||""} onChange={v=>ss("coNeeded",v)} num/>
         </div>
         <div style={{marginTop:8}}><Gr>
-          <F label="Tenmats Needed" value={s.tenmats||""} onChange={v=>ss("tenmats",v)}/>
-          <F label="Doors Need Sweeps/WS" value={s.doorSweeps||""} onChange={v=>ss("doorSweeps",v)}/>
+          <F label="Tenmats Needed" value={s.tenmats||""} onChange={v=>ss("tenmats",v)} num/>
+          <F label="Doors Need Sweeps/WS" value={s.doorSweeps||""} onChange={v=>ss("doorSweeps",v)} num/>
         </Gr></div>
       </Sec>
 
@@ -1392,14 +1479,14 @@ function ScopeTab({p,u,onLog}) {
         </Gr>
         <div style={{marginTop:8}}><Gr>
           <F label="Manufacturer" value={s.htg?.mfg||""} onChange={v=>sn("htg","mfg",v)}/>
-          <F label="Install Year" value={s.htg?.year||""} onChange={v=>sn("htg","year",v)}/>
+          <F label="Install Year" value={s.htg?.year||""} onChange={v=>sn("htg","year",v)} num/>
           <F label="Condition" value={s.htg?.condition||""} onChange={v=>sn("htg","condition",v)}/>
         </Gr></div>
         <div style={{marginTop:8}}><Gr>
-          <F label="BTU Input" value={s.htg?.btuIn||""} onChange={v=>sn("htg","btuIn",v)}/>
-          <F label="BTU Output" value={s.htg?.btuOut||""} onChange={v=>sn("htg","btuOut",v)}/>
-          <F label="AFUE" value={s.htg?.afue||""} onChange={v=>sn("htg","afue",v)}/>
-          <F label="Draft" value={s.htg?.draft||""} onChange={v=>sn("htg","draft",v)}/>
+          <F label="BTU Input" value={s.htg?.btuIn||""} onChange={v=>sn("htg","btuIn",v)} num/>
+          <F label="BTU Output" value={s.htg?.btuOut||""} onChange={v=>sn("htg","btuOut",v)} num/>
+          <F label="AFUE" computed={s.htg?.btuIn && s.htg?.btuOut ? (Number(s.htg.btuOut)/Number(s.htg.btuIn)*100).toFixed(1)+"%" : "—"} suffix="auto"/>
+          <F label="Draft" value={s.htg?.draft||""} onChange={v=>sn("htg","draft",v)} num/>
         </Gr></div>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.htg?.gasShutoff} onChange={v=>sn("htg","gasShutoff",v)} label="Gas Shut Off"/>
@@ -1408,6 +1495,17 @@ function ScopeTab({p,u,onLog}) {
           <CK checked={s.htg?.cleanTune} onChange={v=>sn("htg","cleanTune",v)} label="Clean & Tune"/>
         </div>
         <textarea style={{...S.ta,marginTop:8}} value={s.htg?.notes||""} onChange={e=>sn("htg","notes",e.target.value)} rows={2} placeholder="Heating notes…"/>
+        {(()=>{
+          const recs = [];
+          const afue = s.htg?.btuIn && s.htg?.btuOut ? Number(s.htg.btuOut)/Number(s.htg.btuIn)*100 : null;
+          const fuel = s.htg?.fuel; const sys = s.htg?.system;
+          if(fuel==="Electric") recs.push({t:"rec",m:"Electric resistance heat → eligible for heat pump replacement regardless of age/condition (ComEd)."});
+          if(afue && afue < PROGRAM.furnaceMinAFUE && fuel==="Natural Gas") recs.push({t:"info",m:`AFUE ${afue.toFixed(1)}% — below ${PROGRAM.furnaceMinAFUE}% min for new furnace. Replacement only if failed/H&S risk and repair >$${PROGRAM.furnaceRepairCap}.`});
+          if(afue && afue >= PROGRAM.furnaceMinAFUE) recs.push({t:"rec",m:`AFUE ${afue.toFixed(1)}% meets ≥${PROGRAM.furnaceMinAFUE}% program standard.`});
+          if(sys==="Boiler" && afue && afue < PROGRAM.boilerMinAFUE) recs.push({t:"info",m:`Boiler AFUE ${afue.toFixed(1)}% — new boiler must be ≥${PROGRAM.boilerMinAFUE}%. Emergency replacement only.`});
+          if(s.htg?.cleanTune && fuel==="Natural Gas") recs.push({t:"info",m:"Furnace tune-up: existing furnace must not have had tune-up within last 3 years."});
+          return recs.map((r,i)=><Rec key={i} type={r.t}>{r.m}</Rec>);
+        })()}
       </Sec>
 
       {/* ══ PAGE 2: COOLING SYSTEM ══ */}
@@ -1415,8 +1513,8 @@ function ScopeTab({p,u,onLog}) {
         <Gr>
           <Sel label="Type" value={s.clg?.type||""} onChange={v=>sn("clg","type",v)} opts={["Central Air","Window Units","Mini Split","Heat Pump","None"]}/>
           <F label="Manufacturer" value={s.clg?.mfg||""} onChange={v=>sn("clg","mfg",v)}/>
-          <F label="Age" value={s.clg?.age||""} onChange={v=>sn("clg","age",v)}/>
-          <F label="SEER" value={s.clg?.seer||""} onChange={v=>sn("clg","seer",v)}/>
+          <F label="Age" value={s.clg?.age||""} onChange={v=>sn("clg","age",v)} num/>
+          <F label="SEER" value={s.clg?.seer||""} onChange={v=>sn("clg","seer",v)} num/>
           <F label="Condition" value={s.clg?.condition||""} onChange={v=>sn("clg","condition",v)}/>
           <Sel label="BTU Size" value={s.clg?.btu||""} onChange={v=>sn("clg","btu",v)} opts={["2 Ton (24k)","2.5 Ton (30k)","3 Ton (36k)","3.5 Ton (42k)"]}/>
         </Gr>
@@ -1430,11 +1528,31 @@ function ScopeTab({p,u,onLog}) {
           <Sel label="Fuel" value={s.dhw?.fuel||""} onChange={v=>sn("dhw","fuel",v)} opts={["Natural Gas","Electric","Propane","Other"]}/>
           <Sel label="System Type" value={s.dhw?.system||""} onChange={v=>sn("dhw","system",v)} opts={["On Demand","Storage Tank","Indirect","Heat Pump","Other"]}/>
           <F label="Manufacturer" value={s.dhw?.mfg||""} onChange={v=>sn("dhw","mfg",v)}/>
-          <F label="Age" value={s.dhw?.age||""} onChange={v=>sn("dhw","age",v)}/>
+          <F label="Age" value={s.dhw?.age||""} onChange={v=>sn("dhw","age",v)} num/>
           <F label="Condition" value={s.dhw?.condition||""} onChange={v=>sn("dhw","condition",v)}/>
-          <F label="Input BTU" value={s.dhw?.btuIn||""} onChange={v=>sn("dhw","btuIn",v)}/>
-          <F label="Output BTU" value={s.dhw?.btuOut||""} onChange={v=>sn("dhw","btuOut",v)}/>
+          <F label="Input BTU" value={s.dhw?.btuIn||""} onChange={v=>sn("dhw","btuIn",v)} num/>
+          {(()=>{
+            const key = `${s.dhw?.fuel||""}|${s.dhw?.system||""}`;
+            const eff = PROGRAM.dhwEff[key];
+            const btuIn = Number(s.dhw?.btuIn);
+            const autoOut = eff && btuIn ? Math.round(btuIn * eff / 100) : null;
+            return <>
+              <F label="Output BTU" computed={autoOut ? autoOut.toLocaleString() : "—"} suffix={eff ? `${eff}% avg` : "select fuel+type"}/>
+              <F label="Efficiency" computed={eff ? eff+"%" : "—"} suffix={eff ? `${s.dhw?.fuel} ${s.dhw?.system}` : "auto"}/>
+            </>;
+          })()}
         </Gr>
+        {(()=>{
+          const recs = [];
+          const fuel = s.dhw?.fuel; const sys = s.dhw?.system;
+          if(fuel==="Electric" && sys!=="Heat Pump") recs.push({t:"rec",m:"Electric resistance → eligible for Heat Pump WH replacement regardless of age/condition (ComEd). Must be Energy Star rated."});
+          if(fuel==="Electric" && sys==="Heat Pump") recs.push({t:"info",m:"Heat Pump WH already installed — no replacement needed."});
+          const key = `${fuel||""}|${sys||""}`;
+          const eff = PROGRAM.dhwEff[key];
+          if(fuel==="Natural Gas" && eff && eff/100 < PROGRAM.dhwMinEF) recs.push({t:"warn",m:`Avg efficiency ${eff}% (EF ~${(eff/100).toFixed(2)}) is below program minimum EF ≥0.67. If failed/H&S risk and repair >$650 → eligible for replacement.`});
+          if(fuel==="Natural Gas" && eff && eff/100 >= PROGRAM.dhwMinEF) recs.push({t:"info",m:`Avg efficiency meets program minimum EF ≥0.67. Replacement only if failed/H&S and repair >$650.`});
+          return recs.map((r,i)=><Rec key={i} type={r.t}>{r.m}</Rec>);
+        })()}
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.dhw?.insulPipes} onChange={v=>sn("dhw","insulPipes",v)} label="Insulated Pipes"/>
           <CK checked={s.dhw?.flueRepair} onChange={v=>sn("dhw","flueRepair",v)} label="Flue Repair Needed"/>
@@ -1507,10 +1625,10 @@ function ScopeTab({p,u,onLog}) {
           <CK checked={s.attic?.unfinished} onChange={v=>sn("attic","unfinished",v)} label="Unfinished"/>
           <CK checked={s.attic?.flat} onChange={v=>sn("attic","flat",v)} label="Flat"/>
         </div>
-        <Gr><F label="Sq Footage" value={s.attic?.sqft||""} onChange={v=>sn("attic","sqft",v)}/><F label="Existing R-Value" value={s.attic?.preR||""} onChange={v=>sn("attic","preR",v)}/><F label="R-Value to Add" value={s.attic?.addR||""} onChange={v=>sn("attic","addR",v)}/></Gr>
+        <Gr><F label="Sq Footage" value={s.attic?.sqft||""} onChange={v=>sn("attic","sqft",v)} num/><F label="Existing R-Value" value={s.attic?.preR||""} onChange={v=>sn("attic","preR",v)} num/><F label="R-Value to Add" value={s.attic?.addR||""} onChange={v=>sn("attic","addR",v)} num/><F label="Total R" computed={s.attic?.preR||s.attic?.addR ? "R-"+(Number(s.attic?.preR||0)+Number(s.attic?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:8}}><Gr>
           <F label="Recessed Lighting Qty" value={s.attic?.recessQty||""} onChange={v=>sn("attic","recessQty",v)}/>
-          <F label="Storage Created" value={s.attic?.storage||""} onChange={v=>sn("attic","storage",v)}/>
+          <F label="Storage Created" value={s.attic?.storage||""} onChange={v=>sn("attic","storage",v)} num/>
         </Gr></div>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.attic?.ductwork} onChange={v=>sn("attic","ductwork",v)} label="Ductwork Present"/>
@@ -1519,40 +1637,45 @@ function ScopeTab({p,u,onLog}) {
           <CK checked={s.attic?.vermPresent} onChange={v=>sn("attic","vermPresent",v)} label="Vermiculite Present"/>
           <CK checked={s.attic?.knobTube} onChange={v=>sn("attic","knobTube",v)} label="Knob & Tube"/>
         </div>
-        {s.attic?.ductwork && <Gr><Sel label="Duct Condition" value={s.attic?.condition||""} onChange={v=>sn("attic","condition",v)} opts={["Good","Poor"]}/><F label="Duct LnFt to Air Seal" value={s.attic?.lnftAirSeal||""} onChange={v=>sn("attic","lnftAirSeal",v)}/></Gr>}
+        {s.attic?.ductwork && <Gr><Sel label="Duct Condition" value={s.attic?.condition||""} onChange={v=>sn("attic","condition",v)} opts={["Good","Poor"]}/><F label="Duct LnFt to Air Seal" value={s.attic?.lnftAirSeal||""} onChange={v=>sn("attic","lnftAirSeal",v)} num/></Gr>}
         <div style={{marginTop:6}}><Gr>
           <F label="Existing Ventilation" value={s.attic?.existVent||""} onChange={v=>sn("attic","existVent",v)}/>
           <F label="Needed Ventilation" value={s.attic?.needVent||""} onChange={v=>sn("attic","needVent",v)}/>
           <F label="Access Location" value={s.attic?.accessLoc||""} onChange={v=>sn("attic","accessLoc",v)}/>
         </Gr></div>
         <textarea style={{...S.ta,marginTop:6}} value={s.attic?.notes||""} onChange={e=>sn("attic","notes",e.target.value)} rows={2} placeholder="Attic notes…"/>
+        <InsulRec section="attic" preR={s.attic?.preR} addR={s.attic?.addR}/>
+        {s.attic?.ceilingCond==="Poor" && <Rec type="warn">Poor ceiling condition — consider fiberglass instead of cellulose (cellulose weighs ~2x fiberglass for same R-value).</Rec>}
+        {s.attic?.floorBoards && <Rec type="info">Floor boards present — dense pack at 3.5 lbs/ft³ unless homeowner agrees to remove flooring and blow to R-49.</Rec>}
       </Sec>
 
       {/* ══ PAGE 4: COLLAR BEAM ══ */}
       <Sec title="Collar Beam">
-        <Gr><F label="Sq Footage" value={s.collar?.sqft||""} onChange={v=>sn("collar","sqft",v)}/><F label="Pre-Existing R" value={s.collar?.preR||""} onChange={v=>sn("collar","preR",v)}/><F label="R-Value to Add" value={s.collar?.addR||""} onChange={v=>sn("collar","addR",v)}/></Gr>
+        <Gr><F label="Sq Footage" value={s.collar?.sqft||""} onChange={v=>sn("collar","sqft",v)} num/><F label="Pre-Existing R" value={s.collar?.preR||""} onChange={v=>sn("collar","preR",v)} num/><F label="R-Value to Add" value={s.collar?.addR||""} onChange={v=>sn("collar","addR",v)} num/><F label="Total R" computed={s.collar?.preR||s.collar?.addR ? "R-"+(Number(s.collar?.preR||0)+Number(s.collar?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.collar?.accessible} onChange={v=>sn("collar","accessible",v)} label="Accessible"/>
           <CK checked={s.collar?.cutIn} onChange={v=>sn("collar","cutIn",v)} label="Cut In Needed"/>
           <CK checked={s.collar?.ductwork} onChange={v=>sn("collar","ductwork",v)} label="Ductwork"/>
         </div>
-        {s.collar?.ductwork && <div style={{marginTop:6}}><Gr><Sel label="Condition" value={s.collar?.condition||""} onChange={v=>sn("collar","condition",v)} opts={["Good","Poor"]}/><F label="Ln Ft Air Seal" value={s.collar?.lnftAirSeal||""} onChange={v=>sn("collar","lnftAirSeal",v)}/></Gr></div>}
+        {s.collar?.ductwork && <div style={{marginTop:6}}><Gr><Sel label="Condition" value={s.collar?.condition||""} onChange={v=>sn("collar","condition",v)} opts={["Good","Poor"]}/><F label="Ln Ft Air Seal" value={s.collar?.lnftAirSeal||""} onChange={v=>sn("collar","lnftAirSeal",v)} num/></Gr></div>}
+        <InsulRec section="collar" preR={s.collar?.preR} addR={s.collar?.addR}/>
       </Sec>
 
       {/* ══ PAGE 4: OUTER CEILING JOISTS ══ */}
       <Sec title="Outer Ceiling Joists">
-        <Gr><F label="Sq Ft" value={s.outerCeiling?.sqft||""} onChange={v=>sn("outerCeiling","sqft",v)}/><F label="Pre-Existing R" value={s.outerCeiling?.preR||""} onChange={v=>sn("outerCeiling","preR",v)}/><F label="R to Add" value={s.outerCeiling?.addR||""} onChange={v=>sn("outerCeiling","addR",v)}/></Gr>
+        <Gr><F label="Sq Ft" value={s.outerCeiling?.sqft||""} onChange={v=>sn("outerCeiling","sqft",v)} num/><F label="Pre-Existing R" value={s.outerCeiling?.preR||""} onChange={v=>sn("outerCeiling","preR",v)} num/><F label="R to Add" value={s.outerCeiling?.addR||""} onChange={v=>sn("outerCeiling","addR",v)} num/><F label="Total R" computed={s.outerCeiling?.preR||s.outerCeiling?.addR ? "R-"+(Number(s.outerCeiling?.preR||0)+Number(s.outerCeiling?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.outerCeiling?.accessible} onChange={v=>sn("outerCeiling","accessible",v)} label="Accessible"/>
           <CK checked={s.outerCeiling?.cutIn} onChange={v=>sn("outerCeiling","cutIn",v)} label="Cut In"/>
           <CK checked={s.outerCeiling?.floorBoards} onChange={v=>sn("outerCeiling","floorBoards",v)} label="Floor Boards"/>
           <CK checked={s.outerCeiling?.ductwork} onChange={v=>sn("outerCeiling","ductwork",v)} label="Ductwork"/>
         </div>
-        {s.outerCeiling?.ductwork && <div style={{marginTop:6}}><Gr><Sel label="Condition" value={s.outerCeiling?.condition||""} onChange={v=>sn("outerCeiling","condition",v)} opts={["Good","Poor"]}/><F label="Ln Ft Air Seal" value={s.outerCeiling?.lnftAirSeal||""} onChange={v=>sn("outerCeiling","lnftAirSeal",v)}/></Gr></div>}
+        {s.outerCeiling?.ductwork && <div style={{marginTop:6}}><Gr><Sel label="Condition" value={s.outerCeiling?.condition||""} onChange={v=>sn("outerCeiling","condition",v)} opts={["Good","Poor"]}/><F label="Ln Ft Air Seal" value={s.outerCeiling?.lnftAirSeal||""} onChange={v=>sn("outerCeiling","lnftAirSeal",v)} num/></Gr></div>}
+        <InsulRec section="outerCeiling" preR={s.outerCeiling?.preR} addR={s.outerCeiling?.addR}/>
       </Sec>
 
       <Sec title="Knee Walls">
-        <Gr><F label="Sq Ft" value={s.kneeWall?.sqft||""} onChange={v=>sn("kneeWall","sqft",v)}/><F label="Pre-Existing R" value={s.kneeWall?.preR||""} onChange={v=>sn("kneeWall","preR",v)}/><F label="R to Add" value={s.kneeWall?.addR||""} onChange={v=>sn("kneeWall","addR",v)}/></Gr>
+        <Gr><F label="Sq Ft" value={s.kneeWall?.sqft||""} onChange={v=>sn("kneeWall","sqft",v)} num/><F label="Pre-Existing R" value={s.kneeWall?.preR||""} onChange={v=>sn("kneeWall","preR",v)} num/><F label="R to Add" value={s.kneeWall?.addR||""} onChange={v=>sn("kneeWall","addR",v)} num/><F label="Total R" computed={s.kneeWall?.preR||s.kneeWall?.addR ? "R-"+(Number(s.kneeWall?.preR||0)+Number(s.kneeWall?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.kneeWall?.densePack} onChange={v=>sn("kneeWall","densePack",v)} label="Dense Pack"/>
           <CK checked={s.kneeWall?.rigidFoam} onChange={v=>sn("kneeWall","rigidFoam",v)} label="Rigid Foam Board"/>
@@ -1560,11 +1683,13 @@ function ScopeTab({p,u,onLog}) {
           <CK checked={s.kneeWall?.fgBatts} onChange={v=>sn("kneeWall","fgBatts",v)} label="Fiberglass Batts"/>
         </div>
         <div style={{marginTop:6}}><Sel label="Wall Type" value={s.kneeWall?.wallType||""} onChange={v=>sn("kneeWall","wallType",v)} opts={["Drywall","Plaster"]}/></div>
-        {s.kneeWall?.tyvek && <div style={{marginTop:6}}><F label="Tyvek Sq Ft" value={s.kneeWall?.tyvekSqft||""} onChange={v=>sn("kneeWall","tyvekSqft",v)}/></div>}
+        {s.kneeWall?.tyvek && <div style={{marginTop:6}}><F label="Tyvek Sq Ft" value={s.kneeWall?.tyvekSqft||""} onChange={v=>sn("kneeWall","tyvekSqft",v)} num/></div>}
+        <InsulRec section="kneeWall" preR={s.kneeWall?.preR} addR={s.kneeWall?.addR}/>
+        {s.kneeWall?.preR && Number(s.kneeWall?.preR)===0 && <Rec type="info">Knee wall cavity must have no existing thermal resistance to qualify. Insulate to R-11 or greater (R-13+5 or R-20 preferred).</Rec>}
       </Sec>
 
       <Sec title="Exterior Walls — 1st Floor">
-        <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)}/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)}/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)}/><F label="Window/Door SqFt" value={s.extWall1?.winDoorSqft||""} onChange={v=>sn("extWall1","winDoorSqft",v)}/></Gr>
+        <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)} num/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)} num/><F label="Win/Door SqFt" value={s.extWall1?.winDoorSqft||""} onChange={v=>sn("extWall1","winDoorSqft",v)} num/><F label="Total R" computed={s.extWall1?.preR||s.extWall1?.addR ? "R-"+(Number(s.extWall1?.preR||0)+Number(s.extWall1?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall1?.densePack} onChange={v=>sn("extWall1","densePack",v)} label="Dense Pack"/>
           <CK checked={s.extWall1?.phenolic} onChange={v=>sn("extWall1","phenolic",v)} label="Phenolic Foam"/>
@@ -1577,10 +1702,12 @@ function ScopeTab({p,u,onLog}) {
           {s.extWall1?.cladding==="Other"&&<F label="Other Cladding" value={s.extWall1?.otherClad||""} onChange={v=>sn("extWall1","otherClad",v)}/>}
         </Gr></div>
         <div style={{marginTop:4}}><CK checked={s.extWall1?.ownerPrep} onChange={v=>sn("extWall1","ownerPrep",v)} label="Informed owner about prep"/></div>
+        <InsulRec section="extWall1" preR={s.extWall1?.preR} addR={s.extWall1?.addR}/>
+        {s.extWall1?.preR && Number(s.extWall1.preR) > 0 && <Rec type="info">Walls may only be insulated if no existing insulation or existing is in poor condition.</Rec>}
       </Sec>
 
       <Sec title="Exterior Walls — 2nd Floor">
-        <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)}/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)}/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)}/><F label="Window/Door SqFt" value={s.extWall2?.winDoorSqft||""} onChange={v=>sn("extWall2","winDoorSqft",v)}/></Gr>
+        <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)} num/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)} num/><F label="Win/Door SqFt" value={s.extWall2?.winDoorSqft||""} onChange={v=>sn("extWall2","winDoorSqft",v)} num/><F label="Total R" computed={s.extWall2?.preR||s.extWall2?.addR ? "R-"+(Number(s.extWall2?.preR||0)+Number(s.extWall2?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall2?.densePack} onChange={v=>sn("extWall2","densePack",v)} label="Dense Pack"/>
           <CK checked={s.extWall2?.phenolic} onChange={v=>sn("extWall2","phenolic",v)} label="Phenolic Foam"/>
@@ -1593,11 +1720,12 @@ function ScopeTab({p,u,onLog}) {
           {s.extWall2?.cladding==="Other"&&<F label="Other Cladding" value={s.extWall2?.otherClad||""} onChange={v=>sn("extWall2","otherClad",v)}/>}
         </Gr></div>
         <div style={{marginTop:4}}><CK checked={s.extWall2?.ownerPrep} onChange={v=>sn("extWall2","ownerPrep",v)} label="Informed owner about prep"/></div>
+        <InsulRec section="extWall2" preR={s.extWall2?.preR} addR={s.extWall2?.addR}/>
       </Sec>
 
       <Sec title="Foundation / Crawl">
         <div style={{marginBottom:8}}><Sel label="Type" value={s.fnd?.type||""} onChange={v=>sn("fnd","type",v)} opts={["No Basement/Slab","Finished","Unfinished","w/ Framing"]}/></div>
-        <Gr><F label="Above Grade SqFt" value={s.fnd?.aboveSqft||""} onChange={v=>sn("fnd","aboveSqft",v)}/><F label="Below Grade SqFt" value={s.fnd?.belowSqft||""} onChange={v=>sn("fnd","belowSqft",v)}/><F label="Pre-Existing R" value={s.fnd?.preR||""} onChange={v=>sn("fnd","preR",v)}/></Gr>
+        <Gr><F label="Above Grade SqFt" value={s.fnd?.aboveSqft||""} onChange={v=>sn("fnd","aboveSqft",v)} num/><F label="Below Grade SqFt" value={s.fnd?.belowSqft||""} onChange={v=>sn("fnd","belowSqft",v)} num/><F label="Pre-Existing R" value={s.fnd?.preR||""} onChange={v=>sn("fnd","preR",v)} num/></Gr>
         <div style={{marginTop:8}}><Sel label="Insulation Type" value={s.fnd?.insulType||""} onChange={v=>sn("fnd","insulType",v)} opts={["Fiberglass","Rigid Foam Board","None"]}/></div>
         <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#818cf8",textTransform:"uppercase",letterSpacing:".05em"}}>Band Joists</div>
         <div style={{marginTop:4}}><CK checked={s.fnd?.bandAccess} onChange={v=>sn("fnd","bandAccess",v)} label="Access to Band Joists"/></div>
@@ -1628,10 +1756,29 @@ function ScopeTab({p,u,onLog}) {
           <Sel label="Crawl Band Insulation" value={s.fnd?.crawlBandInsul||""} onChange={v=>sn("fnd","crawlBandInsul",v)} opts={["Fiberglass","Rigid Foam Board","None"]}/>
         </Gr></div>}
         <div style={{marginTop:6}}><CK checked={s.fnd?.crawlWallsObstructed} onChange={v=>sn("fnd","crawlWallsObstructed",v)} label="Crawl walls insulated or obstructed already"/></div>
+        <InsulRec section="fnd" preR={s.fnd?.preR} addR={null}/>
+        {s.fnd?.preR && Number(s.fnd.preR) === 0 && <Rec type="rec">No existing basement wall insulation → eligible. Bring to min R-10/13. Rigid foam board or batt insulation.</Rec>}
+        {s.fnd?.preR && Number(s.fnd.preR) >= 10 && <Rec type="info">Existing R-{s.fnd.preR} — basement wall insulation not needed.</Rec>}
+        {s.fnd?.bandAccess && Number(s.fnd?.bandR||0) === 0 && <Rec type="rec">Rim joist has no insulation → insulate to min R-10. Batt insulation NOT allowed for rim joist.</Rec>}
+        {s.fnd?.vaporBarrier && s.fnd?.crawlFloor==="Dirt/Gravel" && <Rec type="rec">Dirt/gravel crawl floor — vapor barrier (min 6 mil) required before wall insulation.</Rec>}
+        {s.fnd?.crawlR !== undefined && Number(s.fnd?.crawlR||0) === 0 && <Rec type="rec">Crawlspace walls → insulate to R-15/19 with rigid foam board or 2-part spray foam. No fibrous insulation on crawl walls.</Rec>}
+        {s.fnd?.waterIssues && <Rec type="flag">Water issues present — must be resolved before insulation work can proceed.</Rec>}
       </Sec>
 
       <Sec title="Diagnostics">
-        <Gr><F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/><F label="Ext Temp" value={s.extTemp||""} onChange={v=>ss("extTemp",v)}/><Sel label="BD Location" value={p.bdLoc} onChange={v=>u({bdLoc:v})} opts={["Front","Side","Back"]}/></Gr>
+        <Gr><F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})} num/><F label="Ext Temp" value={s.extTemp||""} onChange={v=>ss("extTemp",v)} num/><Sel label="BD Location" value={p.bdLoc} onChange={v=>u({bdLoc:v})} opts={["Front","Side","Back"]}/></Gr>
+        {(()=>{
+          const cfm = Number(p.preCFM50); const sqft = Number(p.sqft);
+          const recs = [];
+          if(cfm && sqft) {
+            const pct = cfm / sqft;
+            if(pct >= PROGRAM.airSealMinCFM50pct) recs.push({t:"rec",m:`CFM50 ${cfm} is ≥110% of ${sqft} sqft (${(pct*100).toFixed(0)}%). Air sealing eligible.`});
+            else recs.push({t:"warn",m:`CFM50 ${cfm} is ${(pct*100).toFixed(0)}% of sqft — below 110% threshold. Air sealing may not be eligible.`});
+            const target25 = Math.round(cfm * 0.75);
+            recs.push({t:"info",m:`25% reduction goal: post-CFM50 target ≤${target25}. Need to reduce by ≥${cfm - target25} CFM50.`});
+          }
+          return recs.map((r,i)=><Rec key={i} type={r.t}>{r.m}</Rec>);
+        })()}
         <textarea style={{...S.ta,marginTop:6}} value={s.diagNotes||""} onChange={e=>ss("diagNotes",e.target.value)} rows={2} placeholder="Diagnostics notes…"/>
       </Sec>
 
@@ -2182,10 +2329,10 @@ function InstallTab({p,u,onLog,user,role}) {
       {/* ── BLOWER DOOR ── */}
       <Sec title="Post-Work Blower Door">
         <Gr>
-          <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/>
-          <F label="Post CFM50" value={p.postCFM50} onChange={v=>u({postCFM50:v})}/>
-          <F label="Pre CFM25" value={p.preCFM25} onChange={v=>u({preCFM25:v})}/>
-          <F label="Post CFM25" value={p.postCFM25} onChange={v=>u({postCFM25:v})}/>
+          <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})} num/>
+          <F label="Post CFM50" value={p.postCFM50} onChange={v=>u({postCFM50:v})} num/>
+          <F label="Pre CFM25" value={p.preCFM25} onChange={v=>u({preCFM25:v})} num/>
+          <F label="Post CFM25" value={p.postCFM25} onChange={v=>u({postCFM25:v})} num/>
         </Gr>
         {red !== null && <div style={S.calc}><span>Reduction: <b>{red}%</b></span><span style={{color:red>=25?"#22c55e":"#f59e0b",marginLeft:10}}>{red>=25?"✓ Meets 25%":"⚠ Below 25%"}</span></div>}
       </Sec>
@@ -2585,7 +2732,19 @@ function Sec({title,children,danger}) {
   return <div style={{...S.sec,...(danger?{borderColor:"rgba(239,68,68,.3)"}:{})}}><h3 style={{...S.secT,...(danger?{color:"#ef4444"}:{})}}>{title}</h3>{children}</div>;
 }
 function Gr({children}) { return <div style={S.gr}>{children}</div>; }
-function F({label,value,onChange,type="text",placeholder}) { return <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>{label}</label><input style={{...S.inp,marginTop:"auto"}} type={type} value={value||""} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/></div>; }
+function F({label,value,onChange,type="text",placeholder,num,computed,suffix}) {
+  return <div style={{display:"flex",flexDirection:"column"}}>
+    <label style={S.fl}>{label}</label>
+    {computed !== undefined ? (
+      <div style={{...S.inp,marginTop:"auto",background:"rgba(99,102,241,.08)",color:"#a5b4fc"}}>{computed}{suffix && <span style={{fontSize:10,color:"#64748b",marginLeft:4}}>{suffix}</span>}</div>
+    ) : (
+      <input style={{...S.inp,marginTop:"auto"}} type={type} inputMode={num?"decimal":undefined} value={value||""} onChange={e=>{
+        if(num){const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))onChange(v);}
+        else onChange(e.target.value);
+      }} placeholder={placeholder}/>
+    )}
+  </div>;
+}
 function Sel({label,value,onChange,opts}) {
   return (
     <div style={{display:"flex",flexDirection:"column"}}>
