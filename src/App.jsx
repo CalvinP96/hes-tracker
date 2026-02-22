@@ -193,7 +193,7 @@ function blank() {
     audit: { interior:{}, heating:{}, cooling:{}, dhw:{}, attic:{}, foundation:{}, doors:{}, notes:"" },
     preCFM50: "", postCFM50: "", preCFM25: "", postCFM25: "", bdLoc: "", extTemp: "",
     ventReq: "", ventMethod: "", ventResult: "", fanAdj: "", cazResults: {},
-    measures: [], healthSafety: [], measureNotes: "", scopeVariances: "",
+    measures: [], healthSafety: [], measureQty: {}, measureNotes: "", scopeVariances: "",
     riseStatus: "", scopeApproved: false, scopeDate: "", scopeNotes: "",
     mechNeeded: false, mechStatus: "", mechDate: "", mechNotes: "",
     fi: { safety:{}, blowerPre:"", blowerPost:"", ductPre:"", ductPost:"", thermoInstalled:"", followupNeeded:"", followupNotes:"" },
@@ -1265,8 +1265,9 @@ function ScopeTab({p,u,onLog}) {
     const nv = (sec,k) => s[sec]?.[k]||"—";
     const nyn = (sec,k) => s[sec]?.[k]===true?"Yes":s[sec]?.[k]===false?"No":"—";
 
-    const measRows = p.measures.map(m=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #16a34a;border-radius:4px;margin:2px;font-size:10px;color:#16a34a">✓ ${m}</span>`).join("");
-    const hsRows = p.healthSafety.map(m=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #d97706;border-radius:4px;margin:2px;font-size:10px;color:#d97706">✓ ${m}</span>`).join("");
+    const mq = p.measureQty||{};
+    const measRows = p.measures.map(m=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #16a34a;border-radius:4px;margin:2px;font-size:10px;color:#16a34a">✓ ${m}${mq[m]?" ("+mq[m]+")":""}</span>`).join("");
+    const hsRows = p.healthSafety.map(m=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #d97706;border-radius:4px;margin:2px;font-size:10px;color:#d97706">✓ ${m}${mq[m]?" ("+mq[m]+")":""}</span>`).join("");
 
     const body = `
       <div class="sec"><h3>Customer Information</h3><div class="grid">
@@ -1310,7 +1311,8 @@ function ScopeTab({p,u,onLog}) {
         <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("extWall1","sqft")}</span></div>
         <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("extWall1","preR")}</span></div>
         <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("extWall1","addR")}</span></div>
-        <div class="row"><span class="lbl">Window/Door SqFt</span><span class="val">${s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.16)+" (16%)" : "—"}</span></div>
+        <div class="row"><span class="lbl">Window/Door SqFt</span><span class="val">${s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.16) : "—"}</span></div>
+        <div class="row"><span class="lbl">Net Insulation SqFt</span><span class="val">${s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.84) : "—"}</span></div>
         <div class="row"><span class="lbl">Dense Pack</span><span class="val">${nyn("extWall1","densePack")}</span></div>
         <div class="row"><span class="lbl">Cladding</span><span class="val">${nv("extWall1","cladding")}</span></div>
         <div class="row"><span class="lbl">Insulate From</span><span class="val">${nv("extWall1","insulFrom")}</span></div>
@@ -1321,6 +1323,8 @@ function ScopeTab({p,u,onLog}) {
         <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("extWall2","sqft")}</span></div>
         <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("extWall2","preR")}</span></div>
         <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("extWall2","addR")}</span></div>
+        <div class="row"><span class="lbl">Window/Door SqFt</span><span class="val">${s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.14) : "—"}</span></div>
+        <div class="row"><span class="lbl">Net Insulation SqFt</span><span class="val">${s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.86) : "—"}</span></div>
         <div class="row"><span class="lbl">Dense Pack</span><span class="val">${nyn("extWall2","densePack")}</span></div>
         <div class="row"><span class="lbl">Cladding</span><span class="val">${nv("extWall2","cladding")}</span></div>
       </div></div>
@@ -1689,7 +1693,7 @@ function ScopeTab({p,u,onLog}) {
       </Sec>
 
       <Sec title="Exterior Walls — 1st Floor">
-        <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)} num/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.16) : "—"} suffix="16%"/><F label="Total R" computed={s.extWall1?.preR||s.extWall1?.addR ? "R-"+(Number(s.extWall1?.preR||0)+Number(s.extWall1?.addR||0)) : "—"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)} num/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.16) : "—"}/><F label="Net Insul SqFt" computed={s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.84) : "—"}/><F label="Total R" computed={s.extWall1?.preR||s.extWall1?.addR ? "R-"+(Number(s.extWall1?.preR||0)+Number(s.extWall1?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall1?.densePack} onChange={v=>sn("extWall1","densePack",v)} label="Dense Pack"/>
           <CK checked={s.extWall1?.phenolic} onChange={v=>sn("extWall1","phenolic",v)} label="Phenolic Foam"/>
@@ -1707,7 +1711,7 @@ function ScopeTab({p,u,onLog}) {
       </Sec>
 
       <Sec title="Exterior Walls — 2nd Floor">
-        <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)} num/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.14) : "—"} suffix="14%"/><F label="Total R" computed={s.extWall2?.preR||s.extWall2?.addR ? "R-"+(Number(s.extWall2?.preR||0)+Number(s.extWall2?.addR||0)) : "—"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)} num/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.14) : "—"}/><F label="Net Insul SqFt" computed={s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.86) : "—"}/><F label="Total R" computed={s.extWall2?.preR||s.extWall2?.addR ? "R-"+(Number(s.extWall2?.preR||0)+Number(s.extWall2?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall2?.densePack} onChange={v=>sn("extWall2","densePack",v)} label="Dense Pack"/>
           <CK checked={s.extWall2?.phenolic} onChange={v=>sn("extWall2","phenolic",v)} label="Phenolic Foam"/>
@@ -2011,8 +2015,101 @@ function ScopeTab({p,u,onLog}) {
         })()}
       </Sec>
 
-      <Sec title={`Energy Efficiency Measures (${p.measures.length})`}><div style={S.ckG}>{EE_MEASURES.map(m=><CK key={m} checked={p.measures.includes(m)} onChange={()=>tog("measures",m)} label={m} color={p.measures.includes(m)?"#22c55e":null}/>)}</div></Sec>
-      <Sec title={`Health & Safety Measures (${p.healthSafety.length})`}><div style={S.ckG}>{HS_MEASURES.map(m=><CK key={m} checked={p.healthSafety.includes(m)} onChange={()=>tog("healthSafety",m)} label={m} color={p.healthSafety.includes(m)?"#f59e0b":null}/>)}</div></Sec>
+      <Sec title={`Energy Efficiency Measures (${p.measures.length})`}>
+        {(()=>{
+          // Auto-calculate quantities from scope data — keyed off R to Add
+          const aq = {};
+          const atticAdd = Number(s.attic?.addR||0);
+          const atticPre = Number(s.attic?.preR||0);
+          if(atticAdd > 0 && s.attic?.sqft) {
+            if(atticPre <= 11) aq["Attic Insulation (0-R11)"] = Number(s.attic.sqft);
+            else if(atticPre <= 19) aq["Attic Insulation (R12-19)"] = Number(s.attic.sqft);
+          }
+          if(Number(s.fnd?.addR||0) > 0 || (s.fnd?.preR!==undefined && Number(s.fnd.preR||0)===0 && (Number(s.fnd?.aboveSqft||0)+Number(s.fnd?.belowSqft||0))>0)) {
+            const bsmt = (Number(s.fnd?.aboveSqft||0)+Number(s.fnd?.belowSqft||0));
+            if(bsmt>0) aq["Basement Wall Insulation"] = bsmt;
+          }
+          if(s.fnd?.crawlR!==undefined && Number(s.fnd.crawlR||0)===0) {
+            const crawl = (Number(s.fnd?.crawlAbove||0)+Number(s.fnd?.crawlBelow||0));
+            if(crawl>0) aq["Crawl Space Wall Insulation"] = crawl;
+          }
+          if(Number(s.kneeWall?.addR||0) > 0 && s.kneeWall?.sqft) aq["Knee Wall Insulation"] = Number(s.kneeWall.sqft);
+          const w1net = Number(s.extWall1?.addR||0) > 0 && s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.84) : 0;
+          const w2net = Number(s.extWall2?.addR||0) > 0 && s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.86) : 0;
+          if(w1net+w2net>0) aq["Injection Foam Walls"] = w1net+w2net;
+          if(s.fnd?.bandAccess && Number(s.fnd?.bandR||0)===0 && s.fnd?.bandLnft) aq["Rim Joist Insulation"] = Number(s.fnd.bandLnft);
+          if(s.fnd?.crawlBandAccess && Number(s.fnd?.crawlBandR||0)===0 && s.fnd?.crawlBandLnft) {
+            aq["Rim Joist Insulation"] = (aq["Rim Joist Insulation"]||0) + Number(s.fnd.crawlBandLnft);
+          }
+          if(Number(s.collar?.addR||0) > 0 && s.collar?.sqft) aq["Attic Insulation (R12-19)"] = (aq["Attic Insulation (R12-19)"]||0) + Number(s.collar.sqft);
+          if(Number(s.outerCeiling?.addR||0) > 0 && s.outerCeiling?.sqft) aq["Attic Insulation (R12-19)"] = (aq["Attic Insulation (R12-19)"]||0) + Number(s.outerCeiling.sqft);
+          // Mechanicals = 1 each
+          if(s.htg?.replaceRec) aq[s.htg?.system==="Boiler"?"Boiler Replacement":"Furnace Replacement"] = 1;
+          if(s.dhw?.replaceRec) aq["Water Heater Replacement"] = 1;
+          if(s.clg?.replaceRec) aq["Central AC Replacement"] = 1;
+          if(s.htg?.cleanTune) aq["Furnace Tune-Up"] = 1;
+          aq["Air Sealing"] = 1;
+          if(s.attic?.ductwork || s.collar?.ductwork || s.fnd?.crawlDuct) aq["Duct Sealing"] = 1;
+
+          const mq = p.measureQty || {};
+          const setQ = (m,v) => u({measureQty:{...mq,[m]:v}});
+          const getQ = (m) => mq[m] !== undefined ? mq[m] : (aq[m] !== undefined ? String(aq[m]) : "");
+          const isAuto = (m) => mq[m] === undefined && aq[m] !== undefined;
+          const unit = (m) => {
+            if(m.includes("Insulation") && !m.includes("Rim")) return "sqft";
+            if(m.includes("Rim Joist")) return "lnft";
+            if(m.includes("Foam Walls")) return "sqft";
+            return "ea";
+          };
+
+          return <div style={{display:"grid",gap:4}}>
+            {EE_MEASURES.map(m => {
+              const checked = p.measures.includes(m);
+              const q = getQ(m);
+              const auto = isAuto(m);
+              return <div key={m} style={{display:"flex",alignItems:"center",gap:6}}>
+                <CK checked={checked} onChange={()=>tog("measures",m)} label={m} color={checked?"#22c55e":null}/>
+                {checked && <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}>
+                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:auto?"rgba(99,102,241,.08)":"",color:auto?"#a5b4fc":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
+                  <span style={{fontSize:9,color:"#64748b",minWidth:28}}>{unit(m)}</span>
+                  {auto && <span style={{fontSize:8,color:"#818cf8",cursor:"pointer"}} title="Auto-calculated. Edit to override.">auto</span>}
+                </div>}
+              </div>;
+            })}
+          </div>;
+        })()}
+      </Sec>
+      <Sec title={`Health & Safety Measures (${p.healthSafety.length})`}>
+        {(()=>{
+          const aq = {};
+          if(s.coNeeded && Number(s.coNeeded)>0) aq["CO Detector (Hardwired)"] = Number(s.coNeeded);
+          if(s.smokeNeeded && Number(s.smokeNeeded)>0) aq["Smoke Detector (Hardwired)"] = Number(s.smokeNeeded);
+          if(s.doorSweeps && Number(s.doorSweeps)>0) aq["Door Sweeps"] = Number(s.doorSweeps);
+          if(s.tenmats && Number(s.tenmats)>0) aq["Weather Stripping"] = Number(s.tenmats);
+          if(s.dhw?.flueRepair) aq["Flue Repairs"] = 1;
+
+          const mq = p.measureQty || {};
+          const setQ = (m,v) => u({measureQty:{...mq,[m]:v}});
+          const getQ = (m) => mq[m] !== undefined ? mq[m] : (aq[m] !== undefined ? String(aq[m]) : "");
+          const isAuto = (m) => mq[m] === undefined && aq[m] !== undefined;
+
+          return <div style={{display:"grid",gap:4}}>
+            {HS_MEASURES.map(m => {
+              const checked = p.healthSafety.includes(m);
+              const q = getQ(m);
+              const auto = isAuto(m);
+              return <div key={m} style={{display:"flex",alignItems:"center",gap:6}}>
+                <CK checked={checked} onChange={()=>tog("healthSafety",m)} label={m} color={checked?"#f59e0b":null}/>
+                {checked && <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}>
+                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:auto?"rgba(99,102,241,.08)":"",color:auto?"#a5b4fc":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
+                  <span style={{fontSize:9,color:"#64748b",minWidth:20}}>ea</span>
+                  {auto && <span style={{fontSize:8,color:"#818cf8"}}>auto</span>}
+                </div>}
+              </div>;
+            })}
+          </div>;
+        })()}
+      </Sec>
 
       <Sec title="Notes on Work">
         <textarea style={S.ta} value={p.measureNotes} onChange={e=>u({measureNotes:e.target.value})} rows={2} placeholder="Notes on work to be performed…"/>
@@ -2162,8 +2259,9 @@ function InstallTab({p,u,onLog,user,role}) {
       const cls = r.pf==="P"?"pass":r.pf==="F"?"fail":"na";
       return `<div class="row"><span class="lbl">${c.l}</span><span>${c.r&&r.reading?r.reading+" "+c.u+" · ":""}<span class="${cls}">${r.pf||"—"}</span>${r.fu?" ⚠ F/U":""}</span></div>`;
     }).join("");
-    const measList = p.measures.map(m=>`<span style="display:inline-block;padding:2px 6px;border:1px solid #16a34a;border-radius:3px;margin:1px;font-size:9px;color:#16a34a">✓ ${m}</span>`).join("");
-    const hsList = p.healthSafety.map(m=>`<span style="display:inline-block;padding:2px 6px;border:1px solid #d97706;border-radius:3px;margin:1px;font-size:9px;color:#d97706">✓ ${m}</span>`).join("");
+    const mq2 = p.measureQty||{};
+    const measList = p.measures.map(m=>`<span style="display:inline-block;padding:2px 6px;border:1px solid #16a34a;border-radius:3px;margin:1px;font-size:9px;color:#16a34a">✓ ${m}${mq2[m]?" ("+mq2[m]+")":""}</span>`).join("");
+    const hsList = p.healthSafety.map(m=>`<span style="display:inline-block;padding:2px 6px;border:1px solid #d97706;border-radius:3px;margin:1px;font-size:9px;color:#d97706">✓ ${m}${mq2[m]?" ("+mq2[m]+")":""}</span>`).join("");
     const coRows = co.map(c=>`<div class="row"><span class="lbl">${c.text}</span><span class="${c.status==="approved"?"pass":c.status==="denied"?"fail":"na"}">${c.status.toUpperCase()}${c.response?" — "+c.response:""}</span></div>`).join("");
     const fan = Number(fi.postFanSetting) || 0;
 
@@ -2241,7 +2339,7 @@ function InstallTab({p,u,onLog,user,role}) {
         <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Approved scope from assessment. Request a change order below if modifications are needed.</div>
         {p.measures.length > 0 && <>
           <div style={{fontSize:11,fontWeight:700,color:"#22c55e",marginBottom:4}}>Energy Efficiency Measures ({p.measures.length})</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}</span>)}</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}{(p.measureQty||{})[m]?" ("+(p.measureQty||{})[m]+")":""}</span>)}</div>
         </>}
         {p.healthSafety.length > 0 && <>
           <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",marginBottom:4}}>Health & Safety Measures ({p.healthSafety.length})</div>
