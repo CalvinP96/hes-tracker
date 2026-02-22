@@ -1310,7 +1310,7 @@ function ScopeTab({p,u,onLog}) {
         <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("extWall1","sqft")}</span></div>
         <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("extWall1","preR")}</span></div>
         <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("extWall1","addR")}</span></div>
-        <div class="row"><span class="lbl">Window/Door SqFt</span><span class="val">${nv("extWall1","winDoorSqft")}</span></div>
+        <div class="row"><span class="lbl">Window/Door SqFt</span><span class="val">${s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.16)+" (16%)" : "—"}</span></div>
         <div class="row"><span class="lbl">Dense Pack</span><span class="val">${nyn("extWall1","densePack")}</span></div>
         <div class="row"><span class="lbl">Cladding</span><span class="val">${nv("extWall1","cladding")}</span></div>
         <div class="row"><span class="lbl">Insulate From</span><span class="val">${nv("extWall1","insulFrom")}</span></div>
@@ -1689,7 +1689,7 @@ function ScopeTab({p,u,onLog}) {
       </Sec>
 
       <Sec title="Exterior Walls — 1st Floor">
-        <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)} num/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)} num/><F label="Win/Door SqFt" value={s.extWall1?.winDoorSqft||""} onChange={v=>sn("extWall1","winDoorSqft",v)} num/><F label="Total R" computed={s.extWall1?.preR||s.extWall1?.addR ? "R-"+(Number(s.extWall1?.preR||0)+Number(s.extWall1?.addR||0)) : "—"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)} num/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.16) : "—"} suffix="16%"/><F label="Total R" computed={s.extWall1?.preR||s.extWall1?.addR ? "R-"+(Number(s.extWall1?.preR||0)+Number(s.extWall1?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall1?.densePack} onChange={v=>sn("extWall1","densePack",v)} label="Dense Pack"/>
           <CK checked={s.extWall1?.phenolic} onChange={v=>sn("extWall1","phenolic",v)} label="Phenolic Foam"/>
@@ -1707,7 +1707,7 @@ function ScopeTab({p,u,onLog}) {
       </Sec>
 
       <Sec title="Exterior Walls — 2nd Floor">
-        <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)} num/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)} num/><F label="Win/Door SqFt" value={s.extWall2?.winDoorSqft||""} onChange={v=>sn("extWall2","winDoorSqft",v)} num/><F label="Total R" computed={s.extWall2?.preR||s.extWall2?.addR ? "R-"+(Number(s.extWall2?.preR||0)+Number(s.extWall2?.addR||0)) : "—"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)} num/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.14) : "—"} suffix="14%"/><F label="Total R" computed={s.extWall2?.preR||s.extWall2?.addR ? "R-"+(Number(s.extWall2?.preR||0)+Number(s.extWall2?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall2?.densePack} onChange={v=>sn("extWall2","densePack",v)} label="Dense Pack"/>
           <CK checked={s.extWall2?.phenolic} onChange={v=>sn("extWall2","phenolic",v)} label="Phenolic Foam"/>
