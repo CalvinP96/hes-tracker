@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { loadUsers, saveUser, deleteUser as dbDeleteUser, loadProjects, saveProjects, getSession, setSession } from "./db.js";
+import { loadUsers, saveUser, deleteUser as dbDeleteUser, loadProjects, saveProjects, getSession, setSession, setSessionNav } from "./db.js";
 
 // ═══════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -274,11 +274,21 @@ export default function App() {
       const session = getSession();
       if (session?.userId) {
         const found = userList.find(x => x.id === session.userId);
-        if (found) setCurUser(found);
+        if (found) {
+          setCurUser(found);
+          if (session.view) setView(session.view);
+          if (session.selId) setSelId(session.selId);
+          if (session.tab) setTab(session.tab);
+        }
       }
       setLoading(false);
     });
   }, []);
+
+  // Persist navigation state
+  useEffect(() => {
+    if (curUser) setSessionNav({ view, selId, tab });
+  }, [view, selId, tab, curUser]);
 
   const save = useCallback((p) => {
     if(tmr.current) clearTimeout(tmr.current);
@@ -1115,9 +1125,53 @@ function PhotoTab({p,u,onLog,user,role}) {
 
 function ScopeTab({p,u,onLog}) {
   const s = p.scope2026 || {};
+  const a = p.audit || {};
   const ss = (k,v) => u({scope2026:{...s,[k]:v}});
   const sn = (sec,k,v) => u({scope2026:{...s,[sec]:{...(s[sec]||{}),[k]:v}}});
   const tog = (list,m) => { const l = p[list].includes(m) ? p[list].filter(x=>x!==m) : [...p[list],m]; u({[list]:l}); };
+
+  // Auto-fill scope from assessment (only empty fields)
+  const [filled, setFilled] = useState(false);
+  useEffect(() => {
+    if (filled || !a) return;
+    const updates = {};
+    const nested = {};
+    // Roof age
+    if (!s.roofAge && a.roofAge) updates.roofAge = a.roofAge;
+    // Tenant type (map: Owned→Own, Rented→Rent)
+    if (!s.tenantType && a.tenantType) updates.tenantType = a.tenantType === "Owned" ? "Own" : a.tenantType === "Rented" ? "Rent" : a.tenantType;
+    // Thermostat (map: Non-programmable→Manual)
+    if (!s.htg?.thermostat && a.thermostatType) {
+      nested.htg = {...(s.htg||{}), thermostat: a.thermostatType === "Non-programmable" ? "Manual" : a.thermostatType};
+    }
+    // Ceiling / wall conditions
+    if (!s.ceilingCond && a.ceilingCond) updates.ceilingCond = a.ceilingCond;
+    if (!s.wallCond && a.wallCond) updates.wallCond = a.wallCond;
+    if (!s.wallsNeedInsul && a.wallsNeedInsul) updates.wallsNeedInsul = a.wallsNeedInsul;
+    // Fan flows → ASHRAE
+    const ash = s.ashrae || {};
+    const ashUp = {};
+    if (!ash.bath1CFM && a.bathFan1) ashUp.bath1CFM = a.bathFan1;
+    if (!ash.bath2CFM && a.bathFan2) ashUp.bath2CFM = a.bathFan2;
+    if (!ash.bath3CFM && a.bathFan3) ashUp.bath3CFM = a.bathFan3;
+    if (!ash.kitchenCFM && a.kitchenFan) ashUp.kitchenCFM = a.kitchenFan;
+    if (Object.keys(ashUp).length) nested.ashrae = {...ash, ...ashUp};
+    // Smoke / CO
+    if (!s.smokePresent && a.smokePresent) updates.smokePresent = a.smokePresent;
+    if (!s.smokeNeeded && a.smokeNeeded) updates.smokeNeeded = a.smokeNeeded;
+    if (!s.coPresent && a.coPresent) updates.coPresent = a.coPresent;
+    if (!s.coNeeded && a.coNeeded) updates.coNeeded = a.coNeeded;
+    // Weatherization
+    if (!s.tenmats && a.tenmats) updates.tenmats = a.tenmats;
+    if (!s.doorSweeps && a.doorSweeps) updates.doorSweeps = a.doorSweeps;
+    // Occupants (shared on p)
+    if (!p.occupants && a.occupants) u({occupants: a.occupants});
+
+    if (Object.keys(updates).length || Object.keys(nested).length) {
+      u({scope2026:{...s, ...updates, ...nested}});
+    }
+    setFilled(true);
+  }, []);
 
   const getScopeHTML = () => {
     const yn = v => v===true?"Yes":v===false?"No":"—";
@@ -1260,8 +1314,15 @@ function ScopeTab({p,u,onLog}) {
       <Sec title="📋 2026 HEA/IE Retrofit Form">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Scope of Work — submit to RISE for approval</p>
-          <PrintBtn onClick={()=>savePrint(getScopeHTML())}/>
+          <div style={{display:"flex",gap:6}}>
+            <button type="button" style={{...S.ghost,padding:"4px 10px",fontSize:10,color:"#818cf8",borderColor:"rgba(99,102,241,.3)"}} onClick={()=>{
+              const conf = confirm("Re-fill empty scope fields from assessment data?");
+              if(conf){setFilled(false);}
+            }}>↻ Sync from Assessment</button>
+            <PrintBtn onClick={()=>savePrint(getScopeHTML())}/>
+          </div>
         </div>
+        {!filled && <div style={{fontSize:10,color:"#22c55e",marginTop:4}}>✓ Auto-filled empty fields from assessment data</div>}
       </Sec>
 
       {/* ══ PAGE 1: BUILDING PROPERTY TYPE ══ */}
@@ -1294,6 +1355,31 @@ function ScopeTab({p,u,onLog}) {
           {s.highRoofVent && <div style={{width:140}}><Sel label="Vent Type" value={s.ventType||""} onChange={v=>ss("ventType",v)} opts={["Static","Ridge"]}/></div>}
         </div>
         <textarea style={{...S.ta,marginTop:8}} value={s.propNotes||""} onChange={e=>ss("propNotes",e.target.value)} rows={2} placeholder="Building property notes…"/>
+      </Sec>
+
+      {/* ══ INTERIOR CONDITIONS (from assessment) ══ */}
+      <Sec title={<span>Interior Conditions {a.ceilingCond && <span style={{fontSize:9,color:"#818cf8",fontWeight:400}}> · assessment values auto-filled</span>}</span>}>
+        <Gr>
+          <Sel label="Ceiling Conditions" value={s.ceilingCond||""} onChange={v=>ss("ceilingCond",v)} opts={["Good","Poor"]}/>
+          <Sel label="Wall Conditions" value={s.wallCond||""} onChange={v=>ss("wallCond",v)} opts={["Good","Fair","Poor"]}/>
+          <Sel label="Walls Need Insulation?" value={s.wallsNeedInsul||""} onChange={v=>ss("wallsNeedInsul",v)} opts={["Yes","No","Other"]}/>
+        </Gr>
+      </Sec>
+
+      {/* ══ SMOKE / CO / WEATHERIZATION ══ */}
+      <Sec title="Smoke / CO / Weatherization">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <F label="Smoke — present" value={s.smokePresent||""} onChange={v=>ss("smokePresent",v)}/>
+          <F label="Smoke — to install" value={s.smokeNeeded||""} onChange={v=>ss("smokeNeeded",v)}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:6}}>
+          <F label="CO — present" value={s.coPresent||""} onChange={v=>ss("coPresent",v)}/>
+          <F label="CO — to install" value={s.coNeeded||""} onChange={v=>ss("coNeeded",v)}/>
+        </div>
+        <div style={{marginTop:8}}><Gr>
+          <F label="Tenmats Needed" value={s.tenmats||""} onChange={v=>ss("tenmats",v)}/>
+          <F label="Doors Need Sweeps/WS" value={s.doorSweeps||""} onChange={v=>ss("doorSweeps",v)}/>
+        </Gr></div>
       </Sec>
 
       {/* ══ PAGE 2: HEATING SYSTEM ══ */}

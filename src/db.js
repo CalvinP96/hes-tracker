@@ -98,9 +98,18 @@ export function getSession() {
   } catch { return null }
 }
 
-export function setSession(userId) {
+export function setSession(userId, nav) {
   try {
-    if (userId) sessionStorage.setItem('hes-session', JSON.stringify({ userId }))
-    else sessionStorage.removeItem('hes-session')
+    if (userId) {
+      const existing = getSession() || {}
+      sessionStorage.setItem('hes-session', JSON.stringify({ ...existing, userId, ...nav }))
+    } else sessionStorage.removeItem('hes-session')
+  } catch {}
+}
+
+export function setSessionNav(nav) {
+  try {
+    const existing = getSession()
+    if (existing) sessionStorage.setItem('hes-session', JSON.stringify({ ...existing, ...nav }))
   } catch {}
 }
