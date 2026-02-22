@@ -1496,7 +1496,17 @@ function ScopeTab({p,u,onLog}) {
           <CK checked={s.htg?.gasShutoff} onChange={v=>sn("htg","gasShutoff",v)} label="Gas Shut Off"/>
           <CK checked={s.htg?.asbestosPipes} onChange={v=>sn("htg","asbestosPipes",v)} label="Pipes Asbestos Wrapped"/>
           <CK checked={s.htg?.replaceRec} onChange={v=>sn("htg","replaceRec",v)} label="Replacement Recommended"/>
-          <CK checked={s.htg?.cleanTune} onChange={v=>sn("htg","cleanTune",v)} label="Clean & Tune"/>
+          {(()=>{
+            const yr = Number(s.htg?.year||0);
+            const age = yr ? new Date().getFullYear() - yr : 0;
+            const autoOn = age > 3 && s.htg?.fuel==="Natural Gas" && !s.htg?.replaceRec;
+            const val = s.htg?.cleanTuneOverride !== undefined ? s.htg.cleanTuneOverride : (autoOn || !!s.htg?.cleanTune);
+            return <div style={{display:"flex",alignItems:"center",gap:4}}>
+              <CK checked={val} onChange={v=>{sn("htg","cleanTune",v);sn("htg","cleanTuneOverride",v);}} label="Clean & Tune"/>
+              {autoOn && s.htg?.cleanTuneOverride===undefined && <span style={{fontSize:8,color:"#818cf8"}}>auto</span>}
+              {s.htg?.cleanTuneOverride!==undefined && autoOn && <span style={{fontSize:8,color:"#818cf8",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{sn("htg","cleanTuneOverride",undefined);sn("htg","cleanTune",true);}}>↻ auto</span>}
+            </div>;
+          })()}
         </div>
         <textarea style={{...S.ta,marginTop:8}} value={s.htg?.notes||""} onChange={e=>sn("htg","notes",e.target.value)} rows={2} placeholder="Heating notes…"/>
         {(()=>{
@@ -1507,7 +1517,9 @@ function ScopeTab({p,u,onLog}) {
           if(afue && afue < PROGRAM.furnaceMinAFUE && fuel==="Natural Gas") recs.push({t:"info",m:`AFUE ${afue.toFixed(1)}% — below ${PROGRAM.furnaceMinAFUE}% min for new furnace. Replacement only if failed/H&S risk and repair >$${PROGRAM.furnaceRepairCap}.`});
           if(afue && afue >= PROGRAM.furnaceMinAFUE) recs.push({t:"rec",m:`AFUE ${afue.toFixed(1)}% meets ≥${PROGRAM.furnaceMinAFUE}% program standard.`});
           if(sys==="Boiler" && afue && afue < PROGRAM.boilerMinAFUE) recs.push({t:"info",m:`Boiler AFUE ${afue.toFixed(1)}% — new boiler must be ≥${PROGRAM.boilerMinAFUE}%. Emergency replacement only.`});
-          if(s.htg?.cleanTune && fuel==="Natural Gas") recs.push({t:"info",m:"Furnace tune-up: existing furnace must not have had tune-up within last 3 years."});
+          const furnAge = Number(s.htg?.year||0) ? new Date().getFullYear() - Number(s.htg.year) : 0;
+          if(furnAge > 3 && fuel==="Natural Gas" && !s.htg?.replaceRec) recs.push({t:"rec",m:`Furnace is ${furnAge} yrs old (>3 yrs) → Clean & Tune auto-selected per program rules.`});
+          if(s.htg?.cleanTune && fuel==="Natural Gas") recs.push({t:"info",m:`Furnace tune-up: must not have had tune-up within last 3 years.`});
           return recs.map((r,i)=><Rec key={i} type={r.t}>{r.m}</Rec>);
         })()}
       </Sec>
@@ -2047,7 +2059,7 @@ function ScopeTab({p,u,onLog}) {
           if(s.htg?.replaceRec) aq[s.htg?.system==="Boiler"?"Boiler Replacement":"Furnace Replacement"] = 1;
           if(s.dhw?.replaceRec) aq["Water Heater Replacement"] = 1;
           if(s.clg?.replaceRec) aq["Central AC Replacement"] = 1;
-          if(s.htg?.cleanTune) aq["Furnace Tune-Up"] = 1;
+          if(s.htg?.cleanTune || (Number(s.htg?.year||0) && (new Date().getFullYear()-Number(s.htg.year))>3 && s.htg?.fuel==="Natural Gas" && !s.htg?.replaceRec && s.htg?.cleanTuneOverride!==false)) aq["Furnace Tune-Up"] = 1;
           aq["Air Sealing"] = 1;
           if(s.attic?.ductwork || s.collar?.ductwork || s.fnd?.crawlDuct) aq["Duct Sealing"] = 1;
 
