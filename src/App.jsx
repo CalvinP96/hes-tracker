@@ -665,29 +665,138 @@ export default function App() {
         })}
       </div>
 
-      {/* ── Dashboard Stats ── */}
+      {/* ── Ops Dashboard ── */}
       {filter === "all" && !search && projects.length > 0 && (()=>{
+        const now = new Date();
+        const daysAgo = (d) => d ? Math.floor((now - new Date(d))/(1000*60*60*24)) : null;
+        const thisWeek = (d) => d && daysAgo(d) <= 7;
+        const thisMonth = (d) => d && daysAgo(d) <= 30;
+
+        // Pipeline counts
+        const byStage = STAGES.map(st=>({...st, count:projects.filter(p=>p.currentStage===st.id).length}));
+        const active = projects.filter(p=>p.currentStage>=1 && p.currentStage<8);
+        const completed = projects.filter(p=>p.currentStage>=8);
+        const needsScheduling = projects.filter(p=>p.customerName && p.address && !p.assessmentScheduled && !p.assessmentDate && p.currentStage<2).length;
+        const needsInstallSched = projects.filter(p=>p.scopeApproved && !p.installScheduled && !p.installDate && p.currentStage<6).length;
+
+        // Aging / stuck — days in current stage
+        const aging = active.map(p=>{
+          const lastLog = p.activityLog?.[0];
+          const stageDate = lastLog?.ts || p.created;
+          return {...p, daysInStage: daysAgo(stageDate)};
+        }).sort((a,b)=>b.daysInStage-a.daysInStage);
+        const stuck = aging.filter(p=>p.daysInStage>=7);
+
+        // Throughput
+        const completedThisWeek = projects.filter(p=>p.currentStage>=8 && p.activityLog?.find(a=>a.txt?.includes("Closeout") && thisWeek(a.ts))).length;
+        const completedThisMonth = projects.filter(p=>p.currentStage>=8 && p.activityLog?.find(a=>a.txt?.includes("Closeout") && thisMonth(a.ts))).length;
+        const assessThisWeek = projects.filter(p=>thisWeek(p.assessmentDate)).length;
+        const installsThisWeek = projects.filter(p=>thisWeek(p.installDate)).length;
+
+        // Average days to complete (created → stage 8)
+        const compTimes = completed.map(p=>{const close=p.activityLog?.find(a=>a.txt?.includes("Closeout"));return close?daysAgo(p.created)-daysAgo(close.ts):null;}).filter(Boolean);
+        const avgDays = compTimes.length ? Math.round(compTimes.reduce((a,b)=>a+b,0)/compTimes.length) : null;
+
+        // Crew activity from logs
+        const crewAct = {};
+        projects.forEach(p=>p.activityLog?.forEach(a=>{if(a.by&&a.by!=="System"){crewAct[a.by]=(crewAct[a.by]||0)+1;}}));
+        const topCrew = Object.entries(crewAct).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+        // Measures installed
         const totalEE = projects.reduce((s,p)=>s+p.measures.length,0);
         const totalHS = projects.reduce((s,p)=>s+p.healthSafety.length,0);
-        const completed = projects.filter(p=>p.currentStage>=8).length;
-        const inProgress = projects.filter(p=>p.currentStage>=2&&p.currentStage<8).length;
-        // Most common measures
         const mCount = {};
         projects.forEach(p=>[...p.measures,...p.healthSafety].forEach(m=>{mCount[m]=(mCount[m]||0)+1;}));
         const topM = Object.entries(mCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
-        const stS = {padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",textAlign:"center",minWidth:0};
-        const stN = {fontSize:20,fontWeight:700,color:"#e2e8f0",lineHeight:1};
-        const stL = {fontSize:9,color:"#64748b",marginTop:2};
-        return <div style={{padding:"0 16px",marginBottom:8}}>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:8}}>
-            <div style={stS}><div style={stN}>{projects.length}</div><div style={stL}>Total</div></div>
-            <div style={stS}><div style={{...stN,color:"#818cf8"}}>{inProgress}</div><div style={stL}>In Progress</div></div>
-            <div style={stS}><div style={{...stN,color:"#22c55e"}}>{completed}</div><div style={stL}>Completed</div></div>
-            <div style={stS}><div style={{...stN,color:"#f59e0b"}}>{totalEE+totalHS}</div><div style={stL}>Measures</div></div>
+
+        // Hazard flags
+        const hazards = projects.filter(p=>{const s=p.scope2026||{};return s.int?.knobTube||s.int?.vermiculite||s.int?.mold||s.attic?.knobTube||s.attic?.vermPresent||s.attic?.moldPresent;});
+
+        const card = {borderRadius:8,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",padding:"10px 12px",marginBottom:8};
+        const hdr = {fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,fontWeight:600};
+        const kpi = {textAlign:"center",padding:"6px 4px"};
+        const kpiN = {fontSize:22,fontWeight:700,lineHeight:1};
+        const kpiL = {fontSize:8,color:"#64748b",marginTop:2,lineHeight:1.2};
+        const row = {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"3px 0",fontSize:11};
+
+        return <div style={{padding:"0 16px",marginBottom:6}}>
+          {/* KPI Row */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:8}}>
+            <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:"#e2e8f0"}}>{projects.length}</div><div style={kpiL}>Total Projects</div></div>
+            <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:"#818cf8"}}>{active.length}</div><div style={kpiL}>Active</div></div>
+            <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:"#22c55e"}}>{completed.length}</div><div style={kpiL}>Completed</div></div>
+            <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:stuck.length>0?"#ef4444":"#22c55e"}}>{stuck.length}</div><div style={kpiL}>Stuck (7d+)</div></div>
+            <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:"#f59e0b"}}>{avgDays||"—"}</div><div style={kpiL}>Avg Days</div></div>
           </div>
-          {topM.length > 0 && <div style={{background:"rgba(255,255,255,.03)",borderRadius:6,padding:"6px 10px",border:"1px solid rgba(255,255,255,.05)"}}>
-            <div style={{fontSize:9,color:"#64748b",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Top Measures</div>
-            {topM.map(([m,c])=><div key={m} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"2px 0",color:"#94a3b8"}}><span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginRight:8}}>{m}</span><span style={{fontWeight:600,color:"#e2e8f0",flexShrink:0}}>{c}</span></div>)}
+
+          {/* Action Items */}
+          {(needsScheduling>0||needsInstallSched>0||hazards.length>0) && <div style={{...card,background:"rgba(239,68,68,.06)",borderColor:"rgba(239,68,68,.2)"}}>
+            <div style={{...hdr,color:"#ef4444"}}>⚡ Action Required</div>
+            {needsScheduling>0 && <div style={{...row,color:"#fca5a5"}}><span>Needs assessment scheduling</span><b>{needsScheduling}</b></div>}
+            {needsInstallSched>0 && <div style={{...row,color:"#fca5a5"}}><span>Needs install scheduling</span><b>{needsInstallSched}</b></div>}
+            {hazards.length>0 && <div style={{...row,color:"#fca5a5"}}><span>⛔ Hazard flags (K&T/asbestos/mold)</span><b>{hazards.length}</b></div>}
+          </div>}
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {/* Pipeline Breakdown */}
+            <div style={card}>
+              <div style={hdr}>Pipeline</div>
+              {byStage.filter(s=>s.count>0).map(s=><div key={s.id} style={row}>
+                <span style={{color:"#94a3b8"}}>{s.icon} {s.label}</span>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{width:Math.min(s.count/Math.max(...byStage.map(x=>x.count))*60,60),height:6,borderRadius:3,background:s.color,minWidth:4}}/>
+                  <span style={{fontWeight:600,color:"#e2e8f0",minWidth:16,textAlign:"right"}}>{s.count}</span>
+                </div>
+              </div>)}
+            </div>
+
+            {/* Weekly Throughput */}
+            <div style={card}>
+              <div style={hdr}>This Week</div>
+              <div style={row}><span style={{color:"#94a3b8"}}>Assessments</span><b style={{color:"#818cf8"}}>{assessThisWeek}</b></div>
+              <div style={row}><span style={{color:"#94a3b8"}}>Installs</span><b style={{color:"#f59e0b"}}>{installsThisWeek}</b></div>
+              <div style={row}><span style={{color:"#94a3b8"}}>Completed</span><b style={{color:"#22c55e"}}>{completedThisWeek}</b></div>
+              <div style={{...hdr,marginTop:8}}>This Month</div>
+              <div style={row}><span style={{color:"#94a3b8"}}>Completed</span><b style={{color:"#22c55e"}}>{completedThisMonth}</b></div>
+              <div style={row}><span style={{color:"#94a3b8"}}>Measures installed</span><b style={{color:"#e2e8f0"}}>{totalEE+totalHS}</b></div>
+            </div>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {/* Stuck Projects */}
+            {stuck.length>0 && <div style={{...card,background:"rgba(245,158,11,.04)",borderColor:"rgba(245,158,11,.15)"}}>
+              <div style={{...hdr,color:"#f59e0b"}}>⏳ Aging Projects</div>
+              {stuck.slice(0,5).map(p=><div key={p.id} style={{...row,cursor:"pointer"}} onClick={()=>{setSelId(p.id);setView("detail");setTab("info");}}>
+                <span style={{color:"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginRight:6}}>{p.customerName||"Unnamed"}</span>
+                <span style={{flexShrink:0}}><span style={{color:STAGES[p.currentStage].color,fontSize:10}}>{STAGES[p.currentStage].icon}</span> <b style={{color:p.daysInStage>=14?"#ef4444":"#f59e0b"}}>{p.daysInStage}d</b></span>
+              </div>)}
+              {stuck.length>5 && <div style={{fontSize:9,color:"#64748b",textAlign:"center",marginTop:4}}>+{stuck.length-5} more</div>}
+            </div>}
+
+            {/* Team Activity */}
+            {topCrew.length>0 && <div style={card}>
+              <div style={hdr}>Team Activity</div>
+              {topCrew.map(([name,count])=><div key={name} style={row}>
+                <span style={{color:"#94a3b8"}}>{name}</span>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{width:Math.min(count/Math.max(...topCrew.map(x=>x[1]))*50,50),height:5,borderRadius:3,background:"#818cf8",minWidth:4}}/>
+                  <span style={{fontWeight:600,color:"#e2e8f0",minWidth:20,textAlign:"right"}}>{count}</span>
+                </div>
+              </div>)}
+              <div style={{fontSize:8,color:"#475569",marginTop:4}}>Actions logged (all time)</div>
+            </div>}
+          </div>
+
+          {/* Top Measures */}
+          {topM.length>0 && <div style={card}>
+            <div style={hdr}>Top Measures Across Portfolio</div>
+            {topM.map(([m,c])=><div key={m} style={row}>
+              <span style={{color:"#94a3b8",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginRight:8}}>{m}</span>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{width:Math.min(c/Math.max(...topM.map(x=>x[1]))*80,80),height:5,borderRadius:3,background:"#22c55e",minWidth:4}}/>
+                <span style={{fontWeight:600,color:"#e2e8f0",minWidth:20,textAlign:"right"}}>{c}</span>
+              </div>
+            </div>)}
           </div>}
         </div>;
       })()}
