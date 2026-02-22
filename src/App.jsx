@@ -1,0 +1,2712 @@
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { loadUsers, saveUser, deleteUser as dbDeleteUser, loadProjects, saveProjects, getSession, setSession } from "./db.js";
+
+// ═══════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════
+const STAGES = [
+  { id:0, label:"Intake", icon:"📥", color:"#6366f1" },
+  { id:1, label:"Schedule", icon:"📅", color:"#8b5cf6" },
+  { id:2, label:"Assess", icon:"🔍", color:"#a855f7" },
+  { id:3, label:"Scope", icon:"📋", color:"#d946ef" },
+  { id:4, label:"Prep", icon:"🔧", color:"#ec4899" },
+  { id:5, label:"Approve", icon:"✅", color:"#f43f5e" },
+  { id:6, label:"Install", icon:"🏗️", color:"#f97316" },
+  { id:7, label:"Post-QC", icon:"📊", color:"#eab308" },
+  { id:8, label:"Closeout", icon:"📦", color:"#22c55e" },
+];
+
+const ROLES = [
+  { key:"admin", label:"Admin/Ops", icon:"👑", tabs:["info","scheduling","assessment","diagnostics","photos","scope","install","qaqc","closeout","log"] },
+  { key:"scheduler", label:"Scheduler", icon:"📅", tabs:["info","scheduling","log"] },
+  { key:"assessor", label:"Assessor", icon:"🔍", tabs:["info","assessment","diagnostics","photos","log"] },
+  { key:"scope", label:"Scope/Compliance", icon:"📋", tabs:["info","scope","photos","install","qaqc","closeout","log"] },
+  { key:"installer", label:"Install Crew", icon:"🏗️", tabs:["info","install","photos","closeout","log"] },
+];
+
+const TAB_META = {
+  info:{label:"Info",icon:"📋"}, scheduling:{label:"Schedule",icon:"📅"},
+  assessment:{label:"Assess",icon:"🔍"}, diagnostics:{label:"Diag",icon:"📊"},
+  photos:{label:"Photos",icon:"📸"}, scope:{label:"Scope",icon:"✅"},
+  install:{label:"Install",icon:"🏗️"}, qaqc:{label:"QAQC",icon:"🔎"},
+  closeout:{label:"Close",icon:"📦"}, log:{label:"Log",icon:"📝"},
+};
+
+const EE_MEASURES = ["Air Sealing","Duct Sealing","Attic Insulation (0-R11)","Attic Insulation (R12-19)","Basement Wall Insulation","Crawl Space Wall Insulation","Knee Wall Insulation","Floor Insulation Above Crawl","Rim Joist Insulation","Injection Foam Walls","Furnace Replacement","Boiler Replacement","Central AC Replacement","Water Heater Replacement","Furnace Tune-Up","Thermostat","Low-e Storm Windows","EC Motor","AC Cover"];
+const HS_MEASURES = ["CO Detector (Hardwired)","Smoke Detector (Hardwired)","CO/Smoke Combo","Exhaust Fan","Exhaust Fan w/ Light","Exhaust Fan Vent Kit","Door Sweeps","Weather Stripping","Dryer Vent Kit","Flue Repairs","Gas Mechanical Repairs","Mold Remediation","Electrical Issues","Water/Sewage Issues","Asbestos Abatement","Building Permit","Other Repairs"];
+const DOCS = ["Assessment Report","Hazardous Conditions Form","Sub-Contractor Estimates","Final Inspection Form (w/ CAZ)","Photos Complete","Final Invoice (w/ sub invoices)","Customer-Signed Scope of Work","Customer Authorization Form","CSAT Leave-Behind"];
+
+const PHOTO_SECTIONS = {
+  "Home Exterior (Pre)":[{id:"ext_front",l:"Front w/ address",p:"pre"},{id:"ext_damage",l:"Pre-existing damage",p:"pre"},{id:"ext_roof",l:"Roof condition",p:"pre"},{id:"ext_sA",l:"Side A",p:"pre"},{id:"ext_sB",l:"Side B",p:"pre"},{id:"ext_sC",l:"Side C",p:"pre"},{id:"ext_sD",l:"Side D",p:"pre"},{id:"ext_ac",l:"AC Condenser",p:"pre"},{id:"ext_ac_tag",l:"AC Condenser tag",p:"pre"},{id:"ext_vents",l:"Vent terminations",p:"pre"},{id:"ext_gutters",l:"Gutters",p:"pre"}],
+  "Attic (Pre)":[{id:"att_pre",l:"Pre insulation (wide)",p:"pre"},{id:"att_bypass",l:"Major bypasses",p:"pre"},{id:"att_baffle",l:"Baffle needs",p:"pre"},{id:"att_exh",l:"Exhaust terminations",p:"pre"},{id:"att_hatch",l:"Hatch",p:"pre"},{id:"att_deck",l:"Roof decking",p:"pre"},{id:"att_dmg",l:"Pre-existing damage",p:"pre"},{id:"att_moist",l:"Moisture/mold",p:"pre"}],
+  "Foundation (Pre)":[{id:"fnd_insul",l:"Insulation opps",p:"pre"},{id:"fnd_plumb",l:"Plumbing DI",p:"pre"},{id:"fnd_dmg",l:"Pre-existing damage",p:"pre"},{id:"fnd_frn",l:"FRN w/ venting",p:"pre"},{id:"fnd_hwt",l:"HWT w/ venting",p:"pre"},{id:"fnd_dryer",l:"Dryer vent/cap",p:"pre"},{id:"fnd_moist",l:"Moisture/mold",p:"pre"}],
+  "CAZ (Pre)":[{id:"caz_smoke",l:"Smoke/CO detectors",p:"pre"},{id:"caz_dhw",l:"DHW flue + tag",p:"pre"},{id:"caz_furn",l:"Furnace flue + tag",p:"pre"}],
+  "Blower Door (Pre)":[{id:"as_setup",l:"BD setup w/ manometer",p:"pre"},{id:"as_pre",l:"Pre CFM50 manometer",p:"pre"},{id:"as_pen",l:"Common penetrations",p:"pre"}],
+  "Duct (Pre)":[{id:"ds_pre",l:"Pre-CFM manometer",p:"pre"}],
+  "Home Exterior (Post)":[{id:"ext_post_front",l:"Front (post)",p:"post"},{id:"ext_post_vents",l:"Vent terminations (post)",p:"post"},{id:"ext_post_ac",l:"AC Condenser (post)",p:"post"}],
+  "Attic (Post)":[{id:"att_post",l:"Post insulation (wide)",p:"post"},{id:"att_post_detail",l:"Insulation detail/depth",p:"post"},{id:"att_post_bypass",l:"Bypasses sealed",p:"post"},{id:"att_post_baffle",l:"Baffles installed",p:"post"},{id:"att_post_hatch",l:"Hatch insulated",p:"post"},{id:"att_post_dam",l:"Fire dams/can lights",p:"post"}],
+  "Foundation (Post)":[{id:"fnd_post_insul",l:"Foundation insulation",p:"post"},{id:"fnd_post_rim",l:"Rim joist insulation",p:"post"},{id:"fnd_post_seal",l:"Air sealing",p:"post"}],
+  "Air Seal (Post)":[{id:"as_post",l:"Post CFM50 manometer",p:"post"},{id:"as_post_pen",l:"Penetrations sealed",p:"post"},{id:"as_post_detail",l:"Air seal detail",p:"post"}],
+  "Duct Seal (Post)":[{id:"ds_mastic",l:"Mastic/tape applied",p:"post"},{id:"ds_post",l:"Post-CFM manometer",p:"post"},{id:"ds_post_detail",l:"Duct seal detail",p:"post"}],
+  "CAZ (Post)":[{id:"caz_post_smoke",l:"Smoke/CO detectors (post)",p:"post"},{id:"caz_post_flue",l:"Flue connections (post)",p:"post"},{id:"caz_post_vent",l:"Venting (post)",p:"post"}],
+  "ASHRAE Fan (Post)":[{id:"fan_box",l:"Specs box w/ model #",p:"post"},{id:"fan_inst",l:"Fan installed",p:"post"},{id:"fan_sw",l:"Switch",p:"post"},{id:"fan_duct",l:"Fan ducting/termination",p:"post"}],
+  "New Products (Post)":[{id:"np_hvac",l:"New HVAC w/ tag",p:"post"},{id:"np_furn",l:"New furnace w/ tag",p:"post"},{id:"np_wh",l:"New WH w/ tag",p:"post"},{id:"np_thermo",l:"Smart thermostat",p:"post"},{id:"np_other",l:"Other new product",p:"post"}],
+  "Walls (Post)":[{id:"wall_inject",l:"Injection foam holes",p:"post"},{id:"wall_patch",l:"Patched/finished",p:"post"},{id:"wall_knee",l:"Knee wall insulation",p:"post"}],
+  "Misc (Post)":[{id:"misc_post1",l:"Additional photo 1",p:"post"},{id:"misc_post2",l:"Additional photo 2",p:"post"},{id:"misc_post3",l:"Additional photo 3",p:"post"}]
+};
+
+const CAZ_ITEMS = [{k:"ambient_co",l:"Ambient CO",r:true,u:"PPM"},{k:"gas_sniff",l:"Gas Sniffing",r:false},{k:"spillage",l:"Spillage Test",r:false},{k:"worst_case",l:"Worst Case Depress.",r:true,u:"PA"},{k:"oven_co",l:"Gas Oven CO",r:true,u:"PPM"},{k:"heat_co",l:"Heating System CO",r:true,u:"PPM"},{k:"wh_co",l:"Water Heater CO",r:true,u:"PPM"},{k:"dryer",l:"Dryer Vented",r:false}];
+
+const QAQC_SECTIONS = {
+  "H&S Combustion":["ASHRAE 62.2 met?","Ambient CO within BPI?","Oven/range CO within BPI?","Heating CO within BPI?","WH CO within BPI?","Heating spillage OK?","WH spillage OK?"],
+  "Documentation":["Pre/post photos uploaded?","Pre/post CAZ uploaded?","Fan flow rates uploaded?","Assessment form uploaded?","Post invoice uploaded?"],
+  "H&S Misc":["Vapor barrier per BPI?","Exhaust terminations per BPI?","Equipment qty matches?","Professional install?","H&S issues addressed?","H&S issues missed?"],
+  "Air Sealing":["Min 20% reduction?","Qty matches invoice?","Proper thermal boundary?","Proper materials?","Professional install?","Proper measures (can lights, fire dam)?","All opps identified?"],
+  "Duct Measures":["Pre/post CFM photos?","Program materials in unconditioned?"],
+  "Attic Insulation":["Meets standards?","Qty matches?","Proper materials?","Baffles per BPI?","Continuous insulation (hatch)?","Proper boundary?","All opps identified?"],
+  "Foundation Insulation":["Meets standards?","Qty matches?","Location matches?","Proper materials?","Professional install?","Proper boundary?","All opps?"],
+  "Wall Insulation":["Meets standards?","Qty matches?","Location matches?","Proper type?","Professional install?","Proper boundary?","All opps?"],
+  "Thermostats":["All eligible changed?","Smart offered?","Programmable offered?","Correctly installed?"],
+  "Customer Interview":["Courteous/respectful?","Errors addressed timely?","Clear communication?","Satisfied with install?","Satisfied with quality?","Satisfied overall?","Would recommend?","Additional comments?"]
+};
+
+const FI_SAFETY = [{k:"ambient_co",l:"Ambient CO",r:true,u:"PPM"},{k:"gas_sniff",l:"Gas Sniffing (all lines)"},{k:"caz_test",l:"CAZ Testing"},{k:"spillage",l:"Spillage Test"},{k:"worst_case",l:"Worst Case Depress.",r:true,u:"PA"},{k:"oven_co",l:"Gas Oven CO",r:true,u:"PPM"},{k:"heat_co",l:"Heating System CO",r:true,u:"PPM"},{k:"wh_co",l:"Water Heater CO",r:true,u:"PPM"},{k:"dryer",l:"Dryer properly vented"},{k:"smoke_co",l:"Smoke/CO detectors"}];
+
+// ═══════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const fmts = (d) => d ? new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
+const DEFAULT_USERS = [
+  { id:"u1", name:"Admin", username:"admin", pin:"1234", role:"admin" },
+  { id:"u2", name:"Scheduler", username:"scheduler", pin:"1234", role:"scheduler" },
+  { id:"u3", name:"Assessor", username:"assessor", pin:"1234", role:"assessor" },
+  { id:"u4", name:"Scope Lead", username:"scope", pin:"1234", role:"scope" },
+  { id:"u5", name:"Installer", username:"installer", pin:"1234", role:"installer" },
+];
+
+// Multi-photo helpers — backward compatible (old {d,at,by} → new [{d,at,by},...])
+function getPhotos(photos, id) {
+  const v = photos?.[id];
+  if (!v) return [];
+  if (Array.isArray(v)) return v;
+  if (v.d) return [v]; // old single format
+  return [];
+}
+function hasPhoto(photos, id) { return getPhotos(photos, id).length > 0; }
+function photoCount(photos, id) { return getPhotos(photos, id).length; }
+
+function blank() {
+  return {
+    id: uid(), created: new Date().toISOString(), customerName: "", address: "",
+    phone: "", email: "", riseId: "", stId: "", utility: "",
+    sqft: "", stories: "", yearBuilt: "", homeType: "", occupants: "",
+    currentStage: 0, stageHistory: [{s:0,at:new Date().toISOString()}],
+    assessmentDate: "", installDate: "", tuneCleanDate: "", finalInspDate: "",
+    assessmentScheduled: false, installScheduled: false, scheduleNotes: "",
+    audit: { interior:{}, heating:{}, cooling:{}, dhw:{}, attic:{}, foundation:{}, doors:{}, notes:"" },
+    preCFM50: "", postCFM50: "", preCFM25: "", postCFM25: "", bdLoc: "", extTemp: "",
+    ventReq: "", ventMethod: "", ventResult: "", fanAdj: "", cazResults: {},
+    measures: [], healthSafety: [], measureNotes: "", scopeVariances: "",
+    riseStatus: "", scopeApproved: false, scopeDate: "", scopeNotes: "",
+    mechNeeded: false, mechStatus: "", mechDate: "", mechNotes: "",
+    fi: { safety:{}, blowerPre:"", blowerPost:"", ductPre:"", ductPost:"", thermoInstalled:"", followupNeeded:"", followupNotes:"" },
+    qaqc: { scheduled:false, date:"", inspector:"", results:{}, notes:"", passed:null },
+    scope2026: {},
+    finalPassed: false, customerSignoff: false, installNotes: "",
+    invoiceAmt: "", paymentSubmitted: false, paymentDate: "",
+    docsChecklist: {}, photos: {}, activityLog: [], internalNotes: "",
+    flagged: false, flagReason: "", changeOrders: [],
+  };
+}
+
+function calcStage(p) {
+  if (p.paymentSubmitted && p.finalPassed && p.customerSignoff) return 8;
+  if (p.installScheduled && (p.postCFM50 || p.finalPassed || p.customerSignoff)) return 7;
+  if (p.installScheduled && p.installDate) return 6;
+  if (p.scopeApproved && p.mechNeeded && p.mechStatus === "approved") return 5;
+  if (p.scopeApproved && !p.mechNeeded) return 5;
+  if (p.riseStatus === "approved" || p.scopeApproved) return 5;
+  if (p.riseStatus === "pending" || p.measures.length > 0) return 3;
+  if (p.preCFM50 || Object.keys(p.photos||{}).filter(k=>hasPhoto(p.photos,k)).length > 5) return 3;
+  if (p.assessmentScheduled || p.assessmentDate) return 2;
+  if (p.customerName && p.address) return 1;
+  return 0;
+}
+
+function getAlerts(p) {
+  const a = [];
+  const cs = calcStage(p);
+  if (cs > p.currentStage) a.push({ type:"advance", msg:`Ready → ${STAGES[cs].label}`, stage:cs });
+  if (p.customerName && p.address && !p.assessmentScheduled && !p.assessmentDate && p.currentStage < 2) a.push({ type:"schedule", msg:"Needs assessment scheduling" });
+  if (p.scopeApproved && !p.installScheduled && !p.installDate && p.currentStage < 6) a.push({ type:"schedule", msg:"Needs install scheduling" });
+  if (p.riseStatus === "corrections") a.push({ type:"warn", msg:"RISE corrections requested" });
+  if (p.mechNeeded && !p.mechStatus) a.push({ type:"warn", msg:"Mech replacement needs approval" });
+  const pendingCO = (p.changeOrders||[]).filter(c=>c.status==="pending").length;
+  if (pendingCO > 0) a.push({ type:"co", msg:`${pendingCO} change order${pendingCO>1?"s":""} pending` });
+  return a;
+}
+
+// ── Print / Export Helpers ───────────────────────────────
+// ── Save/Print Helper ────────────────────────────────────
+function savePrint(html) {
+  // Create overlay container in React app
+  const overlay = document.createElement("div");
+  overlay.id = "print-overlay";
+  overlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:99999;display:flex;flex-direction:column;background:#1e293b";
+
+  // Toolbar
+  const toolbar = document.createElement("div");
+  toolbar.style.cssText = "display:flex;gap:8px;padding:8px 12px;background:#0f172a;justify-content:flex-end;align-items:center;flex-shrink:0";
+
+  const printBtn = document.createElement("button");
+  printBtn.textContent = "💾 Save as PDF / Print";
+  printBtn.style.cssText = "padding:8px 16px;background:#4338ca;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif";
+
+  const closeBtn = document.createElement("button");
+  closeBtn.textContent = "✕ Close";
+  closeBtn.style.cssText = "padding:8px 16px;background:#64748b;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif";
+
+  toolbar.appendChild(printBtn);
+  toolbar.appendChild(closeBtn);
+
+  // Iframe for content
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "flex:1;border:none;background:#fff";
+
+  overlay.appendChild(toolbar);
+  overlay.appendChild(iframe);
+  document.body.appendChild(overlay);
+
+  iframe.contentDocument.write(html);
+  iframe.contentDocument.close();
+
+  printBtn.addEventListener("click", () => {
+    try { iframe.contentWindow.focus(); iframe.contentWindow.print(); }
+    catch(e) { window.print(); }
+  });
+  closeBtn.addEventListener("click", () => {
+    document.body.removeChild(overlay);
+  });
+}
+
+function photoPageHTML(title, photos, items, p) {
+  const rows = items.filter(i => hasPhoto(photos,i.id)).map(i => {
+    return getPhotos(photos, i.id).map((ph,idx) => `<div style="break-inside:avoid;margin-bottom:12px;border:1px solid #ddd;border-radius:6px;overflow:hidden">
+      <div style="padding:6px 10px;background:#f5f5f5;font-size:12px;font-weight:600">${i.l}${idx>0?" ("+(idx+1)+")":""} <span style="font-weight:400;color:#888">(${i.cat})</span></div>
+      <img src="${ph.d}" style="width:100%;max-height:500px;object-fit:contain;display:block"/>
+      <div style="padding:4px 10px;font-size:10px;color:#999">${ph.by||""} · ${ph.at?new Date(ph.at).toLocaleString():""}</div>
+    </div>`).join("");
+  }).join("");
+  return `<!DOCTYPE html><html><head><title>${title}</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px}h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px}h2{font-size:12px;color:#666;margin-bottom:16px}</style></head><body>
+    <h1>${title}</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${rows}</body></html>`;
+}
+
+function sideBySideHTML(photos, allItems, p) {
+  const preItems = allItems.filter(i => i.p === "pre" && hasPhoto(photos,i.id));
+  const postItems = allItems.filter(i => i.p === "post" && hasPhoto(photos,i.id));
+  const pairs = [];
+  const usedPost = new Set();
+  preItems.forEach(pre => {
+    const catBase = pre.cat.replace(/ \(Pre\)| \(Post\)/g,"");
+    const post = postItems.find(po => !usedPost.has(po.id) && po.cat.replace(/ \(Pre\)| \(Post\)/g,"") === catBase);
+    if (post) usedPost.add(post.id);
+    pairs.push({ pre, post: post || null });
+  });
+  postItems.filter(po => !usedPost.has(po.id)).forEach(po => pairs.push({ pre: null, post: po }));
+  const rows = pairs.map(({pre,post}) => {
+    const preArr = pre ? getPhotos(photos, pre.id) : [];
+    const postArr = post ? getPhotos(photos, post.id) : [];
+    const preImg = preArr.length ? preArr.map(ph=>`<img src="${ph.d}" style="width:100%;max-height:300px;object-fit:contain;margin-bottom:2px"/>`).join("") : `<div style="height:150px;display:flex;align-items:center;justify-content:center;color:#ccc;background:#f9f9f9">No photo</div>`;
+    const postImg = postArr.length ? postArr.map(ph=>`<img src="${ph.d}" style="width:100%;max-height:300px;object-fit:contain;margin-bottom:2px"/>`).join("") : `<div style="height:150px;display:flex;align-items:center;justify-content:center;color:#ccc;background:#f9f9f9">No photo</div>`;
+    const label = (pre?.cat || post?.cat || "").replace(/ \(Pre\)| \(Post\)/g,"");
+    return `<div style="break-inside:avoid;margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden">
+      <div style="padding:6px 10px;background:#f5f5f5;font-size:12px;font-weight:600">${label} — ${pre?.l||""} / ${post?.l||""}</div>
+      <table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>
+        <td style="width:50%;vertical-align:top;border-right:1px solid #eee;padding:4px;text-align:center"><div style="font-size:10px;font-weight:700;padding:2px;background:#e0e7ff;color:#4338ca">PRE</div>${preImg}</td>
+        <td style="width:50%;vertical-align:top;padding:4px;text-align:center"><div style="font-size:10px;font-weight:700;padding:2px;background:#dcfce7;color:#166534">POST</div>${postImg}</td>
+      </tr></table></div>`;
+  }).join("");
+  return `<!DOCTYPE html><html><head><title>Pre vs Post</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:16px}h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px}h2{font-size:12px;color:#666;margin-bottom:16px}</style></head><body>
+    <h1>Pre / Post Photo Comparison</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${rows}</body></html>`;
+}
+
+function formPrintHTML(title, p, bodyHTML, sigData) {
+  const sigBlock = sigData ? `<div style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px"><p style="font-size:11px;color:#666;margin:0 0 4px">Signature:</p><img src="${sigData}" style="max-width:280px;height:70px;object-fit:contain"/><p style="font-size:10px;color:#999;margin:4px 0 0">Digitally signed in HES Tracker</p></div>` : `<div style="margin-top:30px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:11px;color:#666">Signature: _______________________________ &nbsp;&nbsp; Date: _______________</p></div>`;
+  return `<!DOCTYPE html><html><head><title>${title}</title><style>@page{margin:.5in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:12px}h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px}h2{font-size:12px;color:#666;margin-bottom:16px}.sec{margin-bottom:12px;border:1px solid #ddd;border-radius:6px;padding:10px}.sec h3{font-size:13px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:4px}.row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.pass{color:#16a34a;font-weight:600}.fail{color:#dc2626;font-weight:600}.na{color:#999}</style></head><body>
+    <h1>${title}</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${bodyHTML}${sigBlock}</body></html>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════════
+export default function App() {
+  const [projects, setProjects] = useState([]);
+  const [users, setUsers] = useState(null); // null = loading
+  const [curUser, setCurUser] = useState(null); // logged-in user object
+  const [view, setView] = useState("dash");
+  const [selId, setSelId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [tab, setTab] = useState("info");
+  // New project fields (lifted out of conditional to fix hooks crash)
+  const [newName, setNewName] = useState("");
+  const [newAddr, setNewAddr] = useState("");
+  // Login fields
+  const [loginUser, setLoginUser] = useState("");
+  const [loginPin, setLoginPin] = useState("");
+  const [loginErr, setLoginErr] = useState("");
+  // User management
+  const [showUsers, setShowUsers] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+  const tmr = useRef(null);
+
+  const role = curUser?.role || null;
+  const userName = curUser?.name || "";
+
+  useEffect(() => {
+    Promise.all([loadProjects(), loadUsers()]).then(([p, u]) => {
+      if (p) setProjects(p);
+      const userList = u && u.length > 0 ? u : DEFAULT_USERS;
+      setUsers(userList);
+      // Restore session
+      const session = getSession();
+      if (session?.userId) {
+        const found = userList.find(x => x.id === session.userId);
+        if (found) setCurUser(found);
+      }
+      setLoading(false);
+    });
+  }, []);
+
+  const save = useCallback((p) => {
+    if(tmr.current) clearTimeout(tmr.current);
+    tmr.current = setTimeout(() => saveProjects(p), 400);
+  }, []);
+
+  const saveUserList = async (list) => {
+    setUsers(list);
+    // Sync each user to Supabase
+    for (const u of list) {
+      await saveUser(u);
+    }
+  };
+
+  const up = fn => setProjects(prev => { const n = fn(prev); save(n); return n; });
+  const upP = (id, c) => up(prev => prev.map(p => p.id === id ? {...p,...c} : p));
+  const addLog = (id, txt) => up(prev => prev.map(p => p.id === id ? {...p, activityLog:[{ts:new Date().toISOString(), txt, by:userName, role},...p.activityLog]} : p));
+
+  const checkAdvance = (id) => {
+    setProjects(prev => {
+      const next = prev.map(p => {
+        if (p.id !== id) return p;
+        const ns = calcStage(p);
+        if (ns !== p.currentStage) {
+          const dir = ns > p.currentStage ? "Advanced" : "Reverted";
+          return {...p, currentStage:ns, stageHistory:[...p.stageHistory,{s:ns,at:new Date().toISOString()}],
+            activityLog:[{ts:new Date().toISOString(),txt:`${dir} → ${STAGES[ns].label}`,by:"System"},...p.activityLog]};
+        }
+        return p;
+      });
+      save(next); return next;
+    });
+  };
+
+  const upC = (id, c) => { upP(id, c); setTimeout(() => checkAdvance(id), 100); };
+
+  const proj = projects.find(p => p.id === selId);
+  const curRole = ROLES.find(r => r.key === role);
+
+  // ── Loading ──────────────────────────────────────────────
+  if (loading) return (
+    <div style={S.center}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');@keyframes spin{to{transform:rotate(360deg)}}*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}`}</style>
+      <div style={S.spin}/>
+    </div>
+  );
+
+  const globalCSS = <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');@keyframes spin{to{transform:rotate(360deg)}}*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}html{color-scheme:dark}input,select,textarea,button{font-size:16px;color-scheme:dark}select option{background:#1e293b;color:#e2e8f0}@media(min-width:768px){input,select,textarea,button{font-size:inherit}}`}</style>;
+
+  // ── Login screen ──────────────────────────────────────────
+  const doLogin = () => {
+    if (!users) return;
+    const found = users.find(u => u.username.toLowerCase() === loginUser.trim().toLowerCase() && u.pin === loginPin);
+    if (found) {
+      setCurUser(found);
+      setLoginErr("");
+      setLoginUser("");
+      setLoginPin("");
+      setSession(found.id);
+    } else {
+      setLoginErr("Invalid username or PIN");
+    }
+  };
+
+  const doLogout = () => {
+    setCurUser(null);
+    setView("dash");
+    setSelId(null);
+    setSession(null);
+  };
+
+  if (!curUser) return (
+    <div style={S.app}>{globalCSS}
+      <div style={S.rpWrap}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={S.logoBox}>⚡</div>
+          <h1 style={{fontSize:20,fontWeight:700,color:"#f1f5f9",margin:"14px 0 2px"}}>HES Retrofits Tracker</h1>
+          <p style={{color:"#64748b",fontSize:12}}>Sign in to continue</p>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={S.fl}>Username</label>
+          <input style={S.inp} value={loginUser} onChange={e=>{setLoginUser(e.target.value);setLoginErr("");}} placeholder="Enter username" autoCapitalize="none" autoCorrect="off"/>
+        </div>
+        <div style={{marginBottom:16}}>
+          <label style={S.fl}>PIN</label>
+          <input style={S.inp} type="password" inputMode="numeric" value={loginPin} onChange={e=>{setLoginPin(e.target.value);setLoginErr("");}} placeholder="Enter PIN" maxLength={8}
+            onKeyDown={e=>{if(e.key==="Enter")doLogin();}}/>
+        </div>
+        {loginErr && <div style={{color:"#ef4444",fontSize:12,marginBottom:10,textAlign:"center"}}>{loginErr}</div>}
+        <button type="button" onClick={doLogin} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:"linear-gradient(135deg,#6366f1,#8b5cf6)",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+          Sign In
+        </button>
+        <div style={{marginTop:20,padding:12,background:"rgba(255,255,255,.03)",borderRadius:8,border:"1px solid rgba(255,255,255,.06)"}}>
+          <div style={{fontSize:10,color:"#64748b",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em",fontWeight:600}}>Default Accounts</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"2px 12px",fontSize:11}}>
+            <span style={{color:"#64748b",fontWeight:600}}>Username</span>
+            <span style={{color:"#64748b",fontWeight:600}}>PIN</span>
+            <span style={{color:"#64748b",fontWeight:600}}>Role</span>
+            {(users||DEFAULT_USERS).map(u => (
+              <React.Fragment key={u.id}>
+                <span style={{color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{u.username}</span>
+                <span style={{color:"#475569",fontFamily:"'JetBrains Mono',monospace"}}>{u.pin}</span>
+                <span style={{color:"#94a3b8"}}>{ROLES.find(r=>r.key===u.role)?.label||u.role}</span>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const tabs = curRole?.tabs || ROLES[0].tabs;
+
+  // ── New Project ──────────────────────────────────────────
+  if (view === "new") return (
+    <div style={S.app}>{globalCSS}
+      <Hdr role={curRole} user={userName} onSw={doLogout} onBack={()=>{setView("dash");setNewName("");setNewAddr("");}} title="New Lead"/>
+      <div style={S.cnt}>
+        <Sec title="RISE Lead → Create Project">
+          <p style={{fontSize:12,color:"#94a3b8",marginBottom:12}}>Enter customer name & address from RISE. Add ST ID after creating in ServiceTitan.</p>
+          <F label="Customer Name *" value={newName} onChange={setNewName}/>
+          <div style={{height:10}}/>
+          <F label="Address *" value={newAddr} onChange={setNewAddr}/>
+          <div style={{marginTop:16,display:"flex",gap:8}}>
+            <button style={{...S.btn,opacity:newName&&newAddr?1:.4,padding:"10px 20px",fontSize:14}}
+              disabled={!newName||!newAddr}
+              onClick={() => {
+                const p = blank(); p.customerName = newName; p.address = newAddr;
+                p.activityLog = [{ts:new Date().toISOString(),txt:"Lead created from RISE",by:userName,role}];
+                up(prev => [p,...prev]);
+                setSelId(p.id); setView("proj"); setTab("info");
+                setNewName(""); setNewAddr("");
+              }}>Create Lead</button>
+            <button style={{...S.ghost,padding:"10px 16px"}} onClick={()=>{setView("dash");setNewName("");setNewAddr("");}}>Cancel</button>
+          </div>
+        </Sec>
+      </div>
+    </div>
+  );
+
+  // ── Project Detail ──────────────────────────────────────
+  if (view === "proj" && proj) {
+    const stage = STAGES[proj.currentStage];
+    const alerts = getAlerts(proj);
+
+    return (
+      <div style={S.app}>{globalCSS}
+        <Hdr role={curRole} user={userName} onSw={doLogout}
+          onBack={()=>{setView("dash");setTab("info");}}
+          title={proj.customerName||"Unnamed"} sub={proj.address}
+          badge={<span style={{...S.bdg,background:stage.color}}>{stage.icon} {stage.label}</span>}
+        />
+        {/* Stage bar */}
+        <div style={S.stBar}>
+          {STAGES.map(s => (
+            <div key={s.id} style={{
+              ...S.stStep,
+              background: s.id <= proj.currentStage ? s.color : "rgba(255,255,255,0.04)",
+              color: s.id <= proj.currentStage ? "#fff" : "#475569",
+            }} title={s.label}>
+              <span style={{fontSize:12}}>{s.icon}</span>
+              <span style={{fontSize:7,lineHeight:1,textAlign:"center"}}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Alerts */}
+        {alerts.length > 0 && (
+          <div style={S.alertBar}>
+            {alerts.map((a,i) => (
+              <div key={i} style={{marginRight:8}}>
+                {a.type === "advance" ? (
+                  <button style={{...S.btn,padding:"5px 12px",fontSize:11}} onClick={() => {
+                    upP(proj.id, {currentStage:a.stage, stageHistory:[...proj.stageHistory,{s:a.stage,at:new Date().toISOString()}]});
+                    addLog(proj.id, `Advanced → ${STAGES[a.stage].label}`);
+                  }}>⬆ {a.msg}</button>
+                ) : (
+                  <span style={{fontSize:11,color:a.type==="warn"?"#fbbf24":"#93c5fd"}}>⚠ {a.msg}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div style={S.tabR}>
+          {tabs.map(t => (
+            <button key={t} style={{...S.tabB,...(tab===t?S.tabA:{})}} onClick={()=>setTab(t)}>
+              {TAB_META[t]?.icon} {TAB_META[t]?.label}
+            </button>
+          ))}
+        </div>
+
+        <div style={S.cnt}>
+          {tab==="info" && <InfoTab p={proj} u={c=>upC(proj.id,c)} role={role} onLog={t=>addLog(proj.id,t)} onDel={()=>{up(p=>p.filter(x=>x.id!==proj.id));setView("dash");}}/>}
+          {tab==="scheduling" && <SchedTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
+          {tab==="assessment" && <AuditTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName}/>}
+          {tab==="diagnostics" && <DiagTab p={proj} u={c=>upC(proj.id,c)} role={role}/>}
+          {tab==="photos" && <PhotoTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
+          {tab==="scope" && <ScopeTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
+          {tab==="install" && <InstallTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
+          {tab==="qaqc" && <QAQCTab p={proj} u={c=>upC(proj.id,c)}/>}
+          {tab==="closeout" && <CloseoutTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
+          {tab==="log" && <LogTab p={proj} onLog={t=>addLog(proj.id,t)}/>}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Dashboard ──────────────────────────────────────────
+  const filtered = projects.filter(p => {
+    if (filter === "alerts") return getAlerts(p).length > 0;
+    if (filter !== "all" && p.currentStage !== parseInt(filter)) return false;
+    if (search) { const s = search.toLowerCase(); return p.customerName.toLowerCase().includes(s) || p.address.toLowerCase().includes(s) || (p.riseId||"").toLowerCase().includes(s) || (p.stId||"").toLowerCase().includes(s); }
+    return true;
+  });
+  const sorted = [...filtered].sort((a,b) => {
+    if (a.flagged && !b.flagged) return -1;
+    if (!a.flagged && b.flagged) return 1;
+    const aa = getAlerts(a).length, ba = getAlerts(b).length;
+    if (aa > 0 && ba === 0) return -1;
+    if (aa === 0 && ba > 0) return 1;
+    return new Date(b.created) - new Date(a.created);
+  });
+  const alertCount = projects.filter(p => getAlerts(p).length > 0).length;
+
+  return (
+    <div style={S.app}>{globalCSS}
+      <Hdr role={curRole} user={userName} onSw={doLogout} title="HES Retrofits"
+        sub={`${projects.length} projects`}
+        actions={<>{role==="admin" && <button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={()=>setShowUsers(!showUsers)}>👥 Users</button>}<button style={{...S.btn,padding:"8px 16px",fontSize:13}} onClick={()=>setView("new")}>+ New Lead</button></>}
+      />
+
+      {/* ── User Management (Admin only) ── */}
+      {showUsers && role === "admin" && <UserMgmt users={users} onSave={saveUserList} onDelete={async (id) => { await dbDeleteUser(id); setUsers(prev => prev.filter(u => u.id !== id)); }} onClose={()=>setShowUsers(false)}/>}
+
+      {alertCount > 0 && (
+        <div style={S.readyBan} onClick={() => setFilter(filter === "alerts" ? "all" : "alerts")}>
+          <span style={{fontSize:18}}>🔔</span>
+          <span style={{flex:1,fontSize:13}}><b>{alertCount}</b> need{alertCount>1?"":"s"} attention</span>
+          <span style={{fontSize:11,color:"#fde68a"}}>{filter==="alerts"?"Show all":"Filter"} →</span>
+        </div>
+      )}
+
+      <div style={S.pipe}>
+        {STAGES.map(s => {
+          const c = projects.filter(p => p.currentStage === s.id).length;
+          return (
+            <button key={s.id} style={{
+              ...S.chip,
+              background: filter === String(s.id) ? s.color : "rgba(255,255,255,0.06)",
+              color: filter === String(s.id) ? "#fff" : "#94a3b8",
+              borderColor: filter === String(s.id) ? s.color : "rgba(255,255,255,0.08)",
+            }} onClick={() => setFilter(filter === String(s.id) ? "all" : String(s.id))}>
+              {s.icon} <span style={S.chipN}>{c}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={S.sRow}>
+        <input style={S.sInp} placeholder="Search name, address, RISE, ST…" value={search} onChange={e => setSearch(e.target.value)}/>
+        {(filter !== "all" || search) && <button style={S.ghost} onClick={() => {setFilter("all");setSearch("");}}>Clear</button>}
+      </div>
+
+      {sorted.length === 0 ? (
+        <div style={S.empty}>
+          <p style={{fontSize:32}}>📂</p>
+          <p style={{color:"#64748b",fontSize:13}}>{projects.length===0?"No projects yet. Tap + New Lead.":"No matches."}</p>
+        </div>
+      ) : (
+        <div style={S.list}>
+          {sorted.map(p => {
+            const st = STAGES[p.currentStage];
+            const al = getAlerts(p);
+            return (
+              <button key={p.id} style={S.card} onClick={() => {setSelId(p.id);setView("proj");setTab(tabs[0]);}}>
+                <div style={S.cTop}>
+                  <div style={{display:"flex",alignItems:"center",gap:5,flex:1,minWidth:0}}>
+                    {p.flagged && <span>⚠️</span>}
+                    <span style={S.cName}>{p.customerName}</span>
+                  </div>
+                  <span style={{...S.bdg,background:st.color,fontSize:10}}>{st.icon} {st.label}</span>
+                </div>
+                <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{p.address}</div>
+                {al.length > 0 && (
+                  <div style={{display:"flex",gap:4,marginTop:5,flexWrap:"wrap"}}>
+                    {al.map((a,i) => <span key={i} style={{...S.tBadge,...(a.type==="co"?{background:"rgba(249,115,22,.15)",color:"#f97316",border:"1px solid rgba(249,115,22,.3)"}:{})}}>{a.type==="advance"?"⬆":a.type==="co"?"🔶":"🔔"} {a.msg}</span>)}
+                  </div>
+                )}
+                <div style={S.cMeta}>
+                  {p.riseId && <span>RISE:{p.riseId}</span>}
+                  {p.stId && <span>ST:{p.stId}</span>}
+                  {p.assessmentDate && <span>Assess:{fmts(p.assessmentDate)}</span>}
+                  {p.installDate && <span>Install:{fmts(p.installDate)}</span>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TAB COMPONENTS
+// ═══════════════════════════════════════════════════════════════
+
+function InfoTab({p,u,role,onLog,onDel}) {
+  const [del,setDel] = useState(false);
+  return (
+    <div>
+      <Sec title="Customer">
+        <Gr><F label="Name" value={p.customerName} onChange={v=>u({customerName:v})}/><F label="Address" value={p.address} onChange={v=>u({address:v})}/></Gr>
+        <Gr><F label="Phone" value={p.phone} onChange={v=>u({phone:v})}/><F label="Email" value={p.email} onChange={v=>u({email:v})}/></Gr>
+      </Sec>
+      <Sec title="System IDs">
+        <p style={{fontSize:11,color:"#64748b",marginBottom:8}}>Lookup customer in ST, enter IDs here</p>
+        <Gr><F label="RISE ID" value={p.riseId} onChange={v=>u({riseId:v})}/><F label="ServiceTitan ID" value={p.stId} onChange={v=>u({stId:v})}/><F label="Utility" value={p.utility} onChange={v=>u({utility:v})} placeholder="Nicor, ComEd…"/></Gr>
+      </Sec>
+
+      <Sec title="Flags & Notes">
+        <CK checked={p.flagged} onChange={v=>u({flagged:v})} label="⚠️ Flag this project"/>
+        {p.flagged && <div style={{marginTop:6}}><F label="Reason" value={p.flagReason} onChange={v=>u({flagReason:v})}/></div>}
+        <div style={{marginTop:8}}><label style={S.fl}>Notes</label><textarea style={S.ta} value={p.internalNotes} onChange={e=>u({internalNotes:e.target.value})} rows={3}/></div>
+      </Sec>
+      {role === "admin" && (
+        <Sec title="Danger Zone" danger>
+          {!del ? <button style={{...S.ghost,color:"#ef4444",borderColor:"#ef4444"}} onClick={()=>setDel(true)}>Delete Project</button> : (
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <button style={{...S.btn,background:"#ef4444"}} onClick={onDel}>Confirm Delete</button>
+              <button style={S.ghost} onClick={()=>setDel(false)}>Cancel</button>
+            </div>
+          )}
+        </Sec>
+      )}
+    </div>
+  );
+}
+
+function SchedTab({p,u,onLog}) {
+  const alerts = getAlerts(p).filter(a => a.type === "schedule");
+  const showInstall = p.scopeApproved || p.currentStage >= 4;
+  return (
+    <div>
+      {alerts.length > 0 && <div style={S.alertBox}><span style={{fontSize:18}}>🔔</span><div style={{flex:1}}>{alerts.map((a,i)=><div key={i} style={{fontSize:12,color:"#fde68a"}}>• {a.msg}</div>)}</div></div>}
+      <Sec title="Assessment">
+        <F label="Assessment Date" value={p.assessmentDate} onChange={v=>{u({assessmentDate:v,assessmentScheduled:!!v});if(v)onLog(`Assessment scheduled: ${fmts(v)}`);}} type="date"/>
+        <div style={{marginTop:6}}><textarea style={S.ta} value={p.scheduleNotes} onChange={e=>u({scheduleNotes:e.target.value})} rows={2} placeholder="Customer availability, access notes…"/></div>
+      </Sec>
+      {showInstall ? (
+        <Sec title="Install Scheduling">
+          <Gr>
+            <F label="Install Date" value={p.installDate} onChange={v=>{u({installDate:v});if(v)onLog(`Install scheduled: ${fmts(v)}`);}} type="date"/>
+            <F label="Tune/Clean" value={p.tuneCleanDate} onChange={v=>u({tuneCleanDate:v})} type="date"/>
+            <F label="Final Insp." value={p.finalInspDate} onChange={v=>u({finalInspDate:v})} type="date"/>
+          </Gr>
+          <div style={{marginTop:8}}>
+            <CK checked={p.installScheduled} onChange={v=>{u({installScheduled:v});if(v)onLog("Install confirmed in ST");}} label="Install Confirmed in ST"/>
+          </div>
+        </Sec>
+      ) : (
+        <Sec title="Install Scheduling">
+          <p style={{fontSize:12,color:"#64748b"}}>Install scheduling opens after scope is approved.</p>
+        </Sec>
+      )}
+    </div>
+  );
+}
+
+function AuditTab({p,u,onLog,user}) {
+  const a = p.audit || {};
+  const sa = (k,v) => u({audit:{...a,[k]:v}});
+  const [prev, setPrev] = useState(null); // {id, idx}
+
+  // ── Pre Photos ──
+  const preSections = Object.entries(PHOTO_SECTIONS).filter(([cat]) => cat.includes("(Pre)"));
+  const preItems = preSections.flatMap(([cat,items])=>items.map(i=>({...i,cat})));
+  const preTaken = preItems.filter(i=>hasPhoto(p.photos,i.id)).length;
+
+  const handleFile = (id, file) => {
+    if (!file) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => {
+        const maxW = 1600;
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        const existing = getPhotos(p.photos, id);
+        const newEntry = {d:c.toDataURL("image/jpeg",0.7),at:new Date().toISOString(),by:user};
+        u({photos:{...p.photos,[id]:[...existing, newEntry]}});
+        if(onLog) onLog(`📸 ${preItems.find(x=>x.id===id)?.l||id} (${existing.length+1})`);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Photo preview
+  if (prev) {
+    const arr = getPhotos(p.photos, prev.id);
+    const ph = arr[prev.idx]; const it = preItems.find(x=>x.id===prev.id);
+    return (
+      <div style={S.camOv}>
+        <div style={S.camH}>
+          <button style={{...S.back,fontSize:18}} onClick={()=>setPrev(null)}>← Back</button>
+          <div style={{flex:1,textAlign:"center",fontWeight:600,fontSize:14}}>{it?.l} {arr.length>1?`(${prev.idx+1}/${arr.length})`:""}</div>
+          <button style={{...S.ghost,color:"#ef4444",borderColor:"#ef4444",padding:"4px 10px"}} onClick={()=>{
+            const remaining = arr.filter((_,i)=>i!==prev.idx);
+            u({photos:{...p.photos,[prev.id]:remaining.length?remaining:undefined}});
+            if(onLog)onLog(`🗑️ Removed ${it?.l||prev.id}`);setPrev(null);
+          }}>Delete</button>
+        </div>
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#000",padding:8,position:"relative"}}>
+          {ph?.d && <img src={ph.d} style={{maxWidth:"100%",maxHeight:"80vh",borderRadius:8}} alt=""/>}
+          {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>‹</button>}
+          {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>›</button>}
+        </div>
+        <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} · {ph?.at&&new Date(ph.at).toLocaleString()}</div>
+      </div>
+    );
+  }
+
+  const getAuditHTML = () => {
+    const body = `
+      <div class="sec"><h3>Basic Info</h3><div class="grid">
+        <div class="row"><span class="lbl">Occupants</span><span class="val">${a.occupants||"—"}</span></div>
+        <div class="row"><span class="lbl">Tenant Type</span><span class="val">${a.tenantType||"—"}</span></div>
+        <div class="row"><span class="lbl">Roof Age</span><span class="val">${a.roofAge||"—"}</span></div>
+        <div class="row"><span class="lbl">Thermostat</span><span class="val">${a.thermostatType||"—"}</span></div>
+        <div class="row"><span class="lbl">Ceiling</span><span class="val">${a.ceilingCond||"—"}</span></div>
+        <div class="row"><span class="lbl">Walls</span><span class="val">${a.wallCond||"—"}</span></div>
+        <div class="row"><span class="lbl">Walls Need Insul.</span><span class="val">${a.wallsNeedInsul||"—"}</span></div>
+      </div></div>
+      <div class="sec"><h3>Fan Testing</h3><div class="grid">
+        <div class="row"><span class="lbl">Bath Fan 1</span><span class="val">${a.bathFan1||"—"} CFM</span></div>
+        <div class="row"><span class="lbl">Bath Fan 2</span><span class="val">${a.bathFan2||"—"} CFM</span></div>
+        <div class="row"><span class="lbl">Bath Fan 3</span><span class="val">${a.bathFan3||"—"} CFM</span></div>
+        <div class="row"><span class="lbl">Kitchen Fan</span><span class="val">${a.kitchenFan||"—"} CFM</span></div>
+      </div></div>
+      <div class="sec"><h3>Smoke / CO</h3><div class="grid">
+        <div class="row"><span class="lbl">Smoke Present</span><span class="val">${a.smokePresent||"—"}</span></div>
+        <div class="row"><span class="lbl">Smoke to Install</span><span class="val">${a.smokeNeeded||"—"}</span></div>
+        <div class="row"><span class="lbl">CO Present</span><span class="val">${a.coPresent||"—"}</span></div>
+        <div class="row"><span class="lbl">CO to Install</span><span class="val">${a.coNeeded||"—"}</span></div>
+      </div></div>
+      <div class="sec"><h3>Weatherization</h3><div class="grid">
+        <div class="row"><span class="lbl">Tenmats</span><span class="val">${a.tenmats||"—"}</span></div>
+        <div class="row"><span class="lbl">Door Sweeps/WS</span><span class="val">${a.doorSweeps||"—"}</span></div>
+      </div></div>
+      <div class="sec"><h3>H&S Conditions</h3>${["Gas Mechanical Repair","Mold Remediation","Water/Sewage Issues","Asbestos Abatement","Electrical Issues","Other"].filter(x=>a.hsConds?.[x]).map(x=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #ddd;border-radius:4px;margin:2px;font-size:11px">${x}</span>`).join("")||"<span style='color:#999'>None</span>"}</div>
+      <div class="sec"><h3>Status</h3><div class="row"><span class="lbl">Deferred?</span><span class="val">${a.deferred||"—"}</span></div>${a.additionalNotes?`<p style="margin-top:6px;color:#666">${a.additionalNotes}</p>`:""}</div>`;
+    return formPrintHTML("Data Collection Tool — Assessment", p, body, a.assessorSig);
+  };
+
+  return (
+    <div>
+      <Sec title="📋 Data Collection Tool">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <p style={{fontSize:11,color:"#94a3b8",margin:0}}>For use with BLK2GO</p>
+          <PrintBtn onClick={()=>savePrint(getAuditHTML())}/>
+        </div>
+        <p style={{fontSize:10,color:"#64748b",marginTop:4}}>Customer: <b>{p.customerName}</b> · {p.address} · Assessment: {p.assessmentDate ? fmts(p.assessmentDate) : "—"}</p>
+      </Sec>
+
+      <Sec title="Basic Info">
+        <Gr>
+          <F label="5. Number of Occupants *" value={a.occupants||""} onChange={v=>sa("occupants",v)}/>
+          <Sel label="6. Tenant Type *" value={a.tenantType||""} onChange={v=>sa("tenantType",v)} opts={["Owned","Rented"]}/>
+          <F label="7. Roof Age (guesstimate) *" value={a.roofAge||""} onChange={v=>sa("roofAge",v)}/>
+        </Gr>
+      </Sec>
+
+      <Sec title="Interior Conditions">
+        <Sel label="8. Thermostat Type *" value={a.thermostatType||""} onChange={v=>sa("thermostatType",v)} opts={["Non-programmable","Programmable","Smart","Other"]}/>
+        <div style={{height:8}}/>
+        <Gr>
+          <Sel label="9. Drywall Ceiling Conditions *" value={a.ceilingCond||""} onChange={v=>sa("ceilingCond",v)} opts={["Good","Poor"]}/>
+          <Sel label="10. Drywall Wall Conditions *" value={a.wallCond||""} onChange={v=>sa("wallCond",v)} opts={["Good","Fair","Poor"]}/>
+        </Gr>
+        <div style={{height:8}}/>
+        <Sel label="11. Walls Need Insulation? *" value={a.wallsNeedInsul||""} onChange={v=>sa("wallsNeedInsul",v)} opts={["Yes","No","Other"]}/>
+      </Sec>
+
+      <Sec title="Pressure Pan / Fan Testing">
+        <Gr>
+          <F label="12. Bath Fan 1 CFM *" value={a.bathFan1||""} onChange={v=>sa("bathFan1",v)}/>
+          <F label="13. Bath Fan 2 CFM" value={a.bathFan2||""} onChange={v=>sa("bathFan2",v)}/>
+          <F label="14. Bath Fan 3 CFM" value={a.bathFan3||""} onChange={v=>sa("bathFan3",v)}/>
+          <F label="15. Kitchen Fan CFM" value={a.kitchenFan||""} onChange={v=>sa("kitchenFan",v)}/>
+        </Gr>
+        <p style={{fontSize:10,color:"#64748b",marginTop:4}}>Q13-14 only if additional full baths present</p>
+        <p style={{fontSize:10,color:"#f59e0b",marginTop:2}}>⚠ If a fan is present but not operational or CFM is unknown, enter 0. Leave blank if no fan exists.</p>
+      </Sec>
+
+      <Sec title="Smoke / CO Detectors">
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <F label="16. Smoke — present *" value={a.smokePresent||""} onChange={v=>sa("smokePresent",v)}/>
+          <F label="17. Smoke — to install *" value={a.smokeNeeded||""} onChange={v=>sa("smokeNeeded",v)}/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:6}}>
+          <F label="18. CO — present *" value={a.coPresent||""} onChange={v=>sa("coPresent",v)}/>
+          <F label="19. CO — to install *" value={a.coNeeded||""} onChange={v=>sa("coNeeded",v)}/>
+        </div>
+      </Sec>
+
+      <Sec title="Weatherization">
+        <Gr>
+          <F label="20. Tenmats Needed *" value={a.tenmats||""} onChange={v=>sa("tenmats",v)}/>
+          <F label="21. Doors Need Sweeps/WS *" value={a.doorSweeps||""} onChange={v=>sa("doorSweeps",v)}/>
+        </Gr>
+      </Sec>
+
+      <Sec title="22. Health & Safety Conditions">
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          {["Gas Mechanical Repair","Mold Remediation","Water/Sewage Issues","Asbestos Abatement","Electrical Issues","Other"].map(x =>
+            <CK key={x} checked={a.hsConds?.[x]} onChange={v=>sa("hsConds",{...(a.hsConds||{}),[x]:v})} label={x}/>
+          )}
+        </div>
+      </Sec>
+
+      <Sec title="Project Status">
+        <Sel label="23. Project Deferred? *" value={a.deferred||""} onChange={v=>sa("deferred",v)} opts={["YES","NO"]}/>
+        <div style={{height:8}}/>
+        <div><label style={S.fl}>24. Additional Notes</label><textarea style={S.ta} value={a.additionalNotes||""} onChange={e=>sa("additionalNotes",e.target.value)} rows={3} placeholder="Any additional information…"/></div>
+        <SigPad label="Assessor Signature" value={a.assessorSig||""} onChange={v=>sa("assessorSig",v)}/>
+      </Sec>
+
+      {/* ── PRE-INSTALL PHOTOS ── */}
+      <Sec title={<span>Pre-Install Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{preTaken}/{preItems.length}</span></span>}>
+        <div style={S.prog}><div style={{...S.progF,width:`${preItems.length?(preTaken/preItems.length)*100:0}%`,background:"linear-gradient(90deg,#6366f1,#a855f7)"}}/></div>
+        {preSections.map(([cat,items]) => (
+          <div key={cat} style={{marginTop:10}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#6366f1",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>{cat}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:6}}>
+              {items.map(item => {
+                const arr = getPhotos(p.photos, item.id);
+                const has = arr.length > 0;
+                return <div key={item.id} style={{background:has?"rgba(34,197,94,.08)":"rgba(255,255,255,.03)",border:`1px solid ${has?"rgba(34,197,94,.3)":"rgba(255,255,255,.08)"}`,borderRadius:8,overflow:"hidden"}}>
+                  {has ? <div style={{position:"relative",cursor:"pointer"}} onClick={()=>setPrev({id:item.id,idx:0})}>
+                    <img src={arr[0].d} style={{width:"100%",height:70,objectFit:"cover"}} alt=""/>
+                    {arr.length>1 && <span style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,.7)",color:"#fff",fontSize:9,padding:"1px 4px",borderRadius:4}}>{arr.length}</span>}
+                  </div> : <div style={{height:70,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <label style={{fontSize:10,color:"#64748b",cursor:"pointer",textAlign:"center",padding:4}}>📸 Tap<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>
+                  </div>}
+                  <div style={{padding:"4px 6px",fontSize:9,color:"#94a3b8",borderTop:"1px solid rgba(255,255,255,.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span>{item.l}{has&&" ✓"}</span>
+                    {has && <label style={{fontSize:10,color:"#818cf8",cursor:"pointer"}}>＋<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>}
+                  </div>
+                </div>;
+              })}
+            </div>
+          </div>
+        ))}
+      </Sec>
+    </div>
+  );
+}
+
+function DiagTab({p,u,role}) {
+  const sc = (k,f,v) => u({cazResults:{...p.cazResults,[k]:{...(p.cazResults?.[k]||{}),[f]:v}}});
+  const red = p.preCFM50 && p.postCFM50 ? Math.round(((p.preCFM50-p.postCFM50)/p.preCFM50)*100) : null;
+  const preOnly = role === "assessor";
+  return (
+    <div>
+      <Sec title="Blower Door">
+        {preOnly ? (
+          <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/>
+        ) : (
+          <>
+            <Gr><F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/><F label="Post CFM50" value={p.postCFM50} onChange={v=>u({postCFM50:v})}/><F label="Location" value={p.bdLoc} onChange={v=>u({bdLoc:v})} placeholder="Front/Side"/></Gr>
+            {red !== null && <div style={S.calc}><span>Reduction: <b>{red}%</b></span><span style={{color:red>=25?"#22c55e":"#f59e0b",marginLeft:10}}>{red>=25?"✓ Meets 25%":"⚠ Below 25%"}</span>{p.sqft&&<span style={{color:Number(p.preCFM50)>=Number(p.sqft)*1.1?"#22c55e":"#f59e0b",marginLeft:10}}>{Number(p.preCFM50)>=Number(p.sqft)*1.1?"✓ ≥110% sqft":"⚠ <110% sqft"}</span>}</div>}
+          </>
+        )}
+      </Sec>
+      {preOnly ? (
+        <Sec title="Duct Blaster"><F label="Pre CFM25" value={p.preCFM25} onChange={v=>u({preCFM25:v})}/></Sec>
+      ) : (
+        <>
+          <Sec title="Duct Blaster"><Gr><F label="Pre CFM25" value={p.preCFM25} onChange={v=>u({preCFM25:v})}/><F label="Post CFM25" value={p.postCFM25} onChange={v=>u({postCFM25:v})}/></Gr></Sec>
+          <Sec title="ASHRAE 62.2"><Gr><F label="Required CFM" value={p.ventReq} onChange={v=>u({ventReq:v})}/><F label="Method" value={p.ventMethod} onChange={v=>u({ventMethod:v})}/><F label="Post Result" value={p.ventResult} onChange={v=>u({ventResult:v})}/><Sel label="Fan Adj" value={p.fanAdj} onChange={v=>u({fanAdj:v})} opts={["OK","Up","Down"]}/></Gr></Sec>
+        </>
+      )}
+      <Sec title="CAZ Testing">
+        {CAZ_ITEMS.map(c => {
+          const r = p.cazResults?.[c.k] || {};
+          return (
+            <div key={c.k} style={S.cazR}>
+              <span style={{flex:1,fontSize:12,minWidth:120}}>{c.l}</span>
+              {c.r && <input style={{...S.inp,width:60,textAlign:"center"}} value={r.reading||""} onChange={e=>sc(c.k,"reading",e.target.value)} placeholder={c.u}/>}
+              <BtnGrp value={r.result||""} onChange={v=>sc(c.k,"result",v)} opts={[{v:"pass",l:"Pass",c:"#22c55e"},{v:"fail",l:"Fail",c:"#ef4444"},{v:"na",l:"N/A",c:"#64748b"}]}/>
+              <CK checked={r.fu||false} onChange={v=>sc(c.k,"fu",v)} label="F/U" small/>
+            </div>
+          );
+        })}
+      </Sec>
+    </div>
+  );
+}
+
+function PhotoTab({p,u,onLog,user,role}) {
+  const [prev, setPrev] = useState(null); // {id, idx}
+  const [viewMode, setViewMode] = useState("role"); // role | all | compare
+  const allItems = Object.entries(PHOTO_SECTIONS).flatMap(([cat,items])=>items.map(i=>({...i,cat})));
+  const preSections = Object.entries(PHOTO_SECTIONS).filter(([cat]) => cat.includes("(Pre)"));
+  const postSections = Object.entries(PHOTO_SECTIONS).filter(([cat]) => cat.includes("(Post)"));
+  const preItems = preSections.flatMap(([,items])=>items);
+  const postItems = postSections.flatMap(([,items])=>items);
+  const preTaken = preItems.filter(i=>hasPhoto(p.photos,i.id)).length;
+  const postTaken = postItems.filter(i=>hasPhoto(p.photos,i.id)).length;
+  const totalTaken = preTaken + postTaken;
+
+  const compressAndSave = (id, file) => {
+    if (!file) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => {
+        const maxW = 1600;
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        const compressed = c.toDataURL("image/jpeg", 0.7);
+        const existing = getPhotos(p.photos, id);
+        const newEntry = {d:compressed,at:new Date().toISOString(),by:user};
+        u({photos:{...p.photos,[id]:[...existing, newEntry]}});
+        const it = allItems.find(x=>x.id===id);
+        onLog(`📸 ${it?.l||id} (${existing.length+1})`);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const deletePhoto = (id, idx) => {
+    const arr = getPhotos(p.photos, id).filter((_,i)=>i!==idx);
+    const it = allItems.find(x=>x.id===id);
+    u({photos:{...p.photos,[id]:arr.length?arr:undefined}});
+    onLog(`🗑️ Removed ${it?.l||id}`);
+    setPrev(null);
+  };
+
+  // Preview overlay
+  if (prev) {
+    const arr = getPhotos(p.photos, prev.id);
+    const ph = arr[prev.idx];
+    const it = allItems.find(x=>x.id===prev.id);
+    return (
+      <div style={S.camOv}>
+        <div style={S.camH}>
+          <button style={{...S.back,fontSize:18}} onClick={()=>setPrev(null)}>← Back</button>
+          <div style={{flex:1,textAlign:"center",fontWeight:600,fontSize:14}}>{it?.l} {arr.length>1?`(${prev.idx+1}/${arr.length})`:""}</div>
+          <button style={{...S.ghost,color:"#ef4444",borderColor:"#ef4444",padding:"4px 10px"}} onClick={()=>deletePhoto(prev.id,prev.idx)}>Delete</button>
+        </div>
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#000",padding:8,position:"relative"}}>
+          {ph?.d && <img src={ph.d} style={{maxWidth:"100%",maxHeight:"80vh",borderRadius:8}} alt=""/>}
+          {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>‹</button>}
+          {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>›</button>}
+        </div>
+        <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} · {ph?.at&&new Date(ph.at).toLocaleString()}</div>
+      </div>
+    );
+  }
+
+  // ── Photo row helper ──
+  const PhotoRow = ({it}) => {
+    const arr = getPhotos(p.photos, it.id);
+    const has = arr.length > 0;
+    return (
+      <div style={S.phRow}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,color:has?"#22c55e":"#cbd5e1"}}>{has?"✓":"○"} {it.l} {arr.length>1?<span style={{fontSize:10,color:"#818cf8"}}>({arr.length})</span>:""}</div>
+          <div style={{fontSize:10,color:"#64748b"}}>{it.p==="pre"?"📋 Pre":"🏗️ Post"}{has&&arr[0].by?` · ${arr[0].by}`:""}</div>
+        </div>
+        <div style={{display:"flex",gap:4,alignItems:"center"}}>
+          {arr.map((ph,idx) => <button key={idx} style={S.thBtn} onClick={()=>setPrev({id:it.id,idx})}><img src={ph.d} style={S.th} alt=""/></button>)}
+          <label style={S.cBtn} title={has?"Add another":"Take photo"}>
+            {has?"＋":"📷"}
+            <input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{compressAndSave(it.id,e.target.files?.[0]);e.target.value="";}}/>
+          </label>
+          <label style={S.uBtn} title="Upload from gallery">
+            📁
+            <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{compressAndSave(it.id,e.target.files?.[0]);e.target.value="";}}/>
+          </label>
+        </div>
+      </div>
+    );
+  };
+
+  // ── Side-by-side comparison pairs ──
+  const buildPairs = () => {
+    const pairs = [];
+    const usedPost = new Set();
+    preSections.forEach(([preCat, preItms]) => {
+      const catBase = preCat.replace(/ \(Pre\)| \(Post\)/g,"");
+      const postMatch = postSections.find(([postCat]) => postCat.replace(/ \(Pre\)| \(Post\)/g,"") === catBase);
+      preItms.forEach(preIt => {
+        const preArr = getPhotos(p.photos, preIt.id);
+        // find best post match: same base label or just first in matching category
+        let postIt = null;
+        if (postMatch) {
+          postIt = postMatch[1].find(po => !usedPost.has(po.id) && hasPhoto(p.photos, po.id));
+          if (postIt) usedPost.add(postIt.id);
+        }
+        if (preArr.length > 0 || postIt) {
+          pairs.push({ preCat: catBase, preIt, postIt, preArr, postArr: postIt ? getPhotos(p.photos, postIt.id) : [] });
+        }
+      });
+    });
+    // Remaining post photos with no pre match
+    postSections.forEach(([postCat, postItms]) => {
+      postItms.filter(po => !usedPost.has(po.id) && hasPhoto(p.photos, po.id)).forEach(po => {
+        usedPost.add(po.id);
+        pairs.push({ preCat: postCat.replace(/ \(Pre\)| \(Post\)/g,""), preIt: null, postIt: po, preArr: [], postArr: getPhotos(p.photos, po.id) });
+      });
+    });
+    return pairs;
+  };
+
+  // ── Tab button style ──
+  const tabBtn = (mode, label, icon) => ({
+    flex:1,padding:"8px 4px",borderRadius:6,border:`1px solid ${viewMode===mode?"rgba(99,102,241,.5)":"rgba(255,255,255,.1)"}`,
+    background:viewMode===mode?"rgba(99,102,241,.15)":"transparent",color:viewMode===mode?"#a5b4fc":"#64748b",
+    fontSize:11,fontWeight:viewMode===mode?700:500,cursor:"pointer",textAlign:"center",fontFamily:"'DM Sans',sans-serif"
+  });
+
+  return (
+    <div>
+      {/* ── HEADER ── */}
+      <Sec title={<span>Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{totalTaken}/{allItems.length}</span></span>}>
+        <div style={S.prog}><div style={{...S.progF,width:`${allItems.length?(totalTaken/allItems.length)*100:0}%`,background:"linear-gradient(90deg,#6366f1,#a855f7)"}}/></div>
+
+        {/* View mode toggle */}
+        <div style={{display:"flex",gap:4,marginTop:10}}>
+          <button type="button" onClick={()=>setViewMode("role")} style={tabBtn("role")}>📋 By Role</button>
+          <button type="button" onClick={()=>setViewMode("all")} style={tabBtn("all")}>📂 All</button>
+          <button type="button" onClick={()=>setViewMode("compare")} style={tabBtn("compare")}>↔ Side-by-Side</button>
+        </div>
+
+        {/* Print / Compile buttons */}
+        <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+          <PrintBtn label="Print Pre" onClick={()=>savePrint(photoPageHTML("Pre-Install Photos",p.photos,allItems.filter(i=>i.p==="pre"),p))}/>
+          <PrintBtn label="Print Post" onClick={()=>savePrint(photoPageHTML("Post-Install Photos",p.photos,allItems.filter(i=>i.p==="post"),p))}/>
+          <PrintBtn label="Print Side-by-Side" onClick={()=>savePrint(sideBySideHTML(p.photos,allItems,p))}/>
+          <PrintBtn label="Print All" onClick={()=>savePrint(photoPageHTML("All Photos — Complete",p.photos,allItems,p))}/>
+        </div>
+      </Sec>
+
+      {/* ═══ VIEW: BY ROLE ═══ */}
+      {viewMode === "role" && <>
+        {/* ASSESSOR — Pre Photos */}
+        <Sec title={<span style={{color:"#6366f1"}}>📋 Assessor — Pre-Install <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{preTaken}/{preItems.length}</span></span>}>
+          <div style={S.prog}><div style={{...S.progF,width:`${preItems.length?(preTaken/preItems.length)*100:0}%`,background:"linear-gradient(90deg,#6366f1,#a855f7)"}}/></div>
+          {preSections.map(([cat,items]) => {
+            const cd = items.filter(i=>hasPhoto(p.photos,i.id)).length;
+            return (
+              <div key={cat} style={{marginTop:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#6366f1",marginBottom:4,display:"flex",justifyContent:"space-between"}}>
+                  <span>{cat}</span><span style={{color:cd===items.length?"#22c55e":"#64748b"}}>{cd}/{items.length}</span>
+                </div>
+                {items.map(it => <PhotoRow key={it.id} it={it}/>)}
+              </div>
+            );
+          })}
+        </Sec>
+
+        {/* INSTALL CREW — Post Photos */}
+        <Sec title={<span style={{color:"#f97316"}}>🏗️ Install Crew — Post-Install <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{postTaken}/{postItems.length}</span></span>}>
+          <div style={S.prog}><div style={{...S.progF,width:`${postItems.length?(postTaken/postItems.length)*100:0}%`,background:"linear-gradient(90deg,#f97316,#eab308)"}}/></div>
+          {postSections.map(([cat,items]) => {
+            const cd = items.filter(i=>hasPhoto(p.photos,i.id)).length;
+            return (
+              <div key={cat} style={{marginTop:10}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#f97316",marginBottom:4,display:"flex",justifyContent:"space-between"}}>
+                  <span>{cat}</span><span style={{color:cd===items.length?"#22c55e":"#64748b"}}>{cd}/{items.length}</span>
+                </div>
+                {items.map(it => <PhotoRow key={it.id} it={it}/>)}
+              </div>
+            );
+          })}
+        </Sec>
+      </>}
+
+      {/* ═══ VIEW: ALL ═══ */}
+      {viewMode === "all" && Object.entries(PHOTO_SECTIONS).map(([cat,items]) => {
+        const cd = items.filter(i=>hasPhoto(p.photos,i.id)).length;
+        return (
+          <Sec key={cat} title={<span>{cat} <span style={{fontWeight:400,color:cd===items.length?"#22c55e":"#94a3b8"}}>{cd}/{items.length}</span></span>}>
+            {items.map(it => <PhotoRow key={it.id} it={it}/>)}
+          </Sec>
+        );
+      })}
+
+      {/* ═══ VIEW: SIDE-BY-SIDE ═══ */}
+      {viewMode === "compare" && (() => {
+        const pairs = buildPairs();
+        if (pairs.length === 0) return <Sec title="Side-by-Side Comparison"><p style={{color:"#64748b",fontSize:12,textAlign:"center",padding:20}}>No photos to compare yet. Take pre and post photos to see side-by-side.</p></Sec>;
+        // Group by category
+        const grouped = {};
+        pairs.forEach(pr => { if (!grouped[pr.preCat]) grouped[pr.preCat] = []; grouped[pr.preCat].push(pr); });
+        return Object.entries(grouped).map(([catBase, catPairs]) => (
+          <Sec key={catBase} title={<span>↔ {catBase}</span>}>
+            {catPairs.map((pr, pi) => (
+              <div key={pi} style={{marginBottom:12,border:"1px solid rgba(255,255,255,.08)",borderRadius:8,overflow:"hidden"}}>
+                {/* Labels */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
+                  <div style={{padding:"6px 8px",background:"rgba(99,102,241,.08)",fontSize:10,fontWeight:700,color:"#818cf8",textAlign:"center"}}>
+                    📋 PRE — {pr.preIt?.l || "—"}
+                  </div>
+                  <div style={{padding:"6px 8px",background:"rgba(249,115,22,.08)",fontSize:10,fontWeight:700,color:"#f97316",textAlign:"center"}}>
+                    🏗️ POST — {pr.postIt?.l || "—"}
+                  </div>
+                </div>
+                {/* Images */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",minHeight:100}}>
+                  {/* Pre side */}
+                  <div style={{borderRight:"1px solid rgba(255,255,255,.06)",padding:4,display:"flex",flexDirection:"column",gap:4,alignItems:"center",justifyContent:"center"}}>
+                    {pr.preArr.length > 0 ? pr.preArr.map((ph,idx) => (
+                      <button key={idx} onClick={()=>setPrev({id:pr.preIt.id,idx})} style={{background:"none",border:"none",padding:0,cursor:"pointer",width:"100%"}}>
+                        <img src={ph.d} style={{width:"100%",maxHeight:200,objectFit:"contain",borderRadius:4}} alt=""/>
+                      </button>
+                    )) : <div style={{color:"#475569",fontSize:11,padding:20}}>No pre photo</div>}
+                  </div>
+                  {/* Post side */}
+                  <div style={{padding:4,display:"flex",flexDirection:"column",gap:4,alignItems:"center",justifyContent:"center"}}>
+                    {pr.postArr.length > 0 ? pr.postArr.map((ph,idx) => (
+                      <button key={idx} onClick={()=>setPrev({id:pr.postIt.id,idx})} style={{background:"none",border:"none",padding:0,cursor:"pointer",width:"100%"}}>
+                        <img src={ph.d} style={{width:"100%",maxHeight:200,objectFit:"contain",borderRadius:4}} alt=""/>
+                      </button>
+                    )) : <div style={{color:"#475569",fontSize:11,padding:20}}>No post photo</div>}
+                  </div>
+                </div>
+                {/* Metadata */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid rgba(255,255,255,.04)",fontSize:9,color:"#475569"}}>
+                  <div style={{padding:"3px 8px"}}>{pr.preArr[0]?.by||""}{pr.preArr[0]?.at?` · ${new Date(pr.preArr[0].at).toLocaleDateString()}`:""}</div>
+                  <div style={{padding:"3px 8px"}}>{pr.postArr[0]?.by||""}{pr.postArr[0]?.at?` · ${new Date(pr.postArr[0].at).toLocaleDateString()}`:""}</div>
+                </div>
+              </div>
+            ))}
+          </Sec>
+        ));
+      })()}
+    </div>
+  );
+}
+
+function ScopeTab({p,u,onLog}) {
+  const s = p.scope2026 || {};
+  const ss = (k,v) => u({scope2026:{...s,[k]:v}});
+  const sn = (sec,k,v) => u({scope2026:{...s,[sec]:{...(s[sec]||{}),[k]:v}}});
+  const tog = (list,m) => { const l = p[list].includes(m) ? p[list].filter(x=>x!==m) : [...p[list],m]; u({[list]:l}); };
+
+  const getScopeHTML = () => {
+    const yn = v => v===true?"Yes":v===false?"No":"—";
+    const v = k => s[k]||"—";
+    const nv = (sec,k) => s[sec]?.[k]||"—";
+    const nyn = (sec,k) => s[sec]?.[k]===true?"Yes":s[sec]?.[k]===false?"No":"—";
+
+    const measRows = p.measures.map(m=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #16a34a;border-radius:4px;margin:2px;font-size:10px;color:#16a34a">✓ ${m}</span>`).join("");
+    const hsRows = p.healthSafety.map(m=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #d97706;border-radius:4px;margin:2px;font-size:10px;color:#d97706">✓ ${m}</span>`).join("");
+
+    const body = `
+      <div class="sec"><h3>Customer Information</h3><div class="grid">
+        <div class="row"><span class="lbl">Customer</span><span class="val">${p.customerName}</span></div>
+        <div class="row"><span class="lbl">Address</span><span class="val">${p.address}</span></div>
+        <div class="row"><span class="lbl">RISE ID</span><span class="val">${p.riseId||"—"}</span></div>
+        <div class="row"><span class="lbl">Assessment Date</span><span class="val">${p.assessmentDate?fmts(p.assessmentDate):"—"}</span></div>
+        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${p.sqft||"—"}</span></div>
+        <div class="row"><span class="lbl">Volume</span><span class="val">${Number(p.sqft)?(Number(p.sqft)*8).toLocaleString()+" ft³":"—"}</span></div>
+        <div class="row"><span class="lbl">Stories</span><span class="val">${p.stories||"—"}</span></div>
+        <div class="row"><span class="lbl">Bedrooms</span><span class="val">${s.bedrooms||"—"}</span></div>
+        <div class="row"><span class="lbl">Year Built</span><span class="val">${p.yearBuilt||"—"}</span></div>
+        <div class="row"><span class="lbl">Occupants</span><span class="val">${p.occupants||"—"}</span></div>
+      </div></div>
+      <div class="sec"><h3>Attic / Ceiling</h3><div class="grid">
+        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("attic","sqft")}</span></div>
+        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("attic","preR")}</span></div>
+        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("attic","addR")}</span></div>
+        <div class="row"><span class="lbl">Accessible</span><span class="val">${nyn("attic","accessible")}</span></div>
+        <div class="row"><span class="lbl">Cut In</span><span class="val">${nyn("attic","cutIn")}</span></div>
+        <div class="row"><span class="lbl">Floor Boards</span><span class="val">${nyn("attic","floorBoards")}</span></div>
+        <div class="row"><span class="lbl">Ductwork</span><span class="val">${nyn("attic","ductwork")}</span></div>
+        <div class="row"><span class="lbl">Condition</span><span class="val">${nv("attic","condition")}</span></div>
+        <div class="row"><span class="lbl">Ln Ft Air Seal</span><span class="val">${nv("attic","lnftAirSeal")}</span></div>
+      </div></div>
+      <div class="sec"><h3>Outer Ceiling Joists</h3><div class="grid">
+        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("outerCeiling","sqft")}</span></div>
+        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("outerCeiling","preR")}</span></div>
+        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("outerCeiling","addR")}</span></div>
+      </div></div>
+      <div class="sec"><h3>Knee Walls</h3><div class="grid">
+        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("kneeWall","sqft")}</span></div>
+        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("kneeWall","preR")}</span></div>
+        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("kneeWall","addR")}</span></div>
+        <div class="row"><span class="lbl">Dense Pack</span><span class="val">${nyn("kneeWall","densePack")}</span></div>
+        <div class="row"><span class="lbl">Rigid Foam</span><span class="val">${nyn("kneeWall","rigidFoam")}</span></div>
+        <div class="row"><span class="lbl">Wall Type</span><span class="val">${nv("kneeWall","wallType")}</span></div>
+        <div class="row"><span class="lbl">Tyvek</span><span class="val">${nyn("kneeWall","tyvek")}</span></div>
+      </div></div>
+      <div class="sec"><h3>Exterior Walls — 1st Floor</h3><div class="grid">
+        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("extWall1","sqft")}</span></div>
+        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("extWall1","preR")}</span></div>
+        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("extWall1","addR")}</span></div>
+        <div class="row"><span class="lbl">Window/Door SqFt</span><span class="val">${nv("extWall1","winDoorSqft")}</span></div>
+        <div class="row"><span class="lbl">Dense Pack</span><span class="val">${nyn("extWall1","densePack")}</span></div>
+        <div class="row"><span class="lbl">Cladding</span><span class="val">${nv("extWall1","cladding")}</span></div>
+        <div class="row"><span class="lbl">Insulate From</span><span class="val">${nv("extWall1","insulFrom")}</span></div>
+        <div class="row"><span class="lbl">Wall Type</span><span class="val">${nv("extWall1","wallType")}</span></div>
+        <div class="row"><span class="lbl">Phenolic Foam</span><span class="val">${nyn("extWall1","phenolic")}</span></div>
+      </div></div>
+      <div class="sec"><h3>Exterior Walls — 2nd Floor</h3><div class="grid">
+        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("extWall2","sqft")}</span></div>
+        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("extWall2","preR")}</span></div>
+        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("extWall2","addR")}</span></div>
+        <div class="row"><span class="lbl">Dense Pack</span><span class="val">${nyn("extWall2","densePack")}</span></div>
+        <div class="row"><span class="lbl">Cladding</span><span class="val">${nv("extWall2","cladding")}</span></div>
+      </div></div>
+      <div class="sec"><h3>Foundation / Crawl</h3><div class="grid">
+        <div class="row"><span class="lbl">Type</span><span class="val">${nv("fnd","type")}</span></div>
+        <div class="row"><span class="lbl">Above Grade SqFt</span><span class="val">${nv("fnd","aboveSqft")}</span></div>
+        <div class="row"><span class="lbl">Below Grade SqFt</span><span class="val">${nv("fnd","belowSqft")}</span></div>
+        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("fnd","preR")}</span></div>
+        <div class="row"><span class="lbl">Insulation Type</span><span class="val">${nv("fnd","insulType")}</span></div>
+        <div class="row"><span class="lbl">Band Joist LnFt</span><span class="val">${nv("fnd","bandLnft")}</span></div>
+        <div class="row"><span class="lbl">Vapor Barrier</span><span class="val">${nyn("fnd","vaporBarrier")}</span></div>
+        <div class="row"><span class="lbl">Water Issues</span><span class="val">${nyn("fnd","waterIssues")}</span></div>
+      </div></div>
+      <div class="sec"><h3>Diagnostics</h3><div class="grid">
+        <div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"—"}</span></div>
+        <div class="row"><span class="lbl">Ext Temp</span><span class="val">${v("extTemp")}</span></div>
+        <div class="row"><span class="lbl">BD Location</span><span class="val">${p.bdLoc||"—"}</span></div>
+      </div></div>
+      <div class="sec"><h3>ASHRAE 62.2-2016 Ventilation</h3>
+        <p style="font-size:9px;color:#999;margin:0 0 6px">Existing · Detached · Infiltration credit: Yes · Alt. compliance: Yes · wsf = 0.56 (Chicago Midway AP)</p>
+        ${(()=>{
+          const a2=p.audit||{};const baseSq=Number(p.sqft)||0;const finBsmt=s.fnd?.type==="Finished"?(Number(s.fnd?.aboveSqft)||0)+(Number(s.fnd?.belowSqft)||0):0;const sq=baseSq+finBsmt;const oc=(Number(s.bedrooms)||0)+1;const c50=Number(p.preCFM50)||0;
+          const st2=Number(p.stories)||1;const hh=st2>=2?16:st2>=1.5?14:8;const wsf2=0.56;const hr=8.202;
+          const kRw=String(s.ashrae?.kitchenCFM??a2.kitchenFan??"");const b1Rw=String(s.ashrae?.bath1CFM??a2.bathFan1??"");
+          const b2Rw=String(s.ashrae?.bath2CFM??a2.bathFan2??"");const b3Rw=String(s.ashrae?.bath3CFM??a2.bathFan3??"");
+          const kP=kRw.trim()!=="";const b1P=b1Rw.trim()!=="";const b2P=b2Rw.trim()!=="";const b3P=b3Rw.trim()!=="";
+          const kC=Number(kRw)||0;const b1c=Number(b1Rw)||0;const b2c=Number(b2Rw)||0;const b3c=Number(b3Rw)||0;
+          const kW=s.ashrae?.kWin;const b1W=s.ashrae?.b1Win;const b2W=s.ashrae?.b2Win;const b3W=s.ashrae?.b3Win;
+          const NL2=sq>0&&c50>0?c50/(17.8*sq)*Math.sqrt(hr/hh):0;
+          const qi=c50>0?c50*wsf2*Math.pow(hh/hr,0.25)/17.8:0;
+          const qt=sq>0&&oc>0?0.03*sq+7.5*oc:0;
+          const kD=kP?(kW?0:Math.max(0,100-kC)):0;const b1D=b1P?(b1W?0:Math.max(0,50-b1c)):0;
+          const b2D=b2P?(b2W?0:Math.max(0,50-b2c)):0;const b3D=b3P?(b3W?0:Math.max(0,50-b3c)):0;
+          const td=kD+b1D+b2D+b3D;const supp=td*0.25;
+          const qf=Math.max(0,qt+supp-qi);
+          const R=v=>Math.round(v*100)/100;
+          const fan=Number(s.ashrae?.fanSetting)||0;const minHr=fan>0?R(qf/fan*60):0;
+          return `<div class="grid">
+            <div class="row"><span class="lbl">Floor area${finBsmt>0?" (incl. fin. bsmt)":""}</span><span class="val">${sq} ft²</span></div>
+            <div class="row"><span class="lbl">Occupants (Nbr = beds+1)</span><span class="val">${oc}</span></div>
+            <div class="row"><span class="lbl">Dwelling height</span><span class="val">${hh} ft (${st2>=2?"2":st2>=1.5?"1.5":"1"}-story)</span></div>
+            <div class="row"><span class="lbl">Leakage @ 50Pa</span><span class="val">${c50} CFM</span></div>
+            <div class="row"><span class="lbl">Kitchen fan${kP?"":" (none)"}</span><span class="val">${kP?kC+" CFM":"—"} ${kW?"(window)":""} ${kP?"(req 100)":""}</span></div>
+            <div class="row"><span class="lbl">Bath #1${b1P?"":" (none)"}</span><span class="val">${b1P?b1c+" CFM":"—"} ${b1W?"(window)":""} ${b1P?"(req 50)":""}</span></div>
+            <div class="row"><span class="lbl">Bath #2${b2P?"":" (none)"}</span><span class="val">${b2P?b2c+" CFM":"—"} ${b2W?"(window)":""} ${b2P?"(req 50)":""}</span></div>
+            <div class="row"><span class="lbl">Bath #3${b3P?"":" (none)"}</span><span class="val">${b3P?b3c+" CFM":"—"} ${b3W?"(window)":""} ${b3P?"(req 50)":""}</span></div>
+            <div class="row"><span class="lbl">Total deficit (intermittent)</span><span class="val">${Math.round(td)} CFM</span></div>
+          </div>
+          <div style="margin-top:8px;padding:8px;background:#f0f0ff;border-radius:4px">
+            <div style="font-weight:700;font-size:11px;color:#4338ca;margin-bottom:4px">Dwelling-Unit Ventilation Results</div>
+            <div class="row"><span class="lbl">Eff. annual avg infiltration</span><span class="val">${R(qi)} CFM</span></div>
+            <div class="row"><span class="lbl">Qtot = 0.03×${sq} + 7.5×${oc}</span><span class="val">${R(qt)} CFM</span></div>
+            <div class="row"><span class="lbl">Alt. compliance supplement = ${Math.round(td)}×0.25</span><span class="val">${R(supp)} CFM</span></div>
+            <div class="row"><span class="lbl">Infiltration credit (full, existing)</span><span class="val">${R(qi)} CFM</span></div>
+            <div class="row" style="border-top:2px solid #4338ca;padding-top:4px;margin-top:4px">
+              <span style="font-weight:700">Qfan = ${R(qt)} + ${R(supp)} − ${R(qi)}</span>
+              <span style="font-weight:700;color:#4338ca;font-size:14px">${R(qf)} CFM</span>
+            </div>
+            ${fan>0?`<div class="row"><span class="lbl">Fan setting: ${fan} CFM · Run-time: ${minHr} min/hr (continuous = 60)</span></div>`:""}
+          </div>`;
+        })()}</div>
+      <div class="sec"><h3>Measures — Energy Efficiency</h3>${measRows||"<span style='color:#999'>None selected</span>"}</div>
+      <div class="sec"><h3>Measures — Health & Safety</h3>${hsRows||"<span style='color:#999'>None selected</span>"}</div>
+      <div class="sec"><h3>Insulation Quantities</h3><div class="grid">
+        ${["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].map(m=>`<div class="row"><span class="lbl">${m}</span><span class="val">${s.insulQty?.[m]||"—"} ${m.includes("Rim Joist")?"LnFt":"SqFt"}</span></div>`).join("")}
+      </div></div>
+      <div class="sec"><h3>Notes on Work</h3><p style="color:#333">${p.measureNotes||"—"}</p></div>
+      <div class="sec"><h3>Notes on Health & Safety</h3><p style="color:#333">${s.hsNotes||"—"}</p></div>`;
+
+    const html = `<!DOCTYPE html><html><head><title>HEA/IE Retrofit Form — ${p.customerName}</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:11px}h1{font-size:16px;border-bottom:2px solid #333;padding-bottom:6px}h2{font-size:11px;color:#666;margin-bottom:12px}.sec{margin-bottom:10px;border:1px solid #ddd;border-radius:5px;padding:8px}.sec h3{font-size:12px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:3px}.row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}</style></head><body>
+      <h1>2026 HEA / IE Retrofit Form</h1><h2>${p.customerName} · ${p.address} · RISE: ${p.riseId||"—"} · ${new Date().toLocaleDateString()}</h2>${body}</body></html>`;
+    return html;
+  };
+
+  return (
+    <div>
+      <Sec title="📋 2026 HEA/IE Retrofit Form">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Scope of Work — submit to RISE for approval</p>
+          <PrintBtn onClick={()=>savePrint(getScopeHTML())}/>
+        </div>
+      </Sec>
+
+      {/* ══ PAGE 1: BUILDING PROPERTY TYPE ══ */}
+      <Sec title="Building Property Type">
+        <Gr>
+          <Sel label="Style" value={s.style||""} onChange={v=>ss("style",v)} opts={["Single Family, Detached","Townhouse, Single Unit","Duplex, Single Unit","Multi-Family (Any Type), Multiple Units","Mobile Home","Multi-Family 3+ Units, Single Tenant Unit","Condo 3+ Units, Single Unit","Condo 3+ Units, Common Area","2-Flat","Apartment","Manufactured Home"]}/>
+          <F label="Year Built" value={p.yearBuilt} onChange={v=>u({yearBuilt:v})}/>
+          <F label="Stories" value={p.stories} onChange={v=>u({stories:v})}/>
+          <F label="Bedrooms" value={s.bedrooms||""} onChange={v=>ss("bedrooms",v)}/>
+          <F label="Occupants" value={p.occupants} onChange={v=>u({occupants:v})}/>
+          <F label="Sq Footage" value={p.sqft} onChange={v=>u({sqft:v})}/>
+          <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>Volume</label><div style={{...S.inp,background:"rgba(99,102,241,.08)",color:"#a5b4fc",display:"flex",alignItems:"center",marginTop:"auto"}}>{Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() : "—"}<span style={{fontSize:10,color:"#64748b",marginLeft:6}}>ft³ (sqft × 8)</span></div></div>
+          <Sel label="Tenant Type" value={s.tenantType||""} onChange={v=>ss("tenantType",v)} opts={["Own","Rent"]}/>
+        </Gr>
+        <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#818cf8",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Gutters</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.gutterExist} onChange={v=>ss("gutterExist",v)} label="Gutters Exist"/>
+          <CK checked={s.downspouts} onChange={v=>ss("downspouts",v)} label="Downspouts"/>
+          <CK checked={s.gutterRepair} onChange={v=>ss("gutterRepair",v)} label="Repairs Needed"/>
+        </div>
+        <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#818cf8",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Roof</div>
+        <Gr>
+          <Sel label="Condition" value={s.roofCondition||""} onChange={v=>ss("roofCondition",v)} opts={["Good","Average","Poor"]}/>
+          <Sel label="Type" value={s.roofType||""} onChange={v=>ss("roofType",v)} opts={["Architecture","3-Tab","Flat"]}/>
+          <F label="Approx. Age" value={s.roofAge||""} onChange={v=>ss("roofAge",v)}/>
+        </Gr>
+        <div style={{marginTop:4}}><CK checked={s.roofRepair} onChange={v=>ss("roofRepair",v)} label="Roof Repairs Needed"/></div>
+        <div style={{marginTop:4,display:"flex",alignItems:"center",gap:12}}>
+          <CK checked={s.highRoofVent} onChange={v=>ss("highRoofVent",v)} label="High Roof Venting"/>
+          {s.highRoofVent && <div style={{width:140}}><Sel label="Vent Type" value={s.ventType||""} onChange={v=>ss("ventType",v)} opts={["Static","Ridge"]}/></div>}
+        </div>
+        <textarea style={{...S.ta,marginTop:8}} value={s.propNotes||""} onChange={e=>ss("propNotes",e.target.value)} rows={2} placeholder="Building property notes…"/>
+      </Sec>
+
+      {/* ══ PAGE 2: HEATING SYSTEM ══ */}
+      <Sec title="Heating System Info">
+        <Gr>
+          <Sel label="Thermostat" value={s.htg?.thermostat||""} onChange={v=>sn("htg","thermostat",v)} opts={["Manual","Programmable","Smart"]}/>
+          <Sel label="Fuel Type" value={s.htg?.fuel||""} onChange={v=>sn("htg","fuel",v)} opts={["Natural Gas","Electric","Propane","Oil","Other"]}/>
+          <Sel label="System Type" value={s.htg?.system||""} onChange={v=>sn("htg","system",v)} opts={["Forced Air","Boiler","Other"]}/>
+          <Sel label="Flue Condition" value={s.htg?.flue||""} onChange={v=>sn("htg","flue",v)} opts={["Good","Average","Poor"]}/>
+        </Gr>
+        <div style={{marginTop:8}}><Gr>
+          <F label="Manufacturer" value={s.htg?.mfg||""} onChange={v=>sn("htg","mfg",v)}/>
+          <F label="Install Year" value={s.htg?.year||""} onChange={v=>sn("htg","year",v)}/>
+          <F label="Condition" value={s.htg?.condition||""} onChange={v=>sn("htg","condition",v)}/>
+        </Gr></div>
+        <div style={{marginTop:8}}><Gr>
+          <F label="BTU Input" value={s.htg?.btuIn||""} onChange={v=>sn("htg","btuIn",v)}/>
+          <F label="BTU Output" value={s.htg?.btuOut||""} onChange={v=>sn("htg","btuOut",v)}/>
+          <F label="AFUE" value={s.htg?.afue||""} onChange={v=>sn("htg","afue",v)}/>
+          <F label="Draft" value={s.htg?.draft||""} onChange={v=>sn("htg","draft",v)}/>
+        </Gr></div>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.htg?.gasShutoff} onChange={v=>sn("htg","gasShutoff",v)} label="Gas Shut Off"/>
+          <CK checked={s.htg?.asbestosPipes} onChange={v=>sn("htg","asbestosPipes",v)} label="Pipes Asbestos Wrapped"/>
+          <CK checked={s.htg?.replaceRec} onChange={v=>sn("htg","replaceRec",v)} label="Replacement Recommended"/>
+          <CK checked={s.htg?.cleanTune} onChange={v=>sn("htg","cleanTune",v)} label="Clean & Tune"/>
+        </div>
+        <textarea style={{...S.ta,marginTop:8}} value={s.htg?.notes||""} onChange={e=>sn("htg","notes",e.target.value)} rows={2} placeholder="Heating notes…"/>
+      </Sec>
+
+      {/* ══ PAGE 2: COOLING SYSTEM ══ */}
+      <Sec title="Cooling System Info">
+        <Gr>
+          <Sel label="Type" value={s.clg?.type||""} onChange={v=>sn("clg","type",v)} opts={["Central Air","Window Units","Mini Split","Heat Pump","None"]}/>
+          <F label="Manufacturer" value={s.clg?.mfg||""} onChange={v=>sn("clg","mfg",v)}/>
+          <F label="Age" value={s.clg?.age||""} onChange={v=>sn("clg","age",v)}/>
+          <F label="SEER" value={s.clg?.seer||""} onChange={v=>sn("clg","seer",v)}/>
+          <F label="Condition" value={s.clg?.condition||""} onChange={v=>sn("clg","condition",v)}/>
+          <Sel label="BTU Size" value={s.clg?.btu||""} onChange={v=>sn("clg","btu",v)} opts={["2 Ton (24k)","2.5 Ton (30k)","3 Ton (36k)","3.5 Ton (42k)"]}/>
+        </Gr>
+        <div style={{marginTop:6}}><CK checked={s.clg?.replaceRec} onChange={v=>sn("clg","replaceRec",v)} label="Replacement Recommended"/></div>
+        {s.clg?.replaceRec && <div style={{marginTop:4}}><F label="Reason" value={s.clg?.replaceReason||""} onChange={v=>sn("clg","replaceReason",v)}/></div>}
+      </Sec>
+
+      {/* ══ PAGE 2: DOMESTIC HOT WATER ══ */}
+      <Sec title="Domestic Hot Water Info">
+        <Gr>
+          <Sel label="Fuel" value={s.dhw?.fuel||""} onChange={v=>sn("dhw","fuel",v)} opts={["Natural Gas","Electric","Propane","Other"]}/>
+          <Sel label="System Type" value={s.dhw?.system||""} onChange={v=>sn("dhw","system",v)} opts={["On Demand","Storage Tank","Indirect","Heat Pump","Other"]}/>
+          <F label="Manufacturer" value={s.dhw?.mfg||""} onChange={v=>sn("dhw","mfg",v)}/>
+          <F label="Age" value={s.dhw?.age||""} onChange={v=>sn("dhw","age",v)}/>
+          <F label="Condition" value={s.dhw?.condition||""} onChange={v=>sn("dhw","condition",v)}/>
+          <F label="Input BTU" value={s.dhw?.btuIn||""} onChange={v=>sn("dhw","btuIn",v)}/>
+          <F label="Output BTU" value={s.dhw?.btuOut||""} onChange={v=>sn("dhw","btuOut",v)}/>
+        </Gr>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.dhw?.insulPipes} onChange={v=>sn("dhw","insulPipes",v)} label="Insulated Pipes"/>
+          <CK checked={s.dhw?.flueRepair} onChange={v=>sn("dhw","flueRepair",v)} label="Flue Repair Needed"/>
+          <CK checked={s.dhw?.replaceRec} onChange={v=>sn("dhw","replaceRec",v)} label="Replacement Recommended"/>
+          <CK checked={s.dhw?.ductsSealed} onChange={v=>sn("dhw","ductsSealed",v)} label="Ducts Need Sealing"/>
+        </div>
+        {s.dhw?.replaceRec && <div style={{marginTop:6}}><F label="Reason" value={s.dhw?.replaceReason||""} onChange={v=>sn("dhw","replaceReason",v)}/></div>}
+      </Sec>
+
+      {/* ══ PAGE 3: INTERIOR INSPECTION ══ */}
+      <Sec title="Interior Inspection">
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.int?.mold} onChange={v=>sn("int","mold",v)} label="Mold"/>
+          <CK checked={s.int?.moisture} onChange={v=>sn("int","moisture",v)} label="Moisture Problems"/>
+          <CK checked={s.int?.knobTube} onChange={v=>sn("int","knobTube",v)} label="Live Knob & Tube"/>
+          <CK checked={s.int?.electrical} onChange={v=>sn("int","electrical",v)} label="Electrical Issues"/>
+          <CK checked={s.int?.brokenGlass} onChange={v=>sn("int","brokenGlass",v)} label="Broken Glass"/>
+          <CK checked={s.int?.vermiculite} onChange={v=>sn("int","vermiculite",v)} label="Vermiculite/Asbestos"/>
+          <CK checked={s.int?.waterLeaks} onChange={v=>sn("int","waterLeaks",v)} label="Water Leaks"/>
+          <CK checked={s.int?.roofLeaks} onChange={v=>sn("int","roofLeaks",v)} label="Roof Leaks"/>
+        </div>
+        {(s.int?.waterLeaks || s.int?.roofLeaks) && <div style={{marginTop:6}}><Gr>
+          {s.int?.waterLeaks && <F label="Water Leak Location" value={s.int?.waterLoc||""} onChange={v=>sn("int","waterLoc",v)}/>}
+          {s.int?.roofLeaks && <F label="Roof Leak Location" value={s.int?.roofLoc||""} onChange={v=>sn("int","roofLoc",v)}/>}
+        </Gr></div>}
+        <div style={{marginTop:8}}><Gr>
+          <Sel label="Ceiling Condition" value={s.int?.ceiling||""} onChange={v=>sn("int","ceiling",v)} opts={["Good","Poor"]}/>
+          <Sel label="Wall Condition" value={s.int?.wall||""} onChange={v=>sn("int","wall",v)} opts={["Good","Poor"]}/>
+        </Gr></div>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.int?.droppedCeiling} onChange={v=>sn("int","droppedCeiling",v)} label="Dropped Ceiling"/>
+          <CK checked={s.int?.drywallRepair} onChange={v=>sn("int","drywallRepair",v)} label="Drywall Repair"/>
+          <CK checked={s.int?.recessedLight} onChange={v=>sn("int","recessedLight",v)} label="Recessed Lighting"/>
+          <CK checked={s.int?.coDetector} onChange={v=>sn("int","coDetector",v)} label="CO Detector"/>
+          <CK checked={s.int?.smokeDetector} onChange={v=>sn("int","smokeDetector",v)} label="Smoke Detector"/>
+        </div>
+        {s.int?.recessedLight && <div style={{marginTop:6}}><F label="Recessed Lighting Location" value={s.int?.recessedLoc||""} onChange={v=>sn("int","recessedLoc",v)}/></div>}
+      </Sec>
+
+      {/* ══ PAGE 3: DOOR TYPES / EXHAUST VENTING ══ */}
+      <Sec title="Door Types / Exhaust Venting">
+        <div style={{fontSize:11,fontWeight:600,color:"#818cf8",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Weather Strips / Door Sweeps</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:"0px 8px"}}>
+          {["Front","Back","Basement","Attic"].map(d=>(
+            <CK key={d} checked={s.doors?.[d]} onChange={v=>sn("doors",d,v)} label={`${d} — Existing`}/>
+          ))}
+        </div>
+        <div style={{maxWidth:200}}><F label="Total Strips/Sweeps Needed" value={s.totalSweeps||""} onChange={v=>ss("totalSweeps",v)}/></div>
+        <div style={{marginTop:10,fontSize:11,fontWeight:600,color:"#818cf8",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Exhaust</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.exh?.fanReplace} onChange={v=>sn("exh","fanReplace",v)} label="Exhaust Fan Replacement"/>
+          <CK checked={s.exh?.bathFanLight} onChange={v=>sn("exh","bathFanLight",v)} label="Bath Fan w/ Light"/>
+          <CK checked={s.exh?.ventKit} onChange={v=>sn("exh","ventKit",v)} label="Vent Kit Needed"/>
+          <CK checked={s.exh?.termCap} onChange={v=>sn("exh","termCap",v)} label="Termination Cap Needed"/>
+          <CK checked={s.exh?.dryerProper} onChange={v=>sn("exh","dryerProper",v)} label="Dryer Vented Properly"/>
+          <CK checked={s.exh?.dryerRepair} onChange={v=>sn("exh","dryerRepair",v)} label="Dryer Vent Repair"/>
+        </div>
+        <div style={{marginTop:8}}><Gr>
+          <F label="Blower Door In" value={s.exh?.bdIn||""} onChange={v=>sn("exh","bdIn",v)}/>
+          <F label="Blower Door Out" value={s.exh?.bdOut||""} onChange={v=>sn("exh","bdOut",v)}/>
+        </Gr></div>
+        <div style={{marginTop:6}}><CK checked={s.exh?.noBD} onChange={v=>sn("exh","noBD",v)} label="No blower door — estimated (asbestos/vermiculite ONLY)"/></div>
+        <textarea style={{...S.ta,marginTop:6}} value={s.exh?.notes||""} onChange={e=>sn("exh","notes",e.target.value)} rows={2} placeholder="Notes…"/>
+      </Sec>
+
+      {/* ══ PAGE 4: ATTIC ══ */}
+      <Sec title="Attic">
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:"0px 8px",marginBottom:8}}>
+          <CK checked={s.attic?.finished} onChange={v=>sn("attic","finished",v)} label="Finished"/>
+          <CK checked={s.attic?.unfinished} onChange={v=>sn("attic","unfinished",v)} label="Unfinished"/>
+          <CK checked={s.attic?.flat} onChange={v=>sn("attic","flat",v)} label="Flat"/>
+        </div>
+        <Gr><F label="Sq Footage" value={s.attic?.sqft||""} onChange={v=>sn("attic","sqft",v)}/><F label="Existing R-Value" value={s.attic?.preR||""} onChange={v=>sn("attic","preR",v)}/><F label="R-Value to Add" value={s.attic?.addR||""} onChange={v=>sn("attic","addR",v)}/></Gr>
+        <div style={{marginTop:8}}><Gr>
+          <F label="Recessed Lighting Qty" value={s.attic?.recessQty||""} onChange={v=>sn("attic","recessQty",v)}/>
+          <F label="Storage Created" value={s.attic?.storage||""} onChange={v=>sn("attic","storage",v)}/>
+        </Gr></div>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.attic?.ductwork} onChange={v=>sn("attic","ductwork",v)} label="Ductwork Present"/>
+          <CK checked={s.attic?.floorBoards} onChange={v=>sn("attic","floorBoards",v)} label="Floor Boards"/>
+          <CK checked={s.attic?.moldPresent} onChange={v=>sn("attic","moldPresent",v)} label="Mold Present"/>
+          <CK checked={s.attic?.vermPresent} onChange={v=>sn("attic","vermPresent",v)} label="Vermiculite Present"/>
+          <CK checked={s.attic?.knobTube} onChange={v=>sn("attic","knobTube",v)} label="Knob & Tube"/>
+        </div>
+        {s.attic?.ductwork && <Gr><Sel label="Duct Condition" value={s.attic?.condition||""} onChange={v=>sn("attic","condition",v)} opts={["Good","Poor"]}/><F label="Duct LnFt to Air Seal" value={s.attic?.lnftAirSeal||""} onChange={v=>sn("attic","lnftAirSeal",v)}/></Gr>}
+        <div style={{marginTop:6}}><Gr>
+          <F label="Existing Ventilation" value={s.attic?.existVent||""} onChange={v=>sn("attic","existVent",v)}/>
+          <F label="Needed Ventilation" value={s.attic?.needVent||""} onChange={v=>sn("attic","needVent",v)}/>
+          <F label="Access Location" value={s.attic?.accessLoc||""} onChange={v=>sn("attic","accessLoc",v)}/>
+        </Gr></div>
+        <textarea style={{...S.ta,marginTop:6}} value={s.attic?.notes||""} onChange={e=>sn("attic","notes",e.target.value)} rows={2} placeholder="Attic notes…"/>
+      </Sec>
+
+      {/* ══ PAGE 4: COLLAR BEAM ══ */}
+      <Sec title="Collar Beam">
+        <Gr><F label="Sq Footage" value={s.collar?.sqft||""} onChange={v=>sn("collar","sqft",v)}/><F label="Pre-Existing R" value={s.collar?.preR||""} onChange={v=>sn("collar","preR",v)}/><F label="R-Value to Add" value={s.collar?.addR||""} onChange={v=>sn("collar","addR",v)}/></Gr>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.collar?.accessible} onChange={v=>sn("collar","accessible",v)} label="Accessible"/>
+          <CK checked={s.collar?.cutIn} onChange={v=>sn("collar","cutIn",v)} label="Cut In Needed"/>
+          <CK checked={s.collar?.ductwork} onChange={v=>sn("collar","ductwork",v)} label="Ductwork"/>
+        </div>
+        {s.collar?.ductwork && <div style={{marginTop:6}}><Gr><Sel label="Condition" value={s.collar?.condition||""} onChange={v=>sn("collar","condition",v)} opts={["Good","Poor"]}/><F label="Ln Ft Air Seal" value={s.collar?.lnftAirSeal||""} onChange={v=>sn("collar","lnftAirSeal",v)}/></Gr></div>}
+      </Sec>
+
+      {/* ══ PAGE 4: OUTER CEILING JOISTS ══ */}
+      <Sec title="Outer Ceiling Joists">
+        <Gr><F label="Sq Ft" value={s.outerCeiling?.sqft||""} onChange={v=>sn("outerCeiling","sqft",v)}/><F label="Pre-Existing R" value={s.outerCeiling?.preR||""} onChange={v=>sn("outerCeiling","preR",v)}/><F label="R to Add" value={s.outerCeiling?.addR||""} onChange={v=>sn("outerCeiling","addR",v)}/></Gr>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.outerCeiling?.accessible} onChange={v=>sn("outerCeiling","accessible",v)} label="Accessible"/>
+          <CK checked={s.outerCeiling?.cutIn} onChange={v=>sn("outerCeiling","cutIn",v)} label="Cut In"/>
+          <CK checked={s.outerCeiling?.floorBoards} onChange={v=>sn("outerCeiling","floorBoards",v)} label="Floor Boards"/>
+          <CK checked={s.outerCeiling?.ductwork} onChange={v=>sn("outerCeiling","ductwork",v)} label="Ductwork"/>
+        </div>
+        {s.outerCeiling?.ductwork && <div style={{marginTop:6}}><Gr><Sel label="Condition" value={s.outerCeiling?.condition||""} onChange={v=>sn("outerCeiling","condition",v)} opts={["Good","Poor"]}/><F label="Ln Ft Air Seal" value={s.outerCeiling?.lnftAirSeal||""} onChange={v=>sn("outerCeiling","lnftAirSeal",v)}/></Gr></div>}
+      </Sec>
+
+      <Sec title="Knee Walls">
+        <Gr><F label="Sq Ft" value={s.kneeWall?.sqft||""} onChange={v=>sn("kneeWall","sqft",v)}/><F label="Pre-Existing R" value={s.kneeWall?.preR||""} onChange={v=>sn("kneeWall","preR",v)}/><F label="R to Add" value={s.kneeWall?.addR||""} onChange={v=>sn("kneeWall","addR",v)}/></Gr>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.kneeWall?.densePack} onChange={v=>sn("kneeWall","densePack",v)} label="Dense Pack"/>
+          <CK checked={s.kneeWall?.rigidFoam} onChange={v=>sn("kneeWall","rigidFoam",v)} label="Rigid Foam Board"/>
+          <CK checked={s.kneeWall?.tyvek} onChange={v=>sn("kneeWall","tyvek",v)} label="Tyvek Needed"/>
+          <CK checked={s.kneeWall?.fgBatts} onChange={v=>sn("kneeWall","fgBatts",v)} label="Fiberglass Batts"/>
+        </div>
+        <div style={{marginTop:6}}><Sel label="Wall Type" value={s.kneeWall?.wallType||""} onChange={v=>sn("kneeWall","wallType",v)} opts={["Drywall","Plaster"]}/></div>
+        {s.kneeWall?.tyvek && <div style={{marginTop:6}}><F label="Tyvek Sq Ft" value={s.kneeWall?.tyvekSqft||""} onChange={v=>sn("kneeWall","tyvekSqft",v)}/></div>}
+      </Sec>
+
+      <Sec title="Exterior Walls — 1st Floor">
+        <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)}/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)}/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)}/><F label="Window/Door SqFt" value={s.extWall1?.winDoorSqft||""} onChange={v=>sn("extWall1","winDoorSqft",v)}/></Gr>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.extWall1?.densePack} onChange={v=>sn("extWall1","densePack",v)} label="Dense Pack"/>
+          <CK checked={s.extWall1?.phenolic} onChange={v=>sn("extWall1","phenolic",v)} label="Phenolic Foam"/>
+        </div>
+        <div style={{marginTop:6}}><Gr>
+          <Sel label="Cladding" value={s.extWall1?.cladding||""} onChange={v=>sn("extWall1","cladding",v)} opts={["Vinyl","Masonry","Other"]}/>
+          <Sel label="Insulate From" value={s.extWall1?.insulFrom||""} onChange={v=>sn("extWall1","insulFrom",v)} opts={["Interior","Exterior"]}/>
+          <Sel label="Wall Type" value={s.extWall1?.wallType||""} onChange={v=>sn("extWall1","wallType",v)} opts={["Drywall","Plaster"]}/>
+          <F label="Drilled Hole Location" value={s.extWall1?.drillLoc||""} onChange={v=>sn("extWall1","drillLoc",v)}/>
+          {s.extWall1?.cladding==="Other"&&<F label="Other Cladding" value={s.extWall1?.otherClad||""} onChange={v=>sn("extWall1","otherClad",v)}/>}
+        </Gr></div>
+        <div style={{marginTop:4}}><CK checked={s.extWall1?.ownerPrep} onChange={v=>sn("extWall1","ownerPrep",v)} label="Informed owner about prep"/></div>
+      </Sec>
+
+      <Sec title="Exterior Walls — 2nd Floor">
+        <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)}/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)}/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)}/><F label="Window/Door SqFt" value={s.extWall2?.winDoorSqft||""} onChange={v=>sn("extWall2","winDoorSqft",v)}/></Gr>
+        <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.extWall2?.densePack} onChange={v=>sn("extWall2","densePack",v)} label="Dense Pack"/>
+          <CK checked={s.extWall2?.phenolic} onChange={v=>sn("extWall2","phenolic",v)} label="Phenolic Foam"/>
+        </div>
+        <div style={{marginTop:6}}><Gr>
+          <Sel label="Cladding" value={s.extWall2?.cladding||""} onChange={v=>sn("extWall2","cladding",v)} opts={["Vinyl","Masonry","Other"]}/>
+          <Sel label="Insulate From" value={s.extWall2?.insulFrom||""} onChange={v=>sn("extWall2","insulFrom",v)} opts={["Interior","Exterior"]}/>
+          <Sel label="Wall Type" value={s.extWall2?.wallType||""} onChange={v=>sn("extWall2","wallType",v)} opts={["Drywall","Plaster"]}/>
+          <F label="Drilled Hole Location" value={s.extWall2?.drillLoc||""} onChange={v=>sn("extWall2","drillLoc",v)}/>
+          {s.extWall2?.cladding==="Other"&&<F label="Other Cladding" value={s.extWall2?.otherClad||""} onChange={v=>sn("extWall2","otherClad",v)}/>}
+        </Gr></div>
+        <div style={{marginTop:4}}><CK checked={s.extWall2?.ownerPrep} onChange={v=>sn("extWall2","ownerPrep",v)} label="Informed owner about prep"/></div>
+      </Sec>
+
+      <Sec title="Foundation / Crawl">
+        <div style={{marginBottom:8}}><Sel label="Type" value={s.fnd?.type||""} onChange={v=>sn("fnd","type",v)} opts={["No Basement/Slab","Finished","Unfinished","w/ Framing"]}/></div>
+        <Gr><F label="Above Grade SqFt" value={s.fnd?.aboveSqft||""} onChange={v=>sn("fnd","aboveSqft",v)}/><F label="Below Grade SqFt" value={s.fnd?.belowSqft||""} onChange={v=>sn("fnd","belowSqft",v)}/><F label="Pre-Existing R" value={s.fnd?.preR||""} onChange={v=>sn("fnd","preR",v)}/></Gr>
+        <div style={{marginTop:8}}><Sel label="Insulation Type" value={s.fnd?.insulType||""} onChange={v=>sn("fnd","insulType",v)} opts={["Fiberglass","Rigid Foam Board","None"]}/></div>
+        <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#818cf8",textTransform:"uppercase",letterSpacing:".05em"}}>Band Joists</div>
+        <div style={{marginTop:4}}><CK checked={s.fnd?.bandAccess} onChange={v=>sn("fnd","bandAccess",v)} label="Access to Band Joists"/></div>
+        {s.fnd?.bandAccess && <div style={{marginTop:4}}><Gr><F label="Linear Ft" value={s.fnd?.bandLnft||""} onChange={v=>sn("fnd","bandLnft",v)}/><F label="Pre-Existing R" value={s.fnd?.bandR||""} onChange={v=>sn("fnd","bandR",v)}/><Sel label="Insulation" value={s.fnd?.bandInsul||""} onChange={v=>sn("fnd","bandInsul",v)} opts={["Fiberglass","Rigid Foam Board","None"]}/></Gr></div>}
+
+        <div style={{marginTop:10,fontSize:11,fontWeight:600,color:"#818cf8",textTransform:"uppercase",letterSpacing:".05em"}}>Crawlspace</div>
+        <div style={{marginTop:4,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
+          <CK checked={s.fnd?.vented} onChange={v=>sn("fnd","vented",v)} label="Vented"/>
+          <CK checked={s.fnd?.vaporBarrier} onChange={v=>sn("fnd","vaporBarrier",v)} label="Vapor Barrier Needed"/>
+          <CK checked={s.fnd?.waterIssues} onChange={v=>sn("fnd","waterIssues",v)} label="Water Issues"/>
+          <CK checked={s.fnd?.crawlDuct} onChange={v=>sn("fnd","crawlDuct",v)} label="Ductwork"/>
+        </div>
+        <div style={{marginTop:6}}><Gr>
+          <Sel label="Crawl Floor" value={s.fnd?.crawlFloor||""} onChange={v=>sn("fnd","crawlFloor",v)} opts={["Concrete","Dirt/Gravel"]}/>
+          {s.fnd?.vented && <F label="# of Vents" value={s.fnd?.ventCount||""} onChange={v=>sn("fnd","ventCount",v)}/>}
+          {s.fnd?.vaporBarrier && <F label="Barrier SqFt" value={s.fnd?.barrierSqft||""} onChange={v=>sn("fnd","barrierSqft",v)}/>}
+          {s.fnd?.crawlDuct && <Sel label="Duct Condition" value={s.fnd?.ductCond||""} onChange={v=>sn("fnd","ductCond",v)} opts={["Good","Poor"]}/>}
+        </Gr></div>
+        <div style={{marginTop:6}}><Gr>
+          <F label="Crawl Above Grade SqFt" value={s.fnd?.crawlAbove||""} onChange={v=>sn("fnd","crawlAbove",v)}/>
+          <F label="Crawl Below Grade SqFt" value={s.fnd?.crawlBelow||""} onChange={v=>sn("fnd","crawlBelow",v)}/>
+          <F label="Crawl Pre-Existing R" value={s.fnd?.crawlR||""} onChange={v=>sn("fnd","crawlR",v)}/>
+        </Gr></div>
+        <div style={{marginTop:6}}><CK checked={s.fnd?.crawlBandAccess} onChange={v=>sn("fnd","crawlBandAccess",v)} label="Crawl Band Joist Access"/></div>
+        {s.fnd?.crawlBandAccess && <div style={{marginTop:4}}><Gr>
+          <F label="Crawl Band LnFt" value={s.fnd?.crawlBandLnft||""} onChange={v=>sn("fnd","crawlBandLnft",v)}/>
+          <F label="Crawl Band R" value={s.fnd?.crawlBandR||""} onChange={v=>sn("fnd","crawlBandR",v)}/>
+          <Sel label="Crawl Band Insulation" value={s.fnd?.crawlBandInsul||""} onChange={v=>sn("fnd","crawlBandInsul",v)} opts={["Fiberglass","Rigid Foam Board","None"]}/>
+        </Gr></div>}
+        <div style={{marginTop:6}}><CK checked={s.fnd?.crawlWallsObstructed} onChange={v=>sn("fnd","crawlWallsObstructed",v)} label="Crawl walls insulated or obstructed already"/></div>
+      </Sec>
+
+      <Sec title="Diagnostics">
+        <Gr><F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/><F label="Ext Temp" value={s.extTemp||""} onChange={v=>ss("extTemp",v)}/><Sel label="BD Location" value={p.bdLoc} onChange={v=>u({bdLoc:v})} opts={["Front","Side","Back"]}/></Gr>
+        <textarea style={{...S.ta,marginTop:6}} value={s.diagNotes||""} onChange={e=>ss("diagNotes",e.target.value)} rows={2} placeholder="Diagnostics notes…"/>
+      </Sec>
+
+      <Sec title="ASHRAE 62.2-2016 Ventilation">
+        {(() => {
+          const a = p.audit || {};
+          const baseSqft = Number(p.sqft) || 0;
+          const finBasement = s.fnd?.type === "Finished" ? (Number(s.fnd?.aboveSqft)||0) + (Number(s.fnd?.belowSqft)||0) : 0;
+          const Afl = baseSqft + finBasement;
+          const Nbr = (Number(s.bedrooms) || 0) + 1;
+          const Q50 = Number(p.preCFM50) || 0;
+          const st = Number(p.stories) || 1;
+          const H = st >= 2 ? 16 : st >= 1.5 ? 14 : 8;
+          const Hr = 8.202;
+          const wsf = 0.56;
+
+          // Fan flows from assessment, overridable
+          // Raw values to check presence (blank = no fan = no requirement)
+          const kRaw = s.ashrae?.kitchenCFM ?? a.kitchenFan ?? "";
+          const b1Raw = s.ashrae?.bath1CFM ?? a.bathFan1 ?? "";
+          const b2Raw = s.ashrae?.bath2CFM ?? a.bathFan2 ?? "";
+          const b3Raw = s.ashrae?.bath3CFM ?? a.bathFan3 ?? "";
+          const kPresent = String(kRaw).trim() !== "";
+          const b1Present = String(b1Raw).trim() !== "";
+          const b2Present = String(b2Raw).trim() !== "";
+          const b3Present = String(b3Raw).trim() !== "";
+          const kCFM = Number(kRaw) || 0;
+          const b1 = Number(b1Raw) || 0;
+          const b2 = Number(b2Raw) || 0;
+          const b3 = Number(b3Raw) || 0;
+          const kWin = s.ashrae?.kWin || false;
+          const b1Win = s.ashrae?.b1Win || false;
+          const b2Win = s.ashrae?.b2Win || false;
+          const b3Win = s.ashrae?.b3Win || false;
+
+          /* ══ ASHRAE 62.2-2016 CALCULATIONS ══
+             Section 4.1.1 — Total Required Ventilation Rate
+             Qtot = 0.03 × Afl + 7.5 × Nbr
+             (Nbr = bedrooms + 1 per ASHRAE convention)
+             
+             Section 4.1.2 — Infiltration Credit (Existing)
+             NL = Q50 / (17.8 × Afl) × √(Hr / H)
+             Qinf = Q50 × wsf × (H/Hr)^0.25 / 17.8
+             
+             Local Ventilation — Alternative Compliance:
+             Intermittent exhaust rates: Kitchen 100 CFM, Bath 50 CFM
+             Deficit = max(0, required - measured). Window → deficit = 0.
+             Blank = no fan = no requirement.
+             Alternative compliance supplement = totalDeficit × 0.25
+             (converts intermittent deficit to continuous equivalent)
+             
+             Section 4.1.2 — For existing dwellings:
+             Qfan = max(0, Qtot + supplement - Qinf)
+             (existing gets FULL infiltration credit)
+          */
+
+          // Step 1: Normalized Leakage (Eq 4-6)
+          const NL = (Afl > 0 && Q50 > 0) ? Q50 / (17.8 * Afl) * Math.sqrt(Hr / H) : 0;
+
+          // Step 2: Effective Annual Average Infiltration Rate
+          const Qinf_eff = Q50 > 0 ? Q50 * wsf * Math.pow(H / Hr, 0.25) / 17.8 : 0;
+
+          // Qtot (Eq 4.1a)
+          const Qtot = (Afl > 0 && Nbr > 0) ? 0.03 * Afl + 7.5 * Nbr : 0;
+
+          // Local ventilation deficits — Alternative Compliance
+          // Intermittent rates: Kitchen 100 CFM, Bath 50 CFM
+          // Window → deficit = 0. Blank = no fan = no requirement.
+          const kReq = kPresent ? 100 : 0;
+          const b1Req = b1Present ? 50 : 0;
+          const b2Req = b2Present ? 50 : 0;
+          const b3Req = b3Present ? 50 : 0;
+          const kDef = !kPresent ? 0 : kWin ? 0 : Math.max(0, kReq - kCFM);
+          const b1Def = !b1Present ? 0 : b1Win ? 0 : Math.max(0, b1Req - b1);
+          const b2Def = !b2Present ? 0 : b2Win ? 0 : Math.max(0, b2Req - b2);
+          const b3Def = !b3Present ? 0 : b3Win ? 0 : Math.max(0, b3Req - b3);
+          const totalDef = kDef + b1Def + b2Def + b3Def;
+
+          // Alternative compliance supplement (intermittent → continuous: ×0.25)
+          const supplement = totalDef * 0.25;
+
+          // Infiltration credit — existing: FULL credit
+          const Qinf_credit = Qinf_eff;
+
+          // Required mechanical ventilation rate
+          const Qfan = Math.max(0, Qtot + supplement - Qinf_credit);
+
+          // Fan setting selector (continuous run: 50 / 80 / 110 CFM)
+          const FAN_SETTINGS = [50, 80, 110];
+          const recFan = FAN_SETTINGS.find(f => f >= Qfan) || FAN_SETTINGS[FAN_SETTINGS.length - 1];
+
+          const R = v => Math.round(v * 100) / 100;
+          const Ri = v => Math.round(v);
+
+          // Styles
+          const hdr = {fontSize:13,fontWeight:700,color:"#818cf8",margin:"14px 0 6px",borderBottom:"1px solid rgba(99,102,241,.25)",paddingBottom:4};
+          const row = {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontSize:12,borderBottom:"1px solid rgba(255,255,255,.04)"};
+          const lbl = {color:"#94a3b8",flex:1};
+          const val = {fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:"#e2e8f0",textAlign:"right"};
+          const eq = {fontSize:10,color:"#475569",padding:"1px 0 5px 12px",fontFamily:"'JetBrains Mono',monospace",borderLeft:"2px solid rgba(99,102,241,.15)"};
+          const autoBox = {background:"rgba(99,102,241,.06)",borderRadius:6,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontWeight:600,fontSize:13,color:"#e2e8f0",textAlign:"center"};
+          const autoSub = {fontSize:9,color:"#64748b",textAlign:"center",marginTop:2};
+          const resultBox = {background:"rgba(168,85,247,.08)",border:"2px solid rgba(168,85,247,.3)",borderRadius:8,padding:12,marginTop:8};
+          const solverBox = (c) => ({background:`rgba(${c},.04)`,border:`1px solid rgba(${c},.2)`,borderRadius:8,padding:10,marginTop:10});
+
+          return (
+            <div>
+              {/* ══ CONFIGURATION ══ */}
+              <div style={hdr}>Configuration</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 16px",fontSize:12}}>
+                <div style={row}><span style={lbl}>Construction</span><span style={val}>Existing</span></div>
+                <div style={row}><span style={lbl}>Dwelling unit</span><span style={val}>Detached</span></div>
+                <div style={row}><span style={lbl}>Infiltration credit</span><span style={val}>Yes</span></div>
+                <div style={row}><span style={lbl}>Alt. compliance</span><span style={val}>Yes</span></div>
+                <div style={row}><span style={lbl}>Weather station</span><span style={val}>Chicago Midway AP</span></div>
+                <div style={row}><span style={lbl}>wsf [1/hr]</span><span style={{...val,color:"#818cf8"}}>{wsf}</span></div>
+              </div>
+
+              {/* ══ BUILDING INPUTS ══ */}
+              <div style={hdr}>Building Inputs</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ft²]</div><div style={autoBox}>{Afl||"—"}</div><div style={autoSub}>{finBasement > 0 ? `${baseSqft} + ${finBasement} fin. bsmt` : "← Sq Footage"}</div></div>
+                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Occupants (Nbr)</div><div style={autoBox}>{Nbr||"—"}</div><div style={autoSub}>{(Number(s.bedrooms)||0)} bed + 1</div></div>
+                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Height [ft]</div><div style={autoBox}>{H}</div><div style={autoSub}>{st>=2?"2-story":"1"+(st>=1.5?".5":"")+"-story"}</div></div>
+                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Q50 [CFM]</div><div style={autoBox}>{Q50||"—"}</div><div style={autoSub}>← Diagnostics</div></div>
+              </div>
+
+              {/* ══ LOCAL VENTILATION ══ */}
+              <div style={hdr}>Local Ventilation — Alternative Compliance</div>
+              <div style={{fontSize:9,color:"#64748b",marginBottom:2}}>Blank = no fan = no requirement. Openable window = deficit 0. Kitchen: 100 CFM · Bath: 50 CFM (intermittent rates)</div>
+              <div style={{fontSize:9,color:"#f59e0b",marginBottom:6}}>⚠ If a fan is present but not operational or CFM is unknown, enter 0.</div>
+              <div style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",fontSize:11,alignItems:"center"}}>
+                <span style={{fontWeight:600,color:"#64748b"}}></span>
+                <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Fan Flow [CFM]</span>
+                <span style={{fontWeight:600,color:"#64748b",textAlign:"center",fontSize:9}}>Window</span>
+                <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Req'd</span>
+                <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Deficit</span>
+              </div>
+              {[
+                {n:"Kitchen",v:kCFM,k:"kitchenCFM",ak:"kitchenFan",w:kWin,wk:"kWin",r:kReq,d:kDef,present:kPresent},
+                {n:"Bath #1",v:b1,k:"bath1CFM",ak:"bathFan1",w:b1Win,wk:"b1Win",r:b1Req,d:b1Def,present:b1Present},
+                {n:"Bath #2",v:b2,k:"bath2CFM",ak:"bathFan2",w:b2Win,wk:"b2Win",r:b2Req,d:b2Def,present:b2Present},
+                {n:"Bath #3",v:b3,k:"bath3CFM",ak:"bathFan3",w:b3Win,wk:"b3Win",r:b3Req,d:b3Def,present:b3Present},
+              ].map(f=>(
+                <div key={f.n} style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",alignItems:"center",marginBottom:2}}>
+                  <span style={{fontSize:12,color:"#cbd5e1"}}>{f.n}</span>
+                  <input style={{...S.inp,textAlign:"center",fontSize:12}} value={s.ashrae?.[f.k]??a[f.ak]??""} onChange={e=>sn("ashrae",f.k,e.target.value)} placeholder="blank = none"/>
+                  <div style={{textAlign:"center"}}><input type="checkbox" checked={f.w} onChange={e=>sn("ashrae",f.wk,e.target.checked)} style={{accentColor:"#818cf8"}}/></div>
+                  <div style={{textAlign:"center",fontSize:11,color:f.present?"#64748b":"#475569"}}>{f.present?f.r:"—"}</div>
+                  <div style={{textAlign:"center",fontSize:13,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:!f.present?"#475569":f.d>0?"#f59e0b":"#22c55e"}}>{f.present?f.d:"—"}</div>
+                </div>
+              ))}
+              <div style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",borderTop:"1px solid rgba(255,255,255,.1)",paddingTop:4,marginTop:4}}>
+                <span style={{fontSize:12,fontWeight:700,color:"#e2e8f0"}}>Total</span>
+                <span></span><span></span><span></span>
+                <div style={{textAlign:"center",fontSize:14,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:totalDef>0?"#f59e0b":"#22c55e"}}>{Ri(totalDef)}</div>
+              </div>
+
+              {/* ══ RESULTS ══ */}
+              <div style={resultBox}>
+                <div style={{fontSize:13,fontWeight:700,color:"#a855f7",marginBottom:10}}>Dwelling-Unit Ventilation Results</div>
+
+                <div style={row}><span style={lbl}>Effective annual avg infiltration rate [CFM]</span><span style={val}>{R(Qinf_eff)}</span></div>
+                <div style={eq}>= Q50 × wsf × (H/Hr)^0.25 ÷ 17.8<br/>= {Q50} × {wsf} × ({H}/{R(Hr)})^0.25 ÷ 17.8</div>
+
+                <div style={row}><span style={lbl}>Total required ventilation rate, Qtot [CFM]</span><span style={val}>{R(Qtot)}</span></div>
+                <div style={eq}>= 0.03 × Afl + 7.5 × Nbr<br/>= 0.03 × {Afl} + 7.5 × {Nbr}<br/>= {R(0.03*Afl)} + {R(7.5*Nbr)}</div>
+
+                <div style={row}><span style={lbl}>Total local ventilation deficit [CFM]</span><span style={val}>{Ri(totalDef)}</span></div>
+                <div style={eq}>= Σ max(0, req − measured) per fan<br/>Kitchen {kReq} − {kCFM} = {kDef} · Bath1 {b1Req} − {b1} = {b1Def} · Bath2 {b2Req} − {b2} = {b2Def} · Bath3 {b3Req} − {b3} = {b3Def}</div>
+
+                <div style={row}><span style={lbl}>Alternative compliance supplement [CFM]</span><span style={val}>{R(supplement)}</span></div>
+                <div style={eq}>= totalDeficit × 0.25 (intermittent → continuous)<br/>= {Ri(totalDef)} × 0.25</div>
+
+                <div style={row}><span style={lbl}>Infiltration credit, Qinf [CFM]</span><span style={val}>{R(Qinf_credit)}</span></div>
+                <div style={eq}>= full Qinf (existing dwelling — no 2/3 limit)</div>
+
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid rgba(168,85,247,.4)",marginTop:8}}>
+                  <span style={{fontWeight:700,color:"#e2e8f0",fontSize:13}}>Required mech. ventilation, Qfan [CFM]</span>
+                  <span style={{fontWeight:800,color:"#a855f7",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
+                </div>
+                <div style={eq}>= max(0, Qtot + supplement − Qinf)<br/>= max(0, {R(Qtot)} + {R(supplement)} − {R(Qinf_credit)})</div>
+              </div>
+
+              {/* ══ DWELLING-UNIT VENTILATION RUN-TIME SOLVER ══ */}
+              <div style={solverBox("99,102,241")}>
+                <div style={{fontSize:12,fontWeight:700,color:"#818cf8",marginBottom:6}}>Dwelling-Unit Ventilation Run-Time Solver</div>
+                <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Select fan setting. Recommended = lowest setting ≥ Qfan ({R(Qfan)} CFM). All fans run continuous.</div>
+                <div style={{display:"flex",gap:8,marginBottom:10}}>
+                  {FAN_SETTINGS.map(cfm => {
+                    const meets = cfm >= Qfan && Qfan > 0;
+                    const isRec = cfm === recFan && Qfan > 0;
+                    const sel = Number(s.ashrae?.fanSetting) === cfm;
+                    return <button key={cfm} type="button" onClick={()=>sn("ashrae","fanSetting",cfm)} style={{
+                      flex:1,padding:"10px 8px",borderRadius:8,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+                      border:sel?`2px solid ${isRec?"#22c55e":"#818cf8"}`:`1px solid ${meets?"rgba(34,197,94,.3)":"rgba(255,255,255,.1)"}`,
+                      background:sel?(isRec?"rgba(34,197,94,.15)":"rgba(99,102,241,.15)"):"rgba(255,255,255,.03)",
+                      color:sel?(isRec?"#22c55e":"#a5b4fc"):meets?"#86efac":"#64748b",textAlign:"center"
+                    }}>
+                      <div style={{fontSize:18,fontWeight:700}}>{cfm}</div>
+                      <div style={{fontSize:10}}>CFM</div>
+                      {isRec && <div style={{fontSize:9,marginTop:2,color:"#22c55e",fontWeight:600}}>✓ REC</div>}
+                      {!meets && Qfan > 0 && <div style={{fontSize:9,marginTop:2,color:"#ef4444"}}>Below Qfan</div>}
+                    </button>;
+                  })}
+                </div>
+                {Number(s.ashrae?.fanSetting) > 0 && Qfan > 0 && (() => {
+                  const fan = Number(s.ashrae.fanSetting);
+                  const minPerHr = R(Qfan / fan * 60);
+                  return <div style={{background:"rgba(99,102,241,.08)",borderRadius:8,padding:10}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                      <span style={{fontSize:12,color:"#cbd5e1"}}>Fan capacity</span>
+                      <span style={{fontSize:14,fontWeight:700,color:"#a5b4fc",fontFamily:"'JetBrains Mono',monospace"}}>{fan} CFM</span>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                      <span style={{fontSize:12,color:"#cbd5e1"}}>Min. run-time per hour</span>
+                      <span style={{fontSize:14,fontWeight:700,color:"#818cf8",fontFamily:"'JetBrains Mono',monospace"}}>{minPerHr} min/hr</span>
+                    </div>
+                    <div style={eq}>= Qfan ÷ fan capacity × 60<br/>= {R(Qfan)} ÷ {fan} × 60 = {minPerHr} min/hr</div>
+                    <div style={{marginTop:6,fontSize:10,color:fan >= Qfan ? "#22c55e" : "#f59e0b",fontWeight:600}}>
+                      {fan >= Qfan ? `✓ Continuous (60 min/hr) exceeds minimum ${minPerHr} min/hr` : `⚠ Fan setting below Qfan — does not meet requirement`}
+                    </div>
+                  </div>;
+                })()}
+              </div>
+
+              <p style={{fontSize:9,color:"#475569",marginTop:10,textAlign:"right"}}>ASHRAE 62.2-2016 · Local Ventilation Alternative Compliance · basc.pnnl.gov/redcalc</p>
+            </div>
+          );
+        })()}
+      </Sec>
+
+      <Sec title={`Energy Efficiency Measures (${p.measures.length})`}><div style={S.ckG}>{EE_MEASURES.map(m=><CK key={m} checked={p.measures.includes(m)} onChange={()=>tog("measures",m)} label={m} color={p.measures.includes(m)?"#22c55e":null}/>)}</div></Sec>
+      <Sec title={`Health & Safety Measures (${p.healthSafety.length})`}><div style={S.ckG}>{HS_MEASURES.map(m=><CK key={m} checked={p.healthSafety.includes(m)} onChange={()=>tog("healthSafety",m)} label={m} color={p.healthSafety.includes(m)?"#f59e0b":null}/>)}</div></Sec>
+
+      <Sec title="Notes on Work">
+        <textarea style={S.ta} value={p.measureNotes} onChange={e=>u({measureNotes:e.target.value})} rows={2} placeholder="Notes on work to be performed…"/>
+      </Sec>
+      <Sec title="Notes on Health & Safety">
+        <textarea style={S.ta} value={s.hsNotes||""} onChange={e=>ss("hsNotes",e.target.value)} rows={2} placeholder="H&S notes…"/>
+      </Sec>
+
+      <Sec title="Insulation Quantities">
+        <Gr>{["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].map(m =>
+          <F key={m} label={`${m} ${m.includes("Rim Joist")?"LnFt":"SqFt"}`} value={s.insulQty?.[m]||""} onChange={v=>ss("insulQty",{...(s.insulQty||{}),[m]:v})}/>
+        )}</Gr>
+        <textarea style={{...S.ta,marginTop:6}} value={s.insulNotes||""} onChange={e=>ss("insulNotes",e.target.value)} rows={2} placeholder="Insulation notes…"/>
+      </Sec>
+
+      <Sec title="Scope Variances">
+        <textarea style={S.ta} value={p.scopeVariances} onChange={e=>u({scopeVariances:e.target.value})} rows={2} placeholder="Scope variances…"/>
+      </Sec>
+
+      <Sec title="RISE Submission">
+        <Gr>
+          <Sel label="RISE Status" value={p.riseStatus} onChange={v=>{u({riseStatus:v});onLog(`RISE → ${v}`);}} opts={["pending","approved","corrections"]}/>
+          <F label="Approval Date" value={p.scopeDate} onChange={v=>u({scopeDate:v})} type="date"/>
+        </Gr>
+        <div style={{marginTop:8}}><CK checked={p.scopeApproved} onChange={v=>{u({scopeApproved:v});if(v)onLog("Scope approved");}} label="Scope Approved"/></div>
+        <div style={{marginTop:8}}><textarea style={S.ta} value={p.scopeNotes} onChange={e=>u({scopeNotes:e.target.value})} rows={2} placeholder="Conditions, corrections…"/></div>
+      </Sec>
+      <Sec title="Mechanical Replacement">
+        <CK checked={p.mechNeeded} onChange={v=>u({mechNeeded:v})} label="Replacement needed (Decision Tree)"/>
+        {p.mechNeeded && (
+          <div style={{marginTop:8}}>
+            <Gr><Sel label="Status" value={p.mechStatus} onChange={v=>{u({mechStatus:v});onLog(`Mech → ${v}`);}} opts={["requested","approved","denied"]}/><F label="Date" value={p.mechDate} onChange={v=>u({mechDate:v})} type="date"/></Gr>
+            <textarea style={{...S.ta,marginTop:6}} value={p.mechNotes} onChange={e=>u({mechNotes:e.target.value})} rows={2} placeholder="Notes…"/>
+          </div>
+        )}
+      </Sec>
+    </div>
+  );
+}
+
+function InstallTab({p,u,onLog,user,role}) {
+  const fi = p.fi || {};
+  const sf = (k,f,v) => u({fi:{...fi,safety:{...(fi.safety||{}),[k]:{...(fi.safety?.[k]||{}),[f]:v}}}});
+  const uf = (k,v) => u({fi:{...fi,[k]:v}});
+  const s = p.scope2026 || {};
+  const a = p.audit || {};
+  const co = p.changeOrders || [];
+  const [prev, setPrev] = useState(null);
+  const [coText, setCoText] = useState("");
+
+  // ── Post Photos ──
+  const postSections = Object.entries(PHOTO_SECTIONS).filter(([cat]) => cat.includes("(Post)"));
+  const postItems = postSections.flatMap(([cat,items])=>items.map(i=>({...i,cat})));
+  const postTaken = postItems.filter(i=>hasPhoto(p.photos,i.id)).length;
+
+  const handleFile = (id, file) => {
+    if (!file) return;
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => {
+        const maxW = 1600;
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        const existing = getPhotos(p.photos, id);
+        const newEntry = {d:c.toDataURL("image/jpeg",0.7),at:new Date().toISOString(),by:user};
+        u({photos:{...p.photos,[id]:[...existing, newEntry]}});
+        if(onLog) onLog(`📸 ${postItems.find(x=>x.id===id)?.l||id} (${existing.length+1})`);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ── RED Calc — same logic as scope tab, uses post CFM50 ──
+  const buildRedCalc = (usePostQ50) => {
+    const baseSqft = Number(p.sqft) || 0;
+    const finBasement = s.fnd?.type === "Finished" ? (Number(s.fnd?.aboveSqft)||0) + (Number(s.fnd?.belowSqft)||0) : 0;
+    const Afl = baseSqft + finBasement;
+    const Nbr = (Number(s.bedrooms) || 0) + 1;
+    const Q50 = usePostQ50 ? (Number(p.postCFM50) || 0) : (Number(p.preCFM50) || 0);
+    const st = Number(p.stories) || 1;
+    const H = st >= 2 ? 16 : st >= 1.5 ? 14 : 8;
+    const Hr = 8.202; const wsf = 0.56;
+
+    // Same fan flow sources as scope tab
+    const kRaw = s.ashrae?.kitchenCFM ?? a.kitchenFan ?? "";
+    const b1Raw = s.ashrae?.bath1CFM ?? a.bathFan1 ?? "";
+    const b2Raw = s.ashrae?.bath2CFM ?? a.bathFan2 ?? "";
+    const b3Raw = s.ashrae?.bath3CFM ?? a.bathFan3 ?? "";
+    const kPresent = String(kRaw).trim() !== "";
+    const b1Present = String(b1Raw).trim() !== "";
+    const b2Present = String(b2Raw).trim() !== "";
+    const b3Present = String(b3Raw).trim() !== "";
+    const kCFM = Number(kRaw) || 0; const b1 = Number(b1Raw) || 0;
+    const b2 = Number(b2Raw) || 0; const b3 = Number(b3Raw) || 0;
+    const kWin = s.ashrae?.kWin || false;
+    const b1Win = s.ashrae?.b1Win || false;
+    const b2Win = s.ashrae?.b2Win || false;
+    const b3Win = s.ashrae?.b3Win || false;
+
+    // Step 1: Normalized Leakage
+    const NL = (Afl > 0 && Q50 > 0) ? Q50 / (17.8 * Afl) * Math.sqrt(Hr / H) : 0;
+    // Step 2: Effective Annual Avg Infiltration Rate
+    const Qinf = Q50 > 0 ? Q50 * wsf * Math.pow(H / Hr, 0.25) / 17.8 : 0;
+    const Qtot = (Afl > 0 && Nbr > 0) ? 0.03 * Afl + 7.5 * Nbr : 0;
+    const kReq = kPresent ? 100 : 0;
+    const b1Req = b1Present ? 50 : 0;
+    const b2Req = b2Present ? 50 : 0;
+    const b3Req = b3Present ? 50 : 0;
+    const kDef = !kPresent ? 0 : kWin ? 0 : Math.max(0, kReq - kCFM);
+    const b1Def = !b1Present ? 0 : b1Win ? 0 : Math.max(0, b1Req - b1);
+    const b2Def = !b2Present ? 0 : b2Win ? 0 : Math.max(0, b2Req - b2);
+    const b3Def = !b3Present ? 0 : b3Win ? 0 : Math.max(0, b3Req - b3);
+    const totalDef = kDef + b1Def + b2Def + b3Def;
+    const supplement = totalDef * 0.25;
+    const Qfan = Math.max(0, Qtot + supplement - Qinf);
+    const FAN_SETTINGS = [50, 80, 110];
+    const recFan = FAN_SETTINGS.find(f => f >= Qfan) || FAN_SETTINGS[FAN_SETTINGS.length - 1];
+    const R = v => Math.round(v * 100) / 100;
+    const Ri = v => Math.round(v);
+    return { Afl, Nbr, Q50, H, Hr, wsf, st, NL, Qinf, Qtot, totalDef, supplement, Qfan, FAN_SETTINGS, recFan, R, Ri, baseSqft, finBasement, kCFM, b1, b2, b3, kPresent, b1Present, b2Present, b3Present, kWin, b1Win, b2Win, b3Win, kReq, b1Req, b2Req, b3Req, kDef, b1Def, b2Def, b3Def };
+  };
+
+  // ── Change Orders ──
+  const addCO = () => {
+    if (!coText.trim()) return;
+    const newCO = { id: Date.now().toString(36), text: coText.trim(), by: user, at: new Date().toISOString(), status: "pending", response: "" };
+    u({ changeOrders: [...co, newCO] });
+    if (onLog) onLog(`📝 Change order requested: ${coText.trim().slice(0,50)}…`);
+    setCoText("");
+  };
+  const updateCO = (id, fields) => {
+    u({ changeOrders: co.map(c => c.id === id ? { ...c, ...fields } : c) });
+    if (onLog && fields.status) onLog(`Change order ${fields.status}: ${co.find(c=>c.id===id)?.text?.slice(0,40)}…`);
+  };
+
+  // ── Print HTML ──
+  const getInstallHTML = () => {
+    const rc = buildRedCalc(true);
+    const R = rc.R;
+    const safetyRows = FI_SAFETY.map(c => {
+      const r = fi.safety?.[c.k] || {};
+      const cls = r.pf==="P"?"pass":r.pf==="F"?"fail":"na";
+      return `<div class="row"><span class="lbl">${c.l}</span><span>${c.r&&r.reading?r.reading+" "+c.u+" · ":""}<span class="${cls}">${r.pf||"—"}</span>${r.fu?" ⚠ F/U":""}</span></div>`;
+    }).join("");
+    const measList = p.measures.map(m=>`<span style="display:inline-block;padding:2px 6px;border:1px solid #16a34a;border-radius:3px;margin:1px;font-size:9px;color:#16a34a">✓ ${m}</span>`).join("");
+    const hsList = p.healthSafety.map(m=>`<span style="display:inline-block;padding:2px 6px;border:1px solid #d97706;border-radius:3px;margin:1px;font-size:9px;color:#d97706">✓ ${m}</span>`).join("");
+    const coRows = co.map(c=>`<div class="row"><span class="lbl">${c.text}</span><span class="${c.status==="approved"?"pass":c.status==="denied"?"fail":"na"}">${c.status.toUpperCase()}${c.response?" — "+c.response:""}</span></div>`).join("");
+    const fan = Number(fi.postFanSetting) || 0;
+
+    const body = `
+      <div class="sec"><h3>Scope of Work</h3>
+        <div style="margin-bottom:6px"><strong>Energy Efficiency:</strong><br/>${measList||"<em>None</em>"}</div>
+        <div style="margin-bottom:6px"><strong>Health & Safety:</strong><br/>${hsList||"<em>None</em>"}</div>
+        ${p.measureNotes?`<div style="margin-bottom:4px"><strong>Notes:</strong> ${p.measureNotes}</div>`:""}
+      </div>
+      ${co.length?`<div class="sec"><h3>Change Orders</h3>${coRows}</div>`:""}
+      <div class="sec"><h3>Post-Work Blower Door</h3><div class="grid">
+        <div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"—"}</span></div>
+        <div class="row"><span class="lbl">Post CFM50</span><span class="val">${p.postCFM50||"—"}</span></div>
+        ${p.preCFM50&&p.postCFM50?`<div class="row"><span class="lbl">Reduction</span><span class="val">${Math.round(((p.preCFM50-p.postCFM50)/p.preCFM50)*100)}%</span></div>`:""}
+      </div></div>
+      <div class="sec"><h3>Post-Work ASHRAE 62.2-2016</h3><div class="grid">
+        <div class="row"><span class="lbl">Floor area</span><span class="val">${rc.Afl} ft²</span></div>
+        <div class="row"><span class="lbl">Post Q50</span><span class="val">${rc.Q50} CFM</span></div>
+        <div class="row"><span class="lbl">Qinf</span><span class="val">${R(rc.Qinf)} CFM</span></div>
+        <div class="row"><span class="lbl">Qtot</span><span class="val">${R(rc.Qtot)} CFM</span></div>
+        <div class="row"><span class="lbl">Supplement</span><span class="val">${R(rc.supplement)} CFM</span></div>
+        <div class="row" style="border-top:2px solid #4338ca;padding-top:4px;margin-top:4px"><span style="font-weight:700">Qfan (post)</span><span style="font-weight:700;color:#4338ca;font-size:14px">${R(rc.Qfan)} CFM</span></div>
+        ${fan?`<div class="row"><span class="lbl">Fan: ${fan} CFM · Run-time: ${R(rc.Qfan/fan*60)} min/hr</span></div>`:""}
+      </div></div>
+      <div class="sec"><h3>Health & Safety Checks</h3>${safetyRows}</div>
+      <div class="sec"><h3>Status</h3>
+        <div class="row"><span class="lbl">Final Passed</span><span class="val">${p.finalPassed?"✅ Yes":"No"}</span></div>
+        <div class="row"><span class="lbl">Customer Sign-off</span><span class="val">${p.customerSignoff?"✅ Yes":"No"}</span></div>
+      </div>`;
+    return formPrintHTML("Install Completion & Final Inspection", p, body, fi.inspectorSig);
+  };
+
+  // Photo preview
+  if (prev) {
+    const arr = getPhotos(p.photos, prev.id);
+    const ph = arr[prev.idx]; const it = postItems.find(x=>x.id===prev.id);
+    return (
+      <div style={S.camOv}>
+        <div style={S.camH}>
+          <button style={{...S.back,fontSize:18}} onClick={()=>setPrev(null)}>← Back</button>
+          <div style={{flex:1,textAlign:"center",fontWeight:600,fontSize:14}}>{it?.l} {arr.length>1?`(${prev.idx+1}/${arr.length})`:""}</div>
+          <button style={{...S.ghost,color:"#ef4444",borderColor:"#ef4444",padding:"4px 10px"}} onClick={()=>{
+            const remaining = arr.filter((_,i)=>i!==prev.idx);
+            u({photos:{...p.photos,[prev.id]:remaining.length?remaining:undefined}});
+            if(onLog)onLog(`🗑️ Removed ${it?.l||prev.id}`);setPrev(null);
+          }}>Delete</button>
+        </div>
+        <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#000",padding:8,position:"relative"}}>
+          {ph?.d && <img src={ph.d} style={{maxWidth:"100%",maxHeight:"80vh",borderRadius:8}} alt=""/>}
+          {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>‹</button>}
+          {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>›</button>}
+        </div>
+        <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} · {ph?.at&&new Date(ph.at).toLocaleString()}</div>
+      </div>
+    );
+  }
+
+  const rcPost = buildRedCalc(true);
+  const rcPre = buildRedCalc(false);
+  const red = p.preCFM50 && p.postCFM50 ? Math.round(((p.preCFM50-p.postCFM50)/p.preCFM50)*100) : null;
+  const {R,Ri} = rcPost;
+
+  return (
+    <div>
+      {/* ── HEADER + PRINT ── */}
+      <Sec title="🏗️ Install Completion">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Complete all sections before leaving the job site.</p>
+          <PrintBtn onClick={()=>savePrint(getInstallHTML())}/>
+        </div>
+      </Sec>
+
+      {/* ── SCOPE OF WORK (read-only from scope tab) ── */}
+      <Sec title="Scope of Work">
+        <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Approved scope from assessment. Request a change order below if modifications are needed.</div>
+        {p.measures.length > 0 && <>
+          <div style={{fontSize:11,fontWeight:700,color:"#22c55e",marginBottom:4}}>Energy Efficiency Measures ({p.measures.length})</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}</span>)}</div>
+        </>}
+        {p.healthSafety.length > 0 && <>
+          <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",marginBottom:4}}>Health & Safety Measures ({p.healthSafety.length})</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.healthSafety.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(245,158,11,.3)",background:"rgba(245,158,11,.08)",color:"#fbbf24",fontSize:10}}>✓ {m}</span>)}</div>
+        </>}
+        {p.measureNotes && <div style={{fontSize:11,color:"#94a3b8",padding:8,background:"rgba(255,255,255,.03)",borderRadius:6,marginBottom:6}}><span style={{color:"#64748b",fontWeight:600}}>Notes:</span> {p.measureNotes}</div>}
+        {s.insulQty && Object.entries(s.insulQty).some(([,v])=>v) && <>
+          <div style={{fontSize:11,fontWeight:700,color:"#818cf8",marginBottom:4,marginTop:6}}>Insulation Quantities</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 12px",fontSize:11}}>
+            {Object.entries(s.insulQty).filter(([,v])=>v).map(([m,v])=><div key={m} style={{display:"flex",justifyContent:"space-between",padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+              <span style={{color:"#94a3b8"}}>{m}</span><span style={{fontWeight:600,color:"#e2e8f0"}}>{v} {m.includes("Rim Joist")?"LnFt":"SqFt"}</span>
+            </div>)}
+          </div>
+        </>}
+        {p.measures.length === 0 && p.healthSafety.length === 0 && <p style={{color:"#64748b",fontSize:12,textAlign:"center",padding:12}}>No measures selected in scope yet.</p>}
+      </Sec>
+
+      {/* ── CUSTOMER SCOPE AUTHORIZATION ── */}
+      <Sec title="Customer Scope Authorization">
+        <p style={{fontSize:10,color:"#64748b",marginBottom:6}}>Customer acknowledges and authorizes the scope of work listed above.</p>
+        <SigPad label="Customer Signature — Scope Authorization" value={fi.scopeAuthSig||""} onChange={v=>uf("scopeAuthSig",v)}/>
+      </Sec>
+
+      {/* ── CHANGE ORDERS ── */}
+      <Sec title={`Change Orders (${co.length})`}>
+        <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Request scope changes from the field. Admin/Compliance will approve or deny.</div>
+        <div style={{display:"flex",gap:6,marginBottom:8}}>
+          <input style={{...S.inp,flex:1}} value={coText} onChange={e=>setCoText(e.target.value)} placeholder="Describe the scope change needed…" onKeyDown={e=>{if(e.key==="Enter")addCO();}}/>
+          <button type="button" style={{...S.ghost,borderColor:"#f97316",color:"#f97316",padding:"6px 12px",whiteSpace:"nowrap"}} onClick={addCO}>+ Request</button>
+        </div>
+        {co.map(c => (
+          <div key={c.id} style={{background:c.status==="approved"?"rgba(34,197,94,.06)":c.status==="denied"?"rgba(239,68,68,.06)":"rgba(255,255,255,.03)",border:`1px solid ${c.status==="approved"?"rgba(34,197,94,.2)":c.status==="denied"?"rgba(239,68,68,.2)":"rgba(255,255,255,.08)"}`,borderRadius:8,padding:10,marginBottom:6}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+              <div style={{flex:1,fontSize:12,color:"#e2e8f0"}}>{c.text}</div>
+              <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,fontWeight:700,marginLeft:8,flexShrink:0,
+                background:c.status==="approved"?"rgba(34,197,94,.15)":c.status==="denied"?"rgba(239,68,68,.15)":"rgba(245,158,11,.15)",
+                color:c.status==="approved"?"#22c55e":c.status==="denied"?"#ef4444":"#f59e0b"
+              }}>{c.status.toUpperCase()}</span>
+            </div>
+            <div style={{fontSize:9,color:"#64748b"}}>{c.by} · {new Date(c.at).toLocaleString()}</div>
+            {c.response && <div style={{fontSize:11,color:c.status==="denied"?"#fca5a5":"#86efac",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>{c.response}</div>}
+            {c.status === "pending" && (role === "admin" || role === "scope") && (
+              <div style={{marginTop:6,display:"flex",gap:4,alignItems:"center"}}>
+                <input style={{...S.inp,flex:1,fontSize:11}} placeholder="Response / explanation…" value={c._resp||""} onChange={e=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_resp:e.target.value}:x)})}/>
+                <button type="button" style={{padding:"4px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={()=>updateCO(c.id,{status:"approved",response:c._resp||""})}>Approve</button>
+                <button type="button" style={{padding:"4px 8px",borderRadius:5,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={()=>updateCO(c.id,{status:"denied",response:c._resp||""})}>Deny</button>
+              </div>
+            )}
+            {c.status === "pending" && role === "installer" && (
+              <div style={{marginTop:4,fontSize:10,color:"#f59e0b",fontStyle:"italic"}}>⏳ Awaiting approval from Scope/Admin</div>
+            )}
+          </div>
+        ))}
+        {co.length === 0 && <p style={{color:"#475569",fontSize:11,textAlign:"center"}}>No change orders yet.</p>}
+      </Sec>
+
+      {/* ── POST PHOTOS ── */}
+      <Sec title={<span>Post-Install Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{postTaken}/{postItems.length}</span></span>}>
+        <div style={S.prog}><div style={{...S.progF,width:`${postItems.length?(postTaken/postItems.length)*100:0}%`,background:"linear-gradient(90deg,#f97316,#eab308)"}}/></div>
+        {postSections.map(([cat,items]) => (
+          <div key={cat} style={{marginTop:10}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#f97316",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>{cat}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:6}}>
+              {items.map(item => {
+                const arr = getPhotos(p.photos, item.id);
+                const has = arr.length > 0;
+                return <div key={item.id} style={{background:has?"rgba(34,197,94,.08)":"rgba(255,255,255,.03)",border:`1px solid ${has?"rgba(34,197,94,.3)":"rgba(255,255,255,.08)"}`,borderRadius:8,overflow:"hidden"}}>
+                  {has ? <div style={{position:"relative",cursor:"pointer"}} onClick={()=>setPrev({id:item.id,idx:0})}>
+                    <img src={arr[0].d} style={{width:"100%",height:70,objectFit:"cover"}} alt=""/>
+                    {arr.length>1 && <span style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,.7)",color:"#fff",fontSize:9,padding:"1px 4px",borderRadius:4}}>{arr.length}</span>}
+                  </div> : <div style={{height:70,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <label style={{fontSize:10,color:"#64748b",cursor:"pointer",textAlign:"center",padding:4}}>📸 Tap<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>
+                  </div>}
+                  <div style={{padding:"4px 6px",fontSize:9,color:"#94a3b8",borderTop:"1px solid rgba(255,255,255,.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span>{item.l}{has&&" ✓"}</span>
+                    {has && <label style={{fontSize:10,color:"#818cf8",cursor:"pointer"}}>＋<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>}
+                  </div>
+                </div>;
+              })}
+            </div>
+          </div>
+        ))}
+      </Sec>
+
+      {/* ── BLOWER DOOR ── */}
+      <Sec title="Post-Work Blower Door">
+        <Gr>
+          <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/>
+          <F label="Post CFM50" value={p.postCFM50} onChange={v=>u({postCFM50:v})}/>
+          <F label="Pre CFM25" value={p.preCFM25} onChange={v=>u({preCFM25:v})}/>
+          <F label="Post CFM25" value={p.postCFM25} onChange={v=>u({postCFM25:v})}/>
+        </Gr>
+        {red !== null && <div style={S.calc}><span>Reduction: <b>{red}%</b></span><span style={{color:red>=25?"#22c55e":"#f59e0b",marginLeft:10}}>{red>=25?"✓ Meets 25%":"⚠ Below 25%"}</span></div>}
+      </Sec>
+
+      {/* ── POST-WORK RED CALC ── */}
+      <Sec title="Post-Work ASHRAE 62.2-2016 — RED Calc">
+        {!rcPost.Q50 ? <p style={{color:"#64748b",fontSize:12,textAlign:"center",padding:12}}>Enter Post CFM50 above to calculate.</p> : (() => {
+          const {Afl,Nbr,Q50,H,Hr,wsf,st,NL,Qinf,Qtot,totalDef,supplement,Qfan,FAN_SETTINGS,recFan,baseSqft,finBasement,kCFM,b1,b2,b3,kPresent,b1Present,b2Present,b3Present,kWin,b1Win,b2Win,b3Win,kReq,b1Req,b2Req,b3Req,kDef,b1Def,b2Def,b3Def} = rcPost;
+          const hdr = {fontSize:13,fontWeight:700,color:"#818cf8",margin:"14px 0 6px",borderBottom:"1px solid rgba(99,102,241,.25)",paddingBottom:4};
+          const row = {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontSize:12,borderBottom:"1px solid rgba(255,255,255,.04)"};
+          const lbl = {color:"#94a3b8",flex:1};
+          const val = {fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:"#e2e8f0",textAlign:"right"};
+          const eq = {fontSize:10,color:"#475569",padding:"1px 0 5px 12px",fontFamily:"'JetBrains Mono',monospace",borderLeft:"2px solid rgba(99,102,241,.15)"};
+          const autoBox = {background:"rgba(99,102,241,.06)",borderRadius:6,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontWeight:600,fontSize:13,color:"#e2e8f0",textAlign:"center"};
+          const autoSub = {fontSize:9,color:"#64748b",textAlign:"center",marginTop:2};
+          const resultBox = {background:"rgba(168,85,247,.08)",border:"2px solid rgba(168,85,247,.3)",borderRadius:8,padding:12,marginTop:8};
+
+          return <div>
+            {/* Configuration */}
+            <div style={hdr}>Configuration</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 16px",fontSize:12}}>
+              <div style={row}><span style={lbl}>Construction</span><span style={val}>Existing</span></div>
+              <div style={row}><span style={lbl}>Dwelling unit</span><span style={val}>Detached</span></div>
+              <div style={row}><span style={lbl}>Infiltration credit</span><span style={val}>Yes</span></div>
+              <div style={row}><span style={lbl}>Alt. compliance</span><span style={val}>Yes</span></div>
+              <div style={row}><span style={lbl}>Weather station</span><span style={val}>Chicago Midway AP</span></div>
+              <div style={row}><span style={lbl}>wsf [1/hr]</span><span style={{...val,color:"#818cf8"}}>{wsf}</span></div>
+            </div>
+
+            {/* Building Inputs */}
+            <div style={hdr}>Building Inputs (Post-Work)</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+              <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ft²]</div><div style={autoBox}>{Afl||"—"}</div><div style={autoSub}>{finBasement>0?`${baseSqft} + ${finBasement} fin. bsmt`:"← Sq Footage"}</div></div>
+              <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Occupants (Nbr)</div><div style={autoBox}>{Nbr||"—"}</div><div style={autoSub}>{(Number(s.bedrooms)||0)} bed + 1</div></div>
+              <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Height [ft]</div><div style={autoBox}>{H}</div><div style={autoSub}>{st>=2?"2-story":"1"+(st>=1.5?".5":"")+"-story"}</div></div>
+              <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Post Q50 [CFM]</div><div style={{...autoBox,color:"#22c55e"}}>{Q50}</div><div style={autoSub}>← Post blower door</div></div>
+            </div>
+
+            {/* Local Ventilation — read-only from scope */}
+            <div style={hdr}>Local Ventilation — Alternative Compliance <span style={{fontSize:9,fontWeight:400,color:"#64748b"}}>(from Scope)</span></div>
+            <div style={{fontSize:9,color:"#64748b",marginBottom:2}}>Blank = no fan = no requirement. Openable window = deficit 0. Kitchen: 100 CFM · Bath: 50 CFM (intermittent rates)</div>
+            <div style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",fontSize:11,alignItems:"center"}}>
+              <span style={{fontWeight:600,color:"#64748b"}}></span>
+              <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Fan Flow [CFM]</span>
+              <span style={{fontWeight:600,color:"#64748b",textAlign:"center",fontSize:9}}>Window</span>
+              <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Req'd</span>
+              <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Deficit</span>
+            </div>
+            {[
+              {n:"Kitchen",v:kCFM,w:kWin,r:kReq,d:kDef,present:kPresent},
+              {n:"Bath #1",v:b1,w:b1Win,r:b1Req,d:b1Def,present:b1Present},
+              {n:"Bath #2",v:b2,w:b2Win,r:b2Req,d:b2Def,present:b2Present},
+              {n:"Bath #3",v:b3,w:b3Win,r:b3Req,d:b3Def,present:b3Present},
+            ].map(f=>(
+              <div key={f.n} style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",alignItems:"center",marginBottom:2}}>
+                <span style={{fontSize:12,color:"#cbd5e1"}}>{f.n}</span>
+                <div style={{textAlign:"center",fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:f.present?"#e2e8f0":"#475569",background:"rgba(255,255,255,.03)",borderRadius:4,padding:"4px 6px"}}>{f.present?f.v:"—"}</div>
+                <div style={{textAlign:"center",fontSize:11,color:f.w?"#818cf8":"#475569"}}>{f.w?"✓":"—"}</div>
+                <div style={{textAlign:"center",fontSize:11,color:f.present?"#64748b":"#475569"}}>{f.present?f.r:"—"}</div>
+                <div style={{textAlign:"center",fontSize:13,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:!f.present?"#475569":f.d>0?"#f59e0b":"#22c55e"}}>{f.present?f.d:"—"}</div>
+              </div>
+            ))}
+            <div style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",borderTop:"1px solid rgba(255,255,255,.1)",paddingTop:4,marginTop:4}}>
+              <span style={{fontSize:12,fontWeight:700,color:"#e2e8f0"}}>Total</span>
+              <span></span><span></span><span></span>
+              <div style={{textAlign:"center",fontSize:14,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:totalDef>0?"#f59e0b":"#22c55e"}}>{Ri(totalDef)}</div>
+            </div>
+
+            {/* Results with full equations */}
+            <div style={resultBox}>
+              <div style={{fontSize:13,fontWeight:700,color:"#a855f7",marginBottom:10}}>Post-Work Ventilation Results</div>
+
+              <div style={row}><span style={lbl}>Effective annual avg infiltration rate [CFM]</span><span style={val}>{R(Qinf)}</span></div>
+              <div style={eq}>= Q50 × wsf × (H/Hr)^0.25 ÷ 17.8<br/>= {Q50} × {wsf} × ({H}/{R(Hr)})^0.25 ÷ 17.8</div>
+
+              <div style={row}><span style={lbl}>Total required ventilation rate, Qtot [CFM]</span><span style={val}>{R(Qtot)}</span></div>
+              <div style={eq}>= 0.03 × Afl + 7.5 × Nbr<br/>= 0.03 × {Afl} + 7.5 × {Nbr}<br/>= {R(0.03*Afl)} + {R(7.5*Nbr)}</div>
+
+              <div style={row}><span style={lbl}>Total local ventilation deficit [CFM]</span><span style={val}>{Ri(totalDef)}</span></div>
+              <div style={eq}>= Σ max(0, req − measured) per fan<br/>Kitchen {kReq} − {kCFM} = {kDef} · Bath1 {b1Req} − {b1} = {b1Def} · Bath2 {b2Req} − {b2} = {b2Def} · Bath3 {b3Req} − {b3} = {b3Def}</div>
+
+              <div style={row}><span style={lbl}>Alternative compliance supplement [CFM]</span><span style={val}>{R(supplement)}</span></div>
+              <div style={eq}>= totalDeficit × 0.25 (intermittent → continuous)<br/>= {Ri(totalDef)} × 0.25</div>
+
+              <div style={row}><span style={lbl}>Infiltration credit, Qinf [CFM]</span><span style={val}>{R(Qinf)}</span></div>
+              <div style={eq}>= full Qinf (existing dwelling — no 2/3 limit)</div>
+
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid rgba(168,85,247,.4)",marginTop:8}}>
+                <span style={{fontWeight:700,color:"#e2e8f0",fontSize:13}}>Required mech. ventilation, Qfan [CFM]</span>
+                <span style={{fontWeight:800,color:"#a855f7",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
+              </div>
+              <div style={eq}>= max(0, Qtot + supplement − Qinf)<br/>= max(0, {R(Qtot)} + {R(supplement)} − {R(Qinf)})</div>
+              {rcPre.Qfan > 0 && <div style={{fontSize:10,color:"#64748b",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>Pre-work Qfan was {R(rcPre.Qfan)} CFM · Δ {R(Qfan-rcPre.Qfan)} CFM</div>}
+            </div>
+
+            {/* Fan Setting + Run-Time Solver */}
+            <div style={{background:"rgba(99,102,241,.04)",border:"1px solid rgba(99,102,241,.2)",borderRadius:8,padding:10,marginTop:10}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#818cf8",marginBottom:6}}>Dwelling-Unit Ventilation Run-Time Solver</div>
+              <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Select fan setting. Recommended = lowest setting ≥ Qfan ({R(Qfan)} CFM). All fans run continuous.</div>
+              <div style={{display:"flex",gap:8,marginBottom:10}}>
+                {FAN_SETTINGS.map(cfm => {
+                  const meets = cfm >= Qfan && Qfan > 0;
+                  const isRec = cfm === recFan && Qfan > 0;
+                  const sel = Number(fi.postFanSetting) === cfm;
+                  return <button key={cfm} type="button" onClick={()=>uf("postFanSetting",cfm)} style={{
+                    flex:1,padding:"10px 8px",borderRadius:8,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+                    border:sel?`2px solid ${isRec?"#22c55e":"#818cf8"}`:`1px solid ${meets?"rgba(34,197,94,.3)":"rgba(255,255,255,.1)"}`,
+                    background:sel?(isRec?"rgba(34,197,94,.15)":"rgba(99,102,241,.15)"):"rgba(255,255,255,.03)",
+                    color:sel?(isRec?"#22c55e":"#a5b4fc"):meets?"#86efac":"#64748b",textAlign:"center"
+                  }}>
+                    <div style={{fontSize:18,fontWeight:700}}>{cfm}</div>
+                    <div style={{fontSize:10}}>CFM</div>
+                    {isRec && <div style={{fontSize:9,marginTop:2,color:"#22c55e",fontWeight:600}}>✓ REC</div>}
+                    {!meets && Qfan > 0 && <div style={{fontSize:9,marginTop:2,color:"#ef4444"}}>Below Qfan</div>}
+                  </button>;
+                })}
+              </div>
+              {Number(fi.postFanSetting) > 0 && Qfan > 0 && (() => {
+                const fan = Number(fi.postFanSetting);
+                const minPerHr = R(Qfan / fan * 60);
+                return <div style={{background:"rgba(99,102,241,.08)",borderRadius:8,padding:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <span style={{fontSize:12,color:"#cbd5e1"}}>Fan capacity</span>
+                    <span style={{fontSize:14,fontWeight:700,color:"#a5b4fc",fontFamily:"'JetBrains Mono',monospace"}}>{fan} CFM</span>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <span style={{fontSize:12,color:"#cbd5e1"}}>Min. run-time per hour</span>
+                    <span style={{fontSize:14,fontWeight:700,color:"#818cf8",fontFamily:"'JetBrains Mono',monospace"}}>{minPerHr} min/hr</span>
+                  </div>
+                  <div style={eq}>= Qfan ÷ fan capacity × 60<br/>= {R(Qfan)} ÷ {fan} × 60 = {minPerHr} min/hr</div>
+                  <div style={{marginTop:6,fontSize:10,color:fan >= Qfan?"#22c55e":"#f59e0b",fontWeight:600}}>
+                    {fan >= Qfan?`✓ Continuous (60 min/hr) exceeds minimum ${minPerHr} min/hr`:`⚠ Fan setting below Qfan — does not meet requirement`}
+                  </div>
+                </div>;
+              })()}
+            </div>
+            <p style={{fontSize:9,color:"#475569",marginTop:10,textAlign:"right"}}>ASHRAE 62.2-2016 · Local Ventilation Alternative Compliance · basc.pnnl.gov/redcalc</p>
+          </div>;
+        })()}
+      </Sec>
+
+      {/* ── CAZ / HEALTH & SAFETY ── */}
+      <Sec title="Health & Safety Checks">
+        {FI_SAFETY.map(c => {
+          const r = fi.safety?.[c.k] || {};
+          return (
+            <div key={c.k} style={S.cazR}>
+              <span style={{flex:1,fontSize:12,minWidth:110}}>{c.l}</span>
+              {c.r && <input style={{...S.inp,width:55,textAlign:"center"}} value={r.reading||""} onChange={e=>sf(c.k,"reading",e.target.value)} placeholder={c.u}/>}
+              <BtnGrp value={r.pf||""} onChange={v=>sf(c.k,"pf",v)} opts={[{v:"P",l:"Pass",c:"#22c55e"},{v:"F",l:"Fail",c:"#ef4444"},{v:"NA",l:"N/A",c:"#64748b"}]}/>
+              <CK checked={r.fu||false} onChange={v=>sf(c.k,"fu",v)} label="F/U" small/>
+            </div>
+          );
+        })}
+      </Sec>
+
+      {/* ── FOLLOW-UP ── */}
+      <Sec title="Follow-up">
+        <CK checked={fi.followupNeeded==="yes"} onChange={v=>uf("followupNeeded",v?"yes":"no")} label="Follow-up needed"/>
+        {fi.followupNeeded==="yes" && <textarea style={{...S.ta,marginTop:6}} value={fi.followupNotes||""} onChange={e=>uf("followupNotes",e.target.value)} rows={2} placeholder="What needs follow-up…"/>}
+      </Sec>
+
+      {/* ── SIGN-OFF ── */}
+      <Sec title="Final Sign-off">
+        <CK checked={p.finalPassed} onChange={v=>u({finalPassed:v})} label="✅ Final Inspection Passed"/>
+        <div style={{marginTop:6}}><CK checked={p.customerSignoff} onChange={v=>u({customerSignoff:v})} label="✅ Customer Signature Collected"/></div>
+        <SigPad label="Installer / Inspector Signature" value={fi.inspectorSig||""} onChange={v=>uf("inspectorSig",v)}/>
+        <SigPad label="Customer Signature — Work Completion" value={fi.customerSig||""} onChange={v=>uf("customerSig",v)}/>
+      </Sec>
+    </div>
+  );
+}
+
+function QAQCTab({p,u}) {
+  const q = p.qaqc || {};
+  const uq = (k,v) => u({qaqc:{...q,[k]:v}});
+  const sr = (cat,idx,f,v) => { const key=`${cat}-${idx}`; uq("results",{...(q.results||{}),[key]:{...(q.results?.[key]||{}),[f]:v}}); };
+
+  const getQAhtml = () => {
+    let body = `<div class="sec"><h3>Info</h3><div class="row"><span class="lbl">Date</span><span class="val">${q.date||"—"}</span></div><div class="row"><span class="lbl">Inspector</span><span class="val">${q.inspector||"—"}</span></div></div>`;
+    Object.entries(QAQC_SECTIONS).forEach(([cat,items]) => {
+      const rows = items.map((item,i) => {
+        const r = q.results?.[`${cat}-${i}`]||{};
+        const cls = r.v==="Y"?"pass":r.v==="N"?"fail":"na";
+        return `<div class="row"><span class="lbl">${i+1}. ${item}</span><span class="${cls}">${r.v||"—"}</span></div>`;
+      }).join("");
+      body += `<div class="sec"><h3>${cat}</h3>${rows}</div>`;
+    });
+    body += `<div class="sec"><h3>Result</h3><div class="row"><span class="lbl">Overall</span><span class="${q.passed===true?"pass":"fail"}">${q.passed===true?"PASS":q.passed===false?"FAIL":"—"}</span></div>${q.notes?`<p style="margin-top:6px;color:#666">${q.notes}</p>`:""}</div>`;
+    return formPrintHTML("QAQC Observation Form", p, body, q.inspectorSig);
+  };
+
+  return (
+    <div>
+      <Sec title="🔎 QAQC Observation Form">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Per Appendix G — post-installation observation</p>
+          <PrintBtn onClick={()=>savePrint(getQAhtml())}/>
+        </div>
+      </Sec>
+      <Sec title="Info">
+        <Gr><F label="Date" value={q.date||""} onChange={v=>uq("date",v)} type="date"/><F label="Inspector" value={q.inspector||""} onChange={v=>uq("inspector",v)}/></Gr>
+        <div style={{marginTop:6}}><CK checked={q.scheduled} onChange={v=>uq("scheduled",v)} label="QAQC Scheduled"/></div>
+      </Sec>
+      {Object.entries(QAQC_SECTIONS).map(([cat,items]) => (
+        <Sec key={cat} title={cat}>
+          {items.map((item,i) => {
+            const r = q.results?.[`${cat}-${i}`] || {};
+            return (
+              <div key={i} style={S.qqR}>
+                <span style={{flex:1,fontSize:11,minWidth:100}}>{i+1}. {item}</span>
+                <BtnGrp value={r.v||""} onChange={v=>sr(cat,i,"v",v)} opts={[{v:"Y",l:"Y",c:"#22c55e"},{v:"N",l:"N",c:"#ef4444"},{v:"NA",l:"N/A",c:"#64748b"}]}/>
+                <input style={{...S.inp,width:90}} value={r.c||""} onChange={e=>sr(cat,i,"c",e.target.value)} placeholder="Comment"/>
+              </div>
+            );
+          })}
+        </Sec>
+      ))}
+      <Sec title="Overall Result">
+        <Sel label="Result" value={q.passed===true?"pass":q.passed===false?"fail":""} onChange={v=>uq("passed",v==="pass"?true:v==="fail"?false:null)} opts={["pass","fail"]}/>
+        <textarea style={{...S.ta,marginTop:8}} value={q.notes||""} onChange={e=>uq("notes",e.target.value)} rows={3} placeholder="Overall notes…"/>
+        <SigPad label="Inspector Signature" value={q.inspectorSig||""} onChange={v=>uq("inspectorSig",v)}/>
+      </Sec>
+    </div>
+  );
+}
+
+function CloseoutTab({p,u,onLog}) {
+  const docDone = DOCS.filter(d => p.docsChecklist?.[d]).length;
+
+  const getCloseoutHTML = () => {
+    const docRows = DOCS.map(d => `<div class="row"><span class="lbl">${d}</span><span class="${p.docsChecklist?.[d]?"pass":"na"}">${p.docsChecklist?.[d]?"✓":"—"}</span></div>`).join("");
+    const body = `<div class="sec"><h3>Documents (${docDone}/${DOCS.length})</h3>${docRows}</div>
+      <div class="sec"><h3>Payment</h3><div class="row"><span class="lbl">Invoice</span><span class="val">${p.invoiceAmt?"$"+p.invoiceAmt:"—"}</span></div><div class="row"><span class="lbl">Submitted</span><span class="${p.paymentSubmitted?"pass":"na"}">${p.paymentSubmitted?"Yes":"No"}</span></div></div>
+      <div class="sec"><h3>Summary</h3><div class="grid">
+        <div class="row"><span class="lbl">Stage</span><span class="val">${STAGES[p.currentStage].label}</span></div>
+        <div class="row"><span class="lbl">Measures</span><span class="val">${p.measures.length} EE + ${p.healthSafety.length} H&S</span></div>
+        <div class="row"><span class="lbl">Blower Door</span><span class="val">${p.preCFM50&&p.postCFM50?p.preCFM50+"→"+p.postCFM50:"—"}</span></div>
+        <div class="row"><span class="lbl">Scope</span><span class="${p.scopeApproved?"pass":"na"}">${p.scopeApproved?"Approved":"Pending"}</span></div>
+        <div class="row"><span class="lbl">Final Insp</span><span class="${p.finalPassed?"pass":"na"}">${p.finalPassed?"Passed":"—"}</span></div>
+      </div></div>`;
+    return formPrintHTML("Project Closeout", p, body, p.custAuthSig);
+  };
+
+  return (
+    <div>
+      <Sec title={<span>Documents {docDone}/{DOCS.length}</span>}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={S.prog}><div style={{...S.progF,width:`${(docDone/DOCS.length)*100}%`}}/></div>
+          <PrintBtn onClick={()=>savePrint(getCloseoutHTML())}/>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+          {DOCS.map(d => <CK key={d} checked={p.docsChecklist?.[d]} onChange={()=>u({docsChecklist:{...p.docsChecklist,[d]:!p.docsChecklist?.[d]}})} label={d} color={p.docsChecklist?.[d]?"#22c55e":null} strike={p.docsChecklist?.[d]}/>)}
+        </div>
+      </Sec>
+      <Sec title="Install Notes"><textarea style={S.ta} value={p.installNotes} onChange={e=>u({installNotes:e.target.value})} rows={3} placeholder="Crew notes…"/></Sec>
+      <Sec title="Payment">
+        <Gr><F label="Invoice $" value={p.invoiceAmt} onChange={v=>u({invoiceAmt:v})}/><F label="Submit Date" value={p.paymentDate} onChange={v=>u({paymentDate:v})} type="date"/></Gr>
+        <div style={{marginTop:8}}><CK checked={p.paymentSubmitted} onChange={v=>{u({paymentSubmitted:v});if(v)onLog("Payment submitted to RISE");}} label="Submitted to RISE"/></div>
+      </Sec>
+      <Sec title="Summary">
+        <div style={S.sumG}>
+          <SI l="Stage" v={STAGES[p.currentStage].label}/>
+          <SI l="Measures" v={`${p.measures.length} EE + ${p.healthSafety.length} H&S`}/>
+          <SI l="Blower Door" v={p.preCFM50&&p.postCFM50?`${p.preCFM50}→${p.postCFM50}`:"—"}/>
+          <SI l="Scope" v={p.scopeApproved?"✓ Approved":"Pending"} c={p.scopeApproved?"#22c55e":"#94a3b8"}/>
+          <SI l="Inspection" v={p.finalPassed?"✓ Passed":"—"} c={p.finalPassed?"#22c55e":"#94a3b8"}/>
+          <SI l="Sign-off" v={p.customerSignoff?"✓":"—"} c={p.customerSignoff?"#22c55e":"#94a3b8"}/>
+          <SI l="Photos" v={`${Object.keys(p.photos||{}).filter(k=>hasPhoto(p.photos,k)).length} slots`}/>
+          <SI l="Payment" v={p.paymentSubmitted?`$${p.invoiceAmt}`:"Pending"} c={p.paymentSubmitted?"#22c55e":"#94a3b8"}/>
+        </div>
+      </Sec>
+    </div>
+  );
+}
+
+function LogTab({p,onLog}) {
+  const [n, setN] = useState("");
+  return (
+    <div>
+      <Sec title="Add Note">
+        <div style={{display:"flex",gap:6}}>
+          <input style={{...S.inp,flex:1}} value={n} onChange={e=>setN(e.target.value)} placeholder="What happened?"/>
+          <button style={{...S.btn,padding:"8px 14px",opacity:n?1:.4}} disabled={!n} onClick={()=>{onLog(n);setN("");}}>Add</button>
+        </div>
+      </Sec>
+      <Sec title={`History (${p.activityLog.length})`}>
+        {p.activityLog.length === 0 ? <p style={{color:"#64748b",fontSize:12}}>No activity yet.</p> : (
+          p.activityLog.map((a,i) => (
+            <div key={i} style={S.logR}>
+              <span style={S.logT}>{new Date(a.ts).toLocaleString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</span>
+              <span style={{fontSize:12,flex:1}}>{a.txt}</span>
+              {a.by && <span style={S.logB}>{a.by}{a.role?` (${a.role})`:""}</span>}
+            </div>
+          ))
+        )}
+      </Sec>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SHARED COMPONENTS
+// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
+// USER MANAGEMENT (Admin)
+// ═══════════════════════════════════════════════════════════════
+function UserMgmt({users, onSave, onDelete, onClose}) {
+  const [edit, setEdit] = useState(null); // user object being edited/created
+  const [confirmDel, setConfirmDel] = useState(null);
+
+  const startNew = () => setEdit({id:uid(), name:"", username:"", pin:"", role:"installer", isNew:true});
+  const startEdit = (u) => setEdit({...u, isNew:false});
+  const doSave = () => {
+    if (!edit.name.trim() || !edit.username.trim() || !edit.pin.trim()) return;
+    // Check for duplicate username
+    const dup = users.find(u => u.username.toLowerCase() === edit.username.trim().toLowerCase() && u.id !== edit.id);
+    if (dup) { alert("Username already taken"); return; }
+    const clean = {id:edit.id, name:edit.name.trim(), username:edit.username.trim().toLowerCase(), pin:edit.pin.trim(), role:edit.role};
+    if (edit.isNew) onSave([...users, clean]);
+    else onSave(users.map(u => u.id === edit.id ? clean : u));
+    setEdit(null);
+  };
+  const doDelete = (id) => { if(onDelete) onDelete(id); setConfirmDel(null); };
+
+  const row = {display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderBottom:"1px solid rgba(255,255,255,.06)"};
+  const badge = (r) => {const m=ROLES.find(x=>x.key===r); return <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(99,102,241,.15)",color:"#a5b4fc"}}>{m?.icon} {m?.label||r}</span>;};
+
+  return (
+    <Sec title={<span>👥 User Management <button type="button" onClick={onClose} style={{float:"right",background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:14}}>✕</button></span>}>
+      {!edit ? <>
+        {users.map(u => (
+          <div key={u.id} style={row}>
+            {confirmDel === u.id ? (
+              <div style={{flex:1,display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:12,color:"#ef4444"}}>Delete {u.name}?</span>
+                <button type="button" onClick={()=>doDelete(u.id)} style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:10,fontWeight:700,cursor:"pointer"}}>Yes</button>
+                <button type="button" onClick={()=>setConfirmDel(null)} style={{padding:"3px 8px",borderRadius:4,border:"1px solid rgba(255,255,255,.1)",background:"transparent",color:"#94a3b8",fontSize:10,cursor:"pointer"}}>No</button>
+              </div>
+            ) : <>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,color:"#e2e8f0",fontWeight:600}}>{u.name}</div>
+                <div style={{fontSize:10,color:"#64748b",fontFamily:"'JetBrains Mono',monospace"}}>{u.username} · PIN: {u.pin}</div>
+              </div>
+              {badge(u.role)}
+              <button type="button" onClick={()=>startEdit(u)} style={{background:"none",border:"none",color:"#818cf8",cursor:"pointer",fontSize:12}}>✏️</button>
+              <button type="button" onClick={()=>setConfirmDel(u.id)} style={{background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:12}}>🗑️</button>
+            </>}
+          </div>
+        ))}
+        <button type="button" onClick={startNew} style={{...S.btn,width:"100%",marginTop:8,padding:"10px",fontSize:13}}>+ Add User</button>
+      </> : <>
+        <div style={{marginBottom:8}}>
+          <label style={S.fl}>Name</label>
+          <input style={S.inp} value={edit.name} onChange={e=>setEdit({...edit,name:e.target.value})} placeholder="Full name"/>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <div><label style={S.fl}>Username</label><input style={S.inp} value={edit.username} onChange={e=>setEdit({...edit,username:e.target.value})} placeholder="username" autoCapitalize="none"/></div>
+          <div><label style={S.fl}>PIN</label><input style={S.inp} value={edit.pin} onChange={e=>setEdit({...edit,pin:e.target.value})} placeholder="1234" inputMode="numeric" maxLength={8}/></div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={S.fl}>Role</label>
+          <select style={{...S.inp,cursor:"pointer",appearance:"auto",WebkitAppearance:"menulist"}} value={edit.role} onChange={e=>setEdit({...edit,role:e.target.value})}>
+            {ROLES.map(r => <option key={r.key} value={r.key}>{r.icon} {r.label}</option>)}
+          </select>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          <button type="button" onClick={doSave} style={{...S.btn,flex:1,padding:"10px"}}>{edit.isNew?"Add User":"Save Changes"}</button>
+          <button type="button" onClick={()=>setEdit(null)} style={{...S.ghost,flex:1,padding:"10px"}}>Cancel</button>
+        </div>
+      </>}
+    </Sec>
+  );
+}
+
+function Hdr({role,user,onSw,onBack,title,sub,badge,actions}) {
+  return (
+    <header style={S.hdr}>
+      <div style={{display:"flex",alignItems:"center",gap:8,flex:1,minWidth:0}}>
+        {onBack && <button style={{...S.back,fontSize:20}} onClick={onBack}>←</button>}
+        <div style={{minWidth:0,flex:1}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+            <h1 style={S.hT}>{title}</h1>{badge}
+          </div>
+          {sub && <p style={S.hS}>{sub}</p>}
+        </div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+        {actions}
+        <button style={S.rChip} onClick={onSw} title="Sign out">{role?.icon} {user} <span style={{fontSize:10,marginLeft:4,opacity:.6}}>↪</span></button>
+      </div>
+    </header>
+  );
+}
+
+function Sec({title,children,danger}) {
+  return <div style={{...S.sec,...(danger?{borderColor:"rgba(239,68,68,.3)"}:{})}}><h3 style={{...S.secT,...(danger?{color:"#ef4444"}:{})}}>{title}</h3>{children}</div>;
+}
+function Gr({children}) { return <div style={S.gr}>{children}</div>; }
+function F({label,value,onChange,type="text",placeholder}) { return <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>{label}</label><input style={{...S.inp,marginTop:"auto"}} type={type} value={value||""} onChange={e=>onChange(e.target.value)} placeholder={placeholder}/></div>; }
+function Sel({label,value,onChange,opts}) {
+  return (
+    <div style={{display:"flex",flexDirection:"column"}}>
+      <label style={S.fl}>{label}</label>
+      <select value={value||""} onChange={e=>onChange(e.target.value)} style={{...S.inp,cursor:"pointer",marginTop:"auto",appearance:"auto",WebkitAppearance:"menulist",color:value?"#e2e8f0":"#64748b"}}>
+        <option value="" style={{background:"#1e293b",color:"#64748b"}}>— Select —</option>
+        {opts.map(o => <option key={o} value={o} style={{background:"#1e293b",color:"#e2e8f0"}}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+function CK({checked,onChange,label,color,strike,small}) { return <label style={{...S.ck,fontSize:small?10:12,...(color?{color}:{}),cursor:"pointer",...(strike?{textDecoration:"line-through"}:{})}}><input type="checkbox" checked={!!checked} onChange={e=>onChange(e.target.checked)} style={{marginRight:6,accentColor:"#6366f1",width:small?14:16,height:small?14:16,flexShrink:0}}/><span style={{lineHeight:1.3}}>{label}</span></label>; }
+function BtnGrp({value,onChange,opts}) { return <div style={{display:"flex",gap:2}}>{opts.map(o=><button key={o.v} type="button" onClick={()=>onChange(value===o.v?"":o.v)} style={{padding:"5px 8px",borderRadius:5,border:value===o.v?`2px solid ${o.c}`:"1px solid rgba(255,255,255,.1)",background:value===o.v?`${o.c}22`:"rgba(255,255,255,.03)",color:value===o.v?o.c:"#64748b",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",minWidth:36,minHeight:32}}>{o.l}</button>)}</div>; }
+
+function SigPad({value, onChange, label}) {
+  const [signing, setSigning] = useState(false);
+  const canRef = useRef(null);
+  const drawing = useRef(false);
+  const lastPt = useRef(null);
+
+  const startDraw = () => {
+    const can = canRef.current; if (!can) return;
+    const ctx = can.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0,0,can.width,can.height);
+    ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  };
+
+  const getPos = (e) => {
+    const r = canRef.current.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  };
+
+  const down = (e) => { e.preventDefault(); drawing.current = true; lastPt.current = getPos(e); };
+  const move = (e) => {
+    if (!drawing.current || !canRef.current) return;
+    e.preventDefault();
+    const ctx = canRef.current.getContext("2d");
+    const pt = getPos(e);
+    ctx.beginPath(); ctx.moveTo(lastPt.current.x, lastPt.current.y);
+    ctx.lineTo(pt.x, pt.y); ctx.stroke();
+    lastPt.current = pt;
+  };
+  const up = () => { drawing.current = false; lastPt.current = null; };
+
+  const save = () => {
+    if (!canRef.current) return;
+    onChange(canRef.current.toDataURL("image/png"));
+    setSigning(false);
+  };
+  const clear = () => { onChange(""); };
+
+  if (signing) {
+    return (
+      <div style={S.camOv}>
+        <div style={S.camH}>
+          <button style={{...S.back,fontSize:18}} onClick={()=>setSigning(false)}>✕ Cancel</button>
+          <div style={{flex:1,textAlign:"center",fontWeight:600,fontSize:14}}>{label || "Sign"}</div>
+          <button style={{...S.btn,padding:"6px 14px"}} onClick={save}>Done</button>
+        </div>
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16,background:"#0b0e18"}}>
+          <p style={{fontSize:12,color:"#94a3b8",marginBottom:8}}>Sign below with finger or stylus</p>
+          <canvas ref={el=>{canRef.current=el;if(el){el.width=Math.min(600,window.innerWidth-40);el.height=180;startDraw();}}}
+            style={{borderRadius:8,border:"2px solid #334155",touchAction:"none",cursor:"crosshair",background:"#fff"}}
+            onMouseDown={down} onMouseMove={move} onMouseUp={up} onMouseLeave={up}
+            onTouchStart={down} onTouchMove={move} onTouchEnd={up}/>
+          <button style={{...S.ghost,marginTop:10,fontSize:12}} onClick={()=>{if(canRef.current){const ctx=canRef.current.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,canRef.current.width,canRef.current.height);}}}>Clear Pad</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{marginTop:8}}>
+      <label style={S.fl}>{label || "Signature"}</label>
+      {value ? (
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{background:"#fff",borderRadius:6,padding:4,border:"1px solid rgba(255,255,255,.1)"}}>
+            <img src={value} style={{height:50,objectFit:"contain"}} alt="sig"/>
+          </div>
+          <button style={{...S.ghost,fontSize:10,padding:"4px 10px"}} onClick={clear}>Clear</button>
+          <button style={{...S.ghost,fontSize:10,padding:"4px 10px"}} onClick={()=>setSigning(true)}>Re-sign</button>
+        </div>
+      ) : (
+        <button style={{...S.btn,padding:"8px 16px"}} onClick={()=>setSigning(true)}>✍️ Tap to Sign</button>
+      )}
+    </div>
+  );
+}
+
+function PrintBtn({onClick,label}) {
+  return <button style={{...S.ghost,fontSize:11,padding:"6px 10px",display:"flex",alignItems:"center",gap:3}} onClick={onClick}>📄 {label||"Save / Print"}</button>;
+}
+function SI({l,v,c}) { return <div style={S.si}><span style={{fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:".04em"}}>{l}</span><span style={{fontSize:13,fontWeight:600,color:c||"#e2e8f0",marginTop:2}}>{v}</span></div>; }
+
+// ═══════════════════════════════════════════════════════════════
+// STYLES - responsive for iPhone/iPad/Laptop
+// ═══════════════════════════════════════════════════════════════
+const S = {
+  app: { fontFamily:"'DM Sans',sans-serif", background:"#0b0e18", minHeight:"100vh", color:"#e2e8f0", paddingBottom:60, maxWidth:1200, margin:"0 auto" },
+  center: { display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", background:"#0b0e18" },
+  spin: { width:24, height:24, border:"3px solid #1e293b", borderTopColor:"#6366f1", borderRadius:"50%", animation:"spin .7s linear infinite" },
+
+  // Role picker
+  rpWrap: { maxWidth:440, margin:"0 auto", padding:"48px 20px" },
+  logoBox: { width:52, height:52, borderRadius:14, background:"linear-gradient(135deg,#6366f1,#a855f7)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto" },
+  rCard: { display:"flex", alignItems:"center", gap:12, padding:"14px 16px", background:"rgba(255,255,255,.03)", border:"1px solid rgba(255,255,255,.08)", borderRadius:10, cursor:"pointer", color:"#e2e8f0", fontFamily:"'DM Sans',sans-serif", width:"100%" },
+
+  // Header
+  hdr: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 16px", borderBottom:"1px solid rgba(255,255,255,.06)", background:"rgba(255,255,255,.02)", flexWrap:"wrap", gap:6, position:"sticky", top:0, zIndex:100 },
+  hT: { fontSize:16, fontWeight:700, margin:0, color:"#f1f5f9" },
+  hS: { fontSize:11, color:"#64748b", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  back: { background:"none", border:"none", color:"#94a3b8", cursor:"pointer", fontSize:18, fontFamily:"'DM Sans',sans-serif", padding:"4px 6px", minWidth:44, minHeight:44, display:"flex", alignItems:"center", justifyContent:"center" },
+  rChip: { background:"rgba(255,255,255,.05)", border:"1px solid rgba(255,255,255,.1)", borderRadius:8, padding:"6px 12px", color:"#e2e8f0", fontSize:12, cursor:"pointer", fontFamily:"'DM Sans',sans-serif", minHeight:36 },
+  bdg: { padding:"3px 10px", borderRadius:6, fontSize:11, fontWeight:600, whiteSpace:"nowrap", color:"#fff" },
+
+  // Buttons
+  btn: { background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff", border:"none", padding:"8px 16px", borderRadius:8, fontWeight:600, cursor:"pointer", fontSize:13, fontFamily:"'DM Sans',sans-serif", minHeight:36 },
+  ghost: { background:"none", border:"1px solid rgba(255,255,255,.12)", color:"#94a3b8", padding:"8px 14px", borderRadius:8, cursor:"pointer", fontSize:12, fontFamily:"'DM Sans',sans-serif", minHeight:36 },
+
+  // Dashboard
+  readyBan: { display:"flex", alignItems:"center", gap:8, padding:"10px 16px", background:"linear-gradient(135deg,rgba(245,158,11,.1),rgba(234,179,8,.05))", borderBottom:"1px solid rgba(245,158,11,.2)", cursor:"pointer" },
+  alertBar: { padding:"8px 16px", display:"flex", gap:6, flexWrap:"wrap", borderBottom:"1px solid rgba(255,255,255,.04)", background:"rgba(255,255,255,.01)" },
+  alertBox: { display:"flex", alignItems:"flex-start", gap:8, padding:12, background:"rgba(245,158,11,.08)", border:"1px solid rgba(245,158,11,.2)", borderRadius:10, marginBottom:12 },
+  pipe: { display:"flex", gap:4, padding:"8px 16px", overflowX:"auto", borderBottom:"1px solid rgba(255,255,255,.04)", WebkitOverflowScrolling:"touch" },
+  chip: { display:"flex", alignItems:"center", gap:3, padding:"6px 10px", borderRadius:6, border:"1px solid", cursor:"pointer", fontSize:12, fontFamily:"'DM Sans',sans-serif", minHeight:32, whiteSpace:"nowrap" },
+  chipN: { fontSize:10, fontWeight:700, fontFamily:"'JetBrains Mono',monospace" },
+  sRow: { display:"flex", gap:6, padding:"8px 16px" },
+  sInp: { flex:1, background:"rgba(255,255,255,.04)", border:"1px solid rgba(255,255,255,.08)", borderRadius:8, padding:"10px 12px", color:"#e2e8f0", fontSize:14, fontFamily:"'DM Sans',sans-serif", outline:"none" },
+  list: { display:"flex", flexDirection:"column", gap:4, padding:"4px 16px" },
+  card: { background:"rgba(255,255,255,.03)", border:"1px solid rgba(255,255,255,.06)", borderRadius:10, padding:"12px 14px", cursor:"pointer", textAlign:"left", fontFamily:"'DM Sans',sans-serif", width:"100%", color:"#e2e8f0", minHeight:44 },
+  cTop: { display:"flex", justifyContent:"space-between", alignItems:"center", gap:6 },
+  cName: { fontWeight:600, fontSize:14, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
+  cMeta: { display:"flex", gap:8, marginTop:5, fontSize:10, color:"#64748b", fontFamily:"'JetBrains Mono',monospace", flexWrap:"wrap" },
+  tBadge: { fontSize:9, padding:"2px 6px", borderRadius:4, background:"rgba(245,158,11,.15)", color:"#fbbf24", fontWeight:600 },
+  empty: { textAlign:"center", padding:50 },
+
+  // Stage bar
+  stBar: { display:"flex", gap:3, padding:"8px 16px", overflowX:"auto", WebkitOverflowScrolling:"touch" },
+  stStep: { display:"flex", flexDirection:"column", alignItems:"center", gap:2, padding:"4px 3px", borderRadius:5, flex:1, minWidth:36 },
+
+  // Tabs
+  tabR: { display:"flex", gap:0, padding:"0 16px", borderBottom:"1px solid rgba(255,255,255,.06)", overflowX:"auto", WebkitOverflowScrolling:"touch", position:"sticky", top:52, zIndex:99, background:"#0b0e18" },
+  tabB: { padding:"10px 12px", background:"none", border:"none", borderBottom:"2px solid transparent", color:"#64748b", cursor:"pointer", fontSize:12, fontFamily:"'DM Sans',sans-serif", fontWeight:500, whiteSpace:"nowrap", minHeight:40 },
+  tabA: { color:"#e2e8f0", borderBottomColor:"#6366f1" },
+  cnt: { padding:"12px 16px" },
+
+  // Sections
+  sec: { background:"rgba(255,255,255,.02)", border:"1px solid rgba(255,255,255,.06)", borderRadius:10, padding:"14px 14px 12px", marginBottom:8 },
+  secT: { fontSize:13, fontWeight:600, color:"#f1f5f9", margin:"0 0 10px", lineHeight:1.3 },
+
+  // Form fields
+  gr: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))", gap:8 },
+  fl: { fontSize:10, fontWeight:500, color:"#94a3b8", marginBottom:3, display:"block", textTransform:"uppercase", letterSpacing:".04em" },
+  inp: { width:"100%", background:"#1e293b", border:"1px solid rgba(255,255,255,.1)", borderRadius:6, padding:"8px 10px", color:"#e2e8f0", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", boxSizing:"border-box", minHeight:38, WebkitAppearance:"none", colorScheme:"dark" },
+  ta: { width:"100%", background:"rgba(255,255,255,.04)", border:"1px solid rgba(255,255,255,.1)", borderRadius:6, padding:"8px 10px", color:"#e2e8f0", fontSize:13, fontFamily:"'DM Sans',sans-serif", outline:"none", resize:"vertical", boxSizing:"border-box", minHeight:44 },
+  ck: { fontSize:12, color:"#cbd5e1", cursor:"pointer", display:"flex", alignItems:"center", padding:"4px 0", minHeight:32, gap:0 },
+  ckG: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:"0px 8px" },
+
+  // Diagnostics
+  calc: { marginTop:8, padding:"8px 10px", background:"rgba(255,255,255,.04)", borderRadius:8, fontSize:12, fontFamily:"'JetBrains Mono',monospace", display:"flex", flexWrap:"wrap", gap:4 },
+  cazR: { display:"flex", alignItems:"center", gap:6, padding:"6px 0", borderBottom:"1px solid rgba(255,255,255,.04)", flexWrap:"wrap" },
+  qqR: { display:"flex", alignItems:"center", gap:6, padding:"5px 0", borderBottom:"1px solid rgba(255,255,255,.04)", flexWrap:"wrap" },
+
+  // Photos
+  phRow: { display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:"1px solid rgba(255,255,255,.04)" },
+  cBtn: { width:40, height:40, borderRadius:8, border:"1px dashed rgba(99,102,241,.4)", background:"rgba(99,102,241,.08)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18 },
+  uBtn: { width:40, height:40, borderRadius:8, border:"1px dashed rgba(255,255,255,.15)", background:"rgba(255,255,255,.04)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18 },
+  thBtn: { width:44, height:44, borderRadius:8, border:"2px solid #22c55e", padding:0, cursor:"pointer", overflow:"hidden", background:"#000" },
+  th: { width:"100%", height:"100%", objectFit:"cover" },
+  camOv: { position:"fixed", top:0, left:0, right:0, bottom:0, background:"#000", zIndex:9999, display:"flex", flexDirection:"column", fontFamily:"'DM Sans',sans-serif", color:"#e2e8f0" },
+  camH: { display:"flex", alignItems:"center", gap:8, padding:"12px 16px", borderBottom:"1px solid rgba(255,255,255,.1)", background:"rgba(0,0,0,.8)" },
+  camB: { flex:1, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" },
+  vid: { width:"100%", height:"100%", objectFit:"cover" },
+  camF: { display:"flex", justifyContent:"center", padding:"20px 16px 36px", background:"rgba(0,0,0,.8)" },
+  snapB: { width:68, height:68, borderRadius:"50%", border:"4px solid #fff", background:"transparent", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", padding:3 },
+  snapI: { width:"100%", height:"100%", borderRadius:"50%", background:"#fff" },
+
+  // Progress
+  prog: { width:"100%", height:4, background:"rgba(255,255,255,.06)", borderRadius:2, overflow:"hidden" },
+  progF: { height:"100%", background:"#22c55e", borderRadius:2, transition:"width .3s" },
+
+  // Summary
+  sumG: { display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))", gap:6 },
+  si: { background:"rgba(255,255,255,.03)", borderRadius:8, padding:"8px 10px", border:"1px solid rgba(255,255,255,.06)", display:"flex", flexDirection:"column" },
+
+  // Log
+  logR: { display:"flex", gap:6, padding:"6px 0", borderBottom:"1px solid rgba(255,255,255,.04)", alignItems:"baseline", flexWrap:"wrap" },
+  logT: { fontSize:10, color:"#64748b", fontFamily:"'JetBrains Mono',monospace", minWidth:80 },
+  logB: { fontSize:10, color:"#8b5cf6", fontStyle:"italic" },
+};
