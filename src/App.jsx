@@ -158,6 +158,37 @@ function InsulRec({section, preR, addR}) {
   return recs.map((r,i) => <Rec key={i} type={r.t}>{r.m}</Rec>);
 }
 
+// Get resolved qty for a measure (override or auto-calculated)
+function getResolvedQty(p,m) {
+  const s = p.scope2026 || {};
+  const aq = {};
+  const atticAdd=Number(s.attic?.addR||0),atticPre=Number(s.attic?.preR||0);
+  if(atticAdd>0&&s.attic?.sqft){if(atticPre<=11)aq["Attic Insulation (0-R11)"]=Number(s.attic.sqft);else if(atticPre<=19)aq["Attic Insulation (R12-19)"]=Number(s.attic.sqft);}
+  if(Number(s.fnd?.addR||0)>0||(s.fnd?.preR!==undefined&&Number(s.fnd.preR||0)===0&&(Number(s.fnd?.aboveSqft||0)+Number(s.fnd?.belowSqft||0))>0)){const b=(Number(s.fnd?.aboveSqft||0)+Number(s.fnd?.belowSqft||0));if(b>0)aq["Basement Wall Insulation"]=b;}
+  if(s.fnd?.crawlR!==undefined&&Number(s.fnd.crawlR||0)===0){const c=(Number(s.fnd?.crawlAbove||0)+Number(s.fnd?.crawlBelow||0));if(c>0)aq["Crawl Space Wall Insulation"]=c;}
+  if(Number(s.kneeWall?.addR||0)>0&&s.kneeWall?.sqft)aq["Knee Wall Insulation"]=Number(s.kneeWall.sqft);
+  const w1=Number(s.extWall1?.addR||0)>0&&s.extWall1?.sqft?Math.round(Number(s.extWall1.sqft)*0.84):0;
+  const w2=Number(s.extWall2?.addR||0)>0&&s.extWall2?.sqft?Math.round(Number(s.extWall2.sqft)*0.86):0;
+  if(w1+w2>0)aq["Injection Foam Walls"]=w1+w2;
+  if(s.fnd?.bandAccess&&Number(s.fnd?.bandR||0)===0&&s.fnd?.bandLnft)aq["Rim Joist Insulation"]=Number(s.fnd.bandLnft);
+  if(s.fnd?.crawlBandAccess&&Number(s.fnd?.crawlBandR||0)===0&&s.fnd?.crawlBandLnft)aq["Rim Joist Insulation"]=(aq["Rim Joist Insulation"]||0)+Number(s.fnd.crawlBandLnft);
+  if(Number(s.collar?.addR||0)>0&&s.collar?.sqft)aq["Attic Insulation (R12-19)"]=(aq["Attic Insulation (R12-19)"]||0)+Number(s.collar.sqft);
+  if(Number(s.outerCeiling?.addR||0)>0&&s.outerCeiling?.sqft)aq["Attic Insulation (R12-19)"]=(aq["Attic Insulation (R12-19)"]||0)+Number(s.outerCeiling.sqft);
+  if(s.htg?.replaceRec)aq[s.htg?.system==="Boiler"?"Boiler Replacement":"Furnace Replacement"]=1;
+  if(s.dhw?.replaceRec)aq["Water Heater Replacement"]=1;
+  if(s.clg?.replaceRec)aq["Central AC Replacement"]=1;
+  aq["Air Sealing"]=1;
+  if(s.attic?.ductwork||s.collar?.ductwork||s.fnd?.crawlDuct)aq["Duct Sealing"]=1;
+  if(s.coNeeded&&Number(s.coNeeded)>0)aq["CO Detector (Hardwired)"]=Number(s.coNeeded);
+  if(s.smokeNeeded&&Number(s.smokeNeeded)>0)aq["Smoke Detector (Hardwired)"]=Number(s.smokeNeeded);
+  if(s.doorSweeps&&Number(s.doorSweeps)>0)aq["Door Sweeps"]=Number(s.doorSweeps);
+  if(s.tenmats&&Number(s.tenmats)>0)aq["Weather Stripping"]=Number(s.tenmats);
+  if(s.dhw?.flueRepair)aq["Flue Repairs"]=1;
+  const mq=p.measureQty||{};
+  return mq[m]!==undefined?mq[m]:(aq[m]!==undefined?String(aq[m]):"");
+}
+function measUnit(m){if(m.includes("Insulation")&&!m.includes("Rim"))return"sqft";if(m.includes("Rim Joist"))return"lnft";if(m.includes("Foam Walls"))return"sqft";return"ea";}
+
 // ═══════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════
@@ -193,7 +224,7 @@ function blank() {
     audit: { interior:{}, heating:{}, cooling:{}, dhw:{}, attic:{}, foundation:{}, doors:{}, notes:"" },
     preCFM50: "", postCFM50: "", preCFM25: "", postCFM25: "", bdLoc: "", extTemp: "",
     ventReq: "", ventMethod: "", ventResult: "", fanAdj: "", cazResults: {},
-    measures: [], healthSafety: [], measureQty: {}, measureNotes: "", scopeVariances: "",
+    measures: [], healthSafety: [], measureQty: {}, measureUnchecked: {}, hsUnchecked: {}, measureNotes: "", scopeVariances: "",
     riseStatus: "", scopeApproved: false, scopeDate: "", scopeNotes: "",
     mechNeeded: false, mechStatus: "", mechDate: "", mechNotes: "",
     fi: { safety:{}, blowerPre:"", blowerPost:"", ductPre:"", ductPost:"", thermoInstalled:"", followupNeeded:"", followupNotes:"" },
@@ -633,6 +664,33 @@ export default function App() {
           );
         })}
       </div>
+
+      {/* ── Dashboard Stats ── */}
+      {filter === "all" && !search && projects.length > 0 && (()=>{
+        const totalEE = projects.reduce((s,p)=>s+p.measures.length,0);
+        const totalHS = projects.reduce((s,p)=>s+p.healthSafety.length,0);
+        const completed = projects.filter(p=>p.currentStage>=8).length;
+        const inProgress = projects.filter(p=>p.currentStage>=2&&p.currentStage<8).length;
+        // Most common measures
+        const mCount = {};
+        projects.forEach(p=>[...p.measures,...p.healthSafety].forEach(m=>{mCount[m]=(mCount[m]||0)+1;}));
+        const topM = Object.entries(mCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+        const stS = {padding:"8px 12px",borderRadius:8,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",textAlign:"center",minWidth:0};
+        const stN = {fontSize:20,fontWeight:700,color:"#e2e8f0",lineHeight:1};
+        const stL = {fontSize:9,color:"#64748b",marginTop:2};
+        return <div style={{padding:"0 16px",marginBottom:8}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:8}}>
+            <div style={stS}><div style={stN}>{projects.length}</div><div style={stL}>Total</div></div>
+            <div style={stS}><div style={{...stN,color:"#818cf8"}}>{inProgress}</div><div style={stL}>In Progress</div></div>
+            <div style={stS}><div style={{...stN,color:"#22c55e"}}>{completed}</div><div style={stL}>Completed</div></div>
+            <div style={stS}><div style={{...stN,color:"#f59e0b"}}>{totalEE+totalHS}</div><div style={stL}>Measures</div></div>
+          </div>
+          {topM.length > 0 && <div style={{background:"rgba(255,255,255,.03)",borderRadius:6,padding:"6px 10px",border:"1px solid rgba(255,255,255,.05)"}}>
+            <div style={{fontSize:9,color:"#64748b",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Top Measures</div>
+            {topM.map(([m,c])=><div key={m} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"2px 0",color:"#94a3b8"}}><span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginRight:8}}>{m}</span><span style={{fontWeight:600,color:"#e2e8f0",flexShrink:0}}>{c}</span></div>)}
+          </div>}
+        </div>;
+      })()}
 
       <div style={S.sRow}>
         <input style={S.sInp} placeholder="Search name, address, RISE, ST…" value={search} onChange={e => setSearch(e.target.value)}/>
@@ -1266,8 +1324,8 @@ function ScopeTab({p,u,onLog}) {
     const nyn = (sec,k) => s[sec]?.[k]===true?"Yes":s[sec]?.[k]===false?"No":"—";
 
     const mq = p.measureQty||{};
-    const measRows = p.measures.map(m=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #16a34a;border-radius:4px;margin:2px;font-size:10px;color:#16a34a">✓ ${m}${mq[m]?" ("+mq[m]+")":""}</span>`).join("");
-    const hsRows = p.healthSafety.map(m=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #d97706;border-radius:4px;margin:2px;font-size:10px;color:#d97706">✓ ${m}${mq[m]?" ("+mq[m]+")":""}</span>`).join("");
+    const measTable = p.measures.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#f0fdf4;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.measures.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:3px 6px;border:1px solid #ddd">${measUnit(m)}</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
+    const hsTable = p.healthSafety.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#fffbeb;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.healthSafety.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:3px 6px;border:1px solid #ddd">ea</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
 
     const body = `
       <div class="sec"><h3>Customer Information</h3><div class="grid">
@@ -1386,8 +1444,8 @@ function ScopeTab({p,u,onLog}) {
             ${fan>0?`<div class="row"><span class="lbl">Fan setting: ${fan} CFM · Run-time: ${minHr} min/hr (continuous = 60)</span></div>`:""}
           </div>`;
         })()}</div>
-      <div class="sec"><h3>Measures — Energy Efficiency</h3>${measRows||"<span style='color:#999'>None selected</span>"}</div>
-      <div class="sec"><h3>Measures — Health & Safety</h3>${hsRows||"<span style='color:#999'>None selected</span>"}</div>
+      <div class="sec"><h3>Measures — Energy Efficiency</h3>${measTable}</div>
+      <div class="sec"><h3>Measures — Health & Safety</h3>${hsTable}</div>
       <div class="sec"><h3>Insulation Quantities</h3><div class="grid">
         ${["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].map(m=>`<div class="row"><span class="lbl">${m}</span><span class="val">${s.insulQty?.[m]||"—"} ${m.includes("Rim Joist")?"LnFt":"SqFt"}</span></div>`).join("")}
       </div></div>
@@ -1484,6 +1542,7 @@ function ScopeTab({p,u,onLog}) {
         <div style={{marginTop:8}}><Gr>
           <F label="Manufacturer" value={s.htg?.mfg||""} onChange={v=>sn("htg","mfg",v)}/>
           <F label="Install Year" value={s.htg?.year||""} onChange={v=>sn("htg","year",v)} num/>
+          <F label="Age" computed={s.htg?.year ? (new Date().getFullYear()-Number(s.htg.year))+" yrs" : "—"}/>
           <F label="Condition" value={s.htg?.condition||""} onChange={v=>sn("htg","condition",v)}/>
         </Gr></div>
         <div style={{marginTop:8}}><Gr>
@@ -1520,6 +1579,10 @@ function ScopeTab({p,u,onLog}) {
           const furnAge = Number(s.htg?.year||0) ? new Date().getFullYear() - Number(s.htg.year) : 0;
           if(furnAge > 3 && fuel==="Natural Gas" && !s.htg?.replaceRec) recs.push({t:"rec",m:`Furnace is ${furnAge} yrs old (>3 yrs) → Clean & Tune auto-selected per program rules.`});
           if(s.htg?.cleanTune && fuel==="Natural Gas") recs.push({t:"info",m:`Furnace tune-up: must not have had tune-up within last 3 years.`});
+          if(s.htg?.replaceRec && sys==="Boiler") recs.push({t:"rec",m:"System is Boiler → Boiler Replacement will be auto-selected in measures (not Furnace Replacement)."});
+          if(s.htg?.replaceRec && sys!=="Boiler") recs.push({t:"rec",m:"System is Forced Air → Furnace Replacement will be auto-selected in measures. New furnace must be ≥95% AFUE."});
+          if(sys==="Boiler" && p.measures.includes("Furnace Replacement")) recs.push({t:"flag",m:"⚠ Furnace Replacement is checked but system is Boiler — should be Boiler Replacement."});
+          if(sys!=="Boiler" && sys && p.measures.includes("Boiler Replacement")) recs.push({t:"flag",m:"⚠ Boiler Replacement is checked but system is not a Boiler — should be Furnace Replacement."});
           return recs.map((r,i)=><Rec key={i} type={r.t}>{r.m}</Rec>);
         })()}
       </Sec>
@@ -1529,7 +1592,8 @@ function ScopeTab({p,u,onLog}) {
         <Gr>
           <Sel label="Type" value={s.clg?.type||""} onChange={v=>sn("clg","type",v)} opts={["Central Air","Window Units","Mini Split","Heat Pump","None"]}/>
           <F label="Manufacturer" value={s.clg?.mfg||""} onChange={v=>sn("clg","mfg",v)}/>
-          <F label="Age" value={s.clg?.age||""} onChange={v=>sn("clg","age",v)} num/>
+          <F label="Install Year" value={s.clg?.year||""} onChange={v=>sn("clg","year",v)} num/>
+          <F label="Age" computed={s.clg?.year ? (new Date().getFullYear()-Number(s.clg.year))+" yrs" : (s.clg?.age ? s.clg.age+" yrs" : "—")}/>
           <F label="SEER" value={s.clg?.seer||""} onChange={v=>sn("clg","seer",v)} num/>
           <F label="Condition" value={s.clg?.condition||""} onChange={v=>sn("clg","condition",v)}/>
           <Sel label="BTU Size" value={s.clg?.btu||""} onChange={v=>sn("clg","btu",v)} opts={["2 Ton (24k)","2.5 Ton (30k)","3 Ton (36k)","3.5 Ton (42k)"]}/>
@@ -1544,7 +1608,8 @@ function ScopeTab({p,u,onLog}) {
           <Sel label="Fuel" value={s.dhw?.fuel||""} onChange={v=>sn("dhw","fuel",v)} opts={["Natural Gas","Electric","Propane","Other"]}/>
           <Sel label="System Type" value={s.dhw?.system||""} onChange={v=>sn("dhw","system",v)} opts={["On Demand","Storage Tank","Indirect","Heat Pump","Other"]}/>
           <F label="Manufacturer" value={s.dhw?.mfg||""} onChange={v=>sn("dhw","mfg",v)}/>
-          <F label="Age" value={s.dhw?.age||""} onChange={v=>sn("dhw","age",v)} num/>
+          <F label="Install Year" value={s.dhw?.year||""} onChange={v=>sn("dhw","year",v)} num/>
+          <F label="Age" computed={s.dhw?.year ? (new Date().getFullYear()-Number(s.dhw.year))+" yrs" : (s.dhw?.age ? s.dhw.age+" yrs" : "—")}/>
           <F label="Condition" value={s.dhw?.condition||""} onChange={v=>sn("dhw","condition",v)}/>
           <F label="Input BTU" value={s.dhw?.btuIn||""} onChange={v=>sn("dhw","btuIn",v)} num/>
           {(()=>{
@@ -1606,6 +1671,10 @@ function ScopeTab({p,u,onLog}) {
           <CK checked={s.int?.smokeDetector} onChange={v=>sn("int","smokeDetector",v)} label="Smoke Detector"/>
         </div>
         {s.int?.recessedLight && <div style={{marginTop:6}}><F label="Recessed Lighting Location" value={s.int?.recessedLoc||""} onChange={v=>sn("int","recessedLoc",v)}/></div>}
+        {s.int?.knobTube && <Rec type="flag">LIVE KNOB & TUBE — insulation CANNOT proceed in affected areas until remediated by licensed electrician.</Rec>}
+        {s.int?.vermiculite && <Rec type="flag">VERMICULITE/ASBESTOS — do NOT disturb. Abatement required before insulation. May use estimated blower door only.</Rec>}
+        {s.int?.mold && <Rec type="flag">MOLD PRESENT — mold remediation must be completed before insulation work can begin.</Rec>}
+        {s.htg?.asbestosPipes && <Rec type="flag">ASBESTOS-WRAPPED PIPES — do not disturb. Abatement may be required.</Rec>}
       </Sec>
 
       {/* ══ PAGE 3: DOOR TYPES / EXHAUST VENTING ══ */}
@@ -1663,6 +1732,9 @@ function ScopeTab({p,u,onLog}) {
         <InsulRec section="attic" preR={s.attic?.preR} addR={s.attic?.addR}/>
         {s.attic?.ceilingCond==="Poor" && <Rec type="warn">Poor ceiling condition — consider fiberglass instead of cellulose (cellulose weighs ~2x fiberglass for same R-value).</Rec>}
         {s.attic?.floorBoards && <Rec type="info">Floor boards present — dense pack at 3.5 lbs/ft³ unless homeowner agrees to remove flooring and blow to R-49.</Rec>}
+        {s.attic?.knobTube && <Rec type="flag">KNOB & TUBE in attic — insulation CANNOT proceed until remediated by licensed electrician.</Rec>}
+        {s.attic?.vermPresent && <Rec type="flag">VERMICULITE in attic — do NOT disturb. Abatement required before insulation.</Rec>}
+        {s.attic?.moldPresent && <Rec type="flag">MOLD in attic — remediation required before insulation work.</Rec>}
       </Sec>
 
       {/* ══ PAGE 4: COLLAR BEAM ══ */}
@@ -2064,6 +2136,7 @@ function ScopeTab({p,u,onLog}) {
           if(s.attic?.ductwork || s.collar?.ductwork || s.fnd?.crawlDuct) aq["Duct Sealing"] = 1;
 
           const mq = p.measureQty || {};
+          const mu = p.measureUnchecked || {};
           const setQ = (m,v) => u({measureQty:{...mq,[m]:v}});
           const getQ = (m) => mq[m] !== undefined ? mq[m] : (aq[m] !== undefined ? String(aq[m]) : "");
           const isAuto = (m) => mq[m] === undefined && aq[m] !== undefined;
@@ -2076,16 +2149,25 @@ function ScopeTab({p,u,onLog}) {
 
           return <div style={{display:"grid",gap:4}}>
             {EE_MEASURES.map(m => {
-              const checked = p.measures.includes(m);
+              const inList = p.measures.includes(m);
+              const autoOn = aq[m] !== undefined && !mu[m];
+              const checked = inList || autoOn;
               const q = getQ(m);
-              const auto = isAuto(m);
+              const autoQty = isAuto(m);
+              const togM = () => {
+                if(checked && autoOn && !inList) { u({measureUnchecked:{...mu,[m]:true}}); }
+                else if(checked && inList && autoOn) { tog("measures",m); u({measureUnchecked:{...mu,[m]:true}}); }
+                else if(checked && inList && !autoOn) { tog("measures",m); }
+                else { const nu={...mu}; delete nu[m]; u({measureUnchecked:nu}); if(!inList) tog("measures",m); }
+              };
               return <div key={m} style={{display:"flex",alignItems:"center",gap:6}}>
-                <CK checked={checked} onChange={()=>tog("measures",m)} label={m} color={checked?"#22c55e":null}/>
+                <CK checked={checked} onChange={togM} label={m} color={checked?"#22c55e":null}/>
+                {checked && !inList && autoOn && <span style={{fontSize:8,color:"#818cf8"}}>auto</span>}
                 {checked && <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}>
-                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:auto?"rgba(99,102,241,.08)":"",color:auto?"#a5b4fc":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
+                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:autoQty?"rgba(99,102,241,.08)":"",color:autoQty?"#a5b4fc":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
                   <span style={{fontSize:9,color:"#64748b",minWidth:28}}>{unit(m)}</span>
-                  {auto && <span style={{fontSize:8,color:"#818cf8"}}>auto</span>}
-                  {!auto && aq[m]!==undefined && <span style={{fontSize:8,color:"#818cf8",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
+                  {autoQty && <span style={{fontSize:8,color:"#818cf8"}}>auto</span>}
+                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#818cf8",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
                 </div>}
               </div>;
             })}
@@ -2102,22 +2184,32 @@ function ScopeTab({p,u,onLog}) {
           if(s.dhw?.flueRepair) aq["Flue Repairs"] = 1;
 
           const mq = p.measureQty || {};
+          const mu = p.hsUnchecked || {};
           const setQ = (m,v) => u({measureQty:{...mq,[m]:v}});
           const getQ = (m) => mq[m] !== undefined ? mq[m] : (aq[m] !== undefined ? String(aq[m]) : "");
           const isAuto = (m) => mq[m] === undefined && aq[m] !== undefined;
 
           return <div style={{display:"grid",gap:4}}>
             {HS_MEASURES.map(m => {
-              const checked = p.healthSafety.includes(m);
+              const inList = p.healthSafety.includes(m);
+              const autoOn = aq[m] !== undefined && !mu[m];
+              const checked = inList || autoOn;
               const q = getQ(m);
-              const auto = isAuto(m);
+              const autoQty = isAuto(m);
+              const togM = () => {
+                if(checked && autoOn && !inList) { u({hsUnchecked:{...mu,[m]:true}}); }
+                else if(checked && inList && autoOn) { tog("healthSafety",m); u({hsUnchecked:{...mu,[m]:true}}); }
+                else if(checked && inList && !autoOn) { tog("healthSafety",m); }
+                else { const nu={...mu}; delete nu[m]; u({hsUnchecked:nu}); if(!inList) tog("healthSafety",m); }
+              };
               return <div key={m} style={{display:"flex",alignItems:"center",gap:6}}>
-                <CK checked={checked} onChange={()=>tog("healthSafety",m)} label={m} color={checked?"#f59e0b":null}/>
+                <CK checked={checked} onChange={togM} label={m} color={checked?"#f59e0b":null}/>
+                {checked && !inList && autoOn && <span style={{fontSize:8,color:"#818cf8"}}>auto</span>}
                 {checked && <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}>
-                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:auto?"rgba(99,102,241,.08)":"",color:auto?"#a5b4fc":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
+                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:autoQty?"rgba(99,102,241,.08)":"",color:autoQty?"#a5b4fc":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
                   <span style={{fontSize:9,color:"#64748b",minWidth:20}}>ea</span>
-                  {auto && <span style={{fontSize:8,color:"#818cf8"}}>auto</span>}
-                  {!auto && aq[m]!==undefined && <span style={{fontSize:8,color:"#818cf8",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
+                  {autoQty && <span style={{fontSize:8,color:"#818cf8"}}>auto</span>}
+                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#818cf8",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
                 </div>}
               </div>;
             })}
@@ -2274,15 +2366,15 @@ function InstallTab({p,u,onLog,user,role}) {
       return `<div class="row"><span class="lbl">${c.l}</span><span>${c.r&&r.reading?r.reading+" "+c.u+" · ":""}<span class="${cls}">${r.pf||"—"}</span>${r.fu?" ⚠ F/U":""}</span></div>`;
     }).join("");
     const mq2 = p.measureQty||{};
-    const measList = p.measures.map(m=>`<span style="display:inline-block;padding:2px 6px;border:1px solid #16a34a;border-radius:3px;margin:1px;font-size:9px;color:#16a34a">✓ ${m}${mq2[m]?" ("+mq2[m]+")":""}</span>`).join("");
-    const hsList = p.healthSafety.map(m=>`<span style="display:inline-block;padding:2px 6px;border:1px solid #d97706;border-radius:3px;margin:1px;font-size:9px;color:#d97706">✓ ${m}${mq2[m]?" ("+mq2[m]+")":""}</span>`).join("");
+    const measList = p.measures.length ? `<table style="width:100%;border-collapse:collapse;font-size:9px;margin-top:4px">\n<tr style="background:#f0fdf4;"><th style="text-align:left;padding:2px 5px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:2px 5px;border:1px solid #ccc">Qty</th><th style="padding:2px 5px;border:1px solid #ccc">Unit</th></tr>\n${p.measures.map(m=>`<tr><td style="padding:2px 5px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:2px 5px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:2px 5px;border:1px solid #ddd">${measUnit(m)}</td></tr>`).join("")}\n</table>` : "<em>None</em>";
+    const hsList = p.healthSafety.length ? `<table style="width:100%;border-collapse:collapse;font-size:9px;margin-top:4px">\n<tr style="background:#fffbeb;"><th style="text-align:left;padding:2px 5px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:2px 5px;border:1px solid #ccc">Qty</th><th style="padding:2px 5px;border:1px solid #ccc">Unit</th></tr>\n${p.healthSafety.map(m=>`<tr><td style="padding:2px 5px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:2px 5px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:2px 5px;border:1px solid #ddd">ea</td></tr>`).join("")}\n</table>` : "<em>None</em>";
     const coRows = co.map(c=>`<div class="row"><span class="lbl">${c.text}</span><span class="${c.status==="approved"?"pass":c.status==="denied"?"fail":"na"}">${c.status.toUpperCase()}${c.response?" — "+c.response:""}</span></div>`).join("");
     const fan = Number(fi.postFanSetting) || 0;
 
     const body = `
       <div class="sec"><h3>Scope of Work</h3>
-        <div style="margin-bottom:6px"><strong>Energy Efficiency:</strong><br/>${measList||"<em>None</em>"}</div>
-        <div style="margin-bottom:6px"><strong>Health & Safety:</strong><br/>${hsList||"<em>None</em>"}</div>
+        <div style="margin-bottom:6px"><strong>Energy Efficiency:</strong><br/>${measList}</div>
+        <div style="margin-bottom:6px"><strong>Health & Safety:</strong><br/>${hsList}</div>
         ${p.measureNotes?`<div style="margin-bottom:4px"><strong>Notes:</strong> ${p.measureNotes}</div>`:""}
       </div>
       ${co.length?`<div class="sec"><h3>Change Orders</h3>${coRows}</div>`:""}
@@ -2353,7 +2445,7 @@ function InstallTab({p,u,onLog,user,role}) {
         <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Approved scope from assessment. Request a change order below if modifications are needed.</div>
         {p.measures.length > 0 && <>
           <div style={{fontSize:11,fontWeight:700,color:"#22c55e",marginBottom:4}}>Energy Efficiency Measures ({p.measures.length})</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}{(p.measureQty||{})[m]?" ("+(p.measureQty||{})[m]+")":""}</span>)}</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}{getResolvedQty(p,m)?" ("+getResolvedQty(p,m)+")":""}</span>)}</div>
         </>}
         {p.healthSafety.length > 0 && <>
           <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",marginBottom:4}}>Health & Safety Measures ({p.healthSafety.length})</div>
@@ -2446,7 +2538,8 @@ function InstallTab({p,u,onLog,user,role}) {
           <F label="Pre CFM25" value={p.preCFM25} onChange={v=>u({preCFM25:v})} num/>
           <F label="Post CFM25" value={p.postCFM25} onChange={v=>u({postCFM25:v})} num/>
         </Gr>
-        {red !== null && <div style={S.calc}><span>Reduction: <b>{red}%</b></span><span style={{color:red>=25?"#22c55e":"#f59e0b",marginLeft:10}}>{red>=25?"✓ Meets 25%":"⚠ Below 25%"}</span></div>}
+        {red !== null && <div style={S.calc}><span>Air Seal Reduction: <b>{red}%</b></span><span style={{color:red>=25?"#22c55e":"#f59e0b",marginLeft:10}}>{red>=25?"✓ Meets 25%":"⚠ Below 25%"}</span></div>}
+        {p.preCFM25 && p.postCFM25 && (()=>{const r=Math.round((Number(p.preCFM25)-Number(p.postCFM25))/Number(p.preCFM25)*100);return <div style={S.calc}><span>Duct Leakage Reduction: <b>{r}%</b> ({p.preCFM25}→{p.postCFM25} CFM25)</span></div>;})()}
       </Sec>
 
       {/* ── POST-WORK RED CALC ── */}
