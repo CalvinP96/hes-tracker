@@ -17,16 +17,16 @@ const STAGES = [
 ];
 
 const ROLES = [
-  { key:"admin", label:"Admin/Ops", icon:"👑", tabs:["info","scheduling","assessment","diagnostics","photos","scope","install","qaqc","closeout","log"] },
+  { key:"admin", label:"Admin/Ops", icon:"👑", tabs:["info","scheduling","assessment","photos","scope","install","qaqc","closeout","log"] },
   { key:"scheduler", label:"Scheduler", icon:"📅", tabs:["info","scheduling","log"] },
-  { key:"assessor", label:"Assessor", icon:"🔍", tabs:["info","assessment","diagnostics","photos","log"] },
+  { key:"assessor", label:"Assessor", icon:"🔍", tabs:["info","assessment","photos","log"] },
   { key:"scope", label:"Scope/Compliance", icon:"📋", tabs:["info","scope","photos","install","qaqc","closeout","log"] },
   { key:"installer", label:"Install Crew", icon:"🏗️", tabs:["info","install","photos","closeout","log"] },
 ];
 
 const TAB_META = {
   info:{label:"Info",icon:"📋"}, scheduling:{label:"Schedule",icon:"📅"},
-  assessment:{label:"Assess",icon:"🔍"}, diagnostics:{label:"Diag",icon:"📊"},
+  assessment:{label:"Assess",icon:"🔍"},
   photos:{label:"Photos",icon:"📸"}, scope:{label:"Scope",icon:"✅"},
   install:{label:"Install",icon:"🏗️"}, qaqc:{label:"QAQC",icon:"🔎"},
   closeout:{label:"Close",icon:"📦"}, log:{label:"Log",icon:"📝"},
@@ -476,7 +476,6 @@ export default function App() {
           {tab==="info" && <InfoTab p={proj} u={c=>upC(proj.id,c)} role={role} onLog={t=>addLog(proj.id,t)} onDel={()=>{up(p=>p.filter(x=>x.id!==proj.id));setView("dash");}}/>}
           {tab==="scheduling" && <SchedTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
           {tab==="assessment" && <AuditTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName}/>}
-          {tab==="diagnostics" && <DiagTab p={proj} u={c=>upC(proj.id,c)} role={role}/>}
           {tab==="photos" && <PhotoTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
           {tab==="scope" && <ScopeTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
           {tab==="install" && <InstallTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
@@ -805,6 +804,29 @@ function AuditTab({p,u,onLog,user}) {
         </div>
       </Sec>
 
+      <Sec title="Blower Door">
+        <Gr>
+          <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/>
+          <F label="BD Location" value={p.bdLoc} onChange={v=>u({bdLoc:v})} placeholder="Front/Side"/>
+          <F label="Ext. Temp" value={p.extTemp} onChange={v=>u({extTemp:v})} placeholder="°F"/>
+        </Gr>
+        {p.preCFM50 && p.sqft && <div style={S.calc}><span>Pre CFM50: <b>{p.preCFM50}</b></span><span style={{color:Number(p.preCFM50)>=Number(p.sqft)*1.1?"#22c55e":"#f59e0b",marginLeft:10}}>{Number(p.preCFM50)>=Number(p.sqft)*1.1?"✓ ≥110% sqft":"⚠ <110% sqft"}</span></div>}
+      </Sec>
+
+      <Sec title="CAZ Testing">
+        {CAZ_ITEMS.map(c => {
+          const r = p.cazResults?.[c.k] || {};
+          return (
+            <div key={c.k} style={S.cazR}>
+              <span style={{flex:1,fontSize:12,minWidth:120}}>{c.l}</span>
+              {c.r && <input style={{...S.inp,width:60,textAlign:"center"}} value={r.reading||""} onChange={e=>u({cazResults:{...p.cazResults,[c.k]:{...(p.cazResults?.[c.k]||{}),reading:e.target.value}}})} placeholder={c.u}/>}
+              <BtnGrp value={r.result||""} onChange={v=>u({cazResults:{...p.cazResults,[c.k]:{...(p.cazResults?.[c.k]||{}),result:v}}})} opts={[{v:"pass",l:"Pass",c:"#22c55e"},{v:"fail",l:"Fail",c:"#ef4444"},{v:"na",l:"N/A",c:"#64748b"}]}/>
+              <CK checked={r.fu||false} onChange={v=>u({cazResults:{...p.cazResults,[c.k]:{...(p.cazResults?.[c.k]||{}),fu:v}}})} label="F/U" small/>
+            </div>
+          );
+        })}
+      </Sec>
+
       <Sec title="Project Status">
         <Sel label="23. Project Deferred? *" value={a.deferred||""} onChange={v=>sa("deferred",v)} opts={["YES","NO"]}/>
         <div style={{height:8}}/>
@@ -838,47 +860,6 @@ function AuditTab({p,u,onLog,user}) {
             </div>
           </div>
         ))}
-      </Sec>
-    </div>
-  );
-}
-
-function DiagTab({p,u,role}) {
-  const sc = (k,f,v) => u({cazResults:{...p.cazResults,[k]:{...(p.cazResults?.[k]||{}),[f]:v}}});
-  const red = p.preCFM50 && p.postCFM50 ? Math.round(((p.preCFM50-p.postCFM50)/p.preCFM50)*100) : null;
-  const preOnly = role === "assessor";
-  return (
-    <div>
-      <Sec title="Blower Door">
-        {preOnly ? (
-          <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/>
-        ) : (
-          <>
-            <Gr><F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})}/><F label="Post CFM50" value={p.postCFM50} onChange={v=>u({postCFM50:v})}/><F label="Location" value={p.bdLoc} onChange={v=>u({bdLoc:v})} placeholder="Front/Side"/></Gr>
-            {red !== null && <div style={S.calc}><span>Reduction: <b>{red}%</b></span><span style={{color:red>=25?"#22c55e":"#f59e0b",marginLeft:10}}>{red>=25?"✓ Meets 25%":"⚠ Below 25%"}</span>{p.sqft&&<span style={{color:Number(p.preCFM50)>=Number(p.sqft)*1.1?"#22c55e":"#f59e0b",marginLeft:10}}>{Number(p.preCFM50)>=Number(p.sqft)*1.1?"✓ ≥110% sqft":"⚠ <110% sqft"}</span>}</div>}
-          </>
-        )}
-      </Sec>
-      {preOnly ? (
-        <Sec title="Duct Blaster"><F label="Pre CFM25" value={p.preCFM25} onChange={v=>u({preCFM25:v})}/></Sec>
-      ) : (
-        <>
-          <Sec title="Duct Blaster"><Gr><F label="Pre CFM25" value={p.preCFM25} onChange={v=>u({preCFM25:v})}/><F label="Post CFM25" value={p.postCFM25} onChange={v=>u({postCFM25:v})}/></Gr></Sec>
-          <Sec title="ASHRAE 62.2"><Gr><F label="Required CFM" value={p.ventReq} onChange={v=>u({ventReq:v})}/><F label="Method" value={p.ventMethod} onChange={v=>u({ventMethod:v})}/><F label="Post Result" value={p.ventResult} onChange={v=>u({ventResult:v})}/><Sel label="Fan Adj" value={p.fanAdj} onChange={v=>u({fanAdj:v})} opts={["OK","Up","Down"]}/></Gr></Sec>
-        </>
-      )}
-      <Sec title="CAZ Testing">
-        {CAZ_ITEMS.map(c => {
-          const r = p.cazResults?.[c.k] || {};
-          return (
-            <div key={c.k} style={S.cazR}>
-              <span style={{flex:1,fontSize:12,minWidth:120}}>{c.l}</span>
-              {c.r && <input style={{...S.inp,width:60,textAlign:"center"}} value={r.reading||""} onChange={e=>sc(c.k,"reading",e.target.value)} placeholder={c.u}/>}
-              <BtnGrp value={r.result||""} onChange={v=>sc(c.k,"result",v)} opts={[{v:"pass",l:"Pass",c:"#22c55e"},{v:"fail",l:"Fail",c:"#ef4444"},{v:"na",l:"N/A",c:"#64748b"}]}/>
-              <CK checked={r.fu||false} onChange={v=>sc(c.k,"fu",v)} label="F/U" small/>
-            </div>
-          );
-        })}
       </Sec>
     </div>
   );
