@@ -182,7 +182,7 @@ function getResolvedQty(p,m) {
   if(s.coNeeded&&Number(s.coNeeded)>0)aq["CO Detector (Hardwired)"]=Number(s.coNeeded);
   if(s.smokeNeeded&&Number(s.smokeNeeded)>0)aq["Smoke Detector (Hardwired)"]=Number(s.smokeNeeded);
   if(s.doorSweeps&&Number(s.doorSweeps)>0)aq["Door Sweeps"]=Number(s.doorSweeps);
-  if(s.tenmats&&Number(s.tenmats)>0)aq["Weather Stripping"]=Number(s.tenmats);
+  
   if(s.dhw?.flueRepair)aq["Flue Repairs"]=1;
   const mq=p.measureQty||{};
   return mq[m]!==undefined?mq[m]:(aq[m]!==undefined?String(aq[m]):"");
@@ -2180,7 +2180,7 @@ function ScopeTab({p,u,onLog}) {
           if(s.coNeeded && Number(s.coNeeded)>0) aq["CO Detector (Hardwired)"] = Number(s.coNeeded);
           if(s.smokeNeeded && Number(s.smokeNeeded)>0) aq["Smoke Detector (Hardwired)"] = Number(s.smokeNeeded);
           if(s.doorSweeps && Number(s.doorSweeps)>0) aq["Door Sweeps"] = Number(s.doorSweeps);
-          if(s.tenmats && Number(s.tenmats)>0) aq["Weather Stripping"] = Number(s.tenmats);
+          
           if(s.dhw?.flueRepair) aq["Flue Repairs"] = 1;
 
           const mq = p.measureQty || {};
