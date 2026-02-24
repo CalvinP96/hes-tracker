@@ -1099,38 +1099,51 @@ function AuditTab({p,u,onLog,user}) {
 
       {/* ── CUSTOMER AUTHORIZATION FORM ── */}
       <Sec title={<span>Customer Authorization Form {a.customerAuthSig ? <span style={{color:"#22c55e",fontSize:11}}>✓ Signed</span> : <span style={{color:"#f59e0b",fontSize:11}}>⚠ Required</span>}</span>}>
-        {!a.customerAuthSig && <Rec type="warn">Customer must read and sign this form before assessment begins.</Rec>}
-        {/* Exact form — original PDF rendered as images */}
-        <div style={{background:"#fff",borderRadius:6,padding:4,marginBottom:10}}>
-          <img src="/auth-form-page1.jpg" alt="Customer Authorization Form - Page 1" style={{width:"100%",display:"block",borderRadius:4}}/>
-          <div style={{height:8}}/>
-          <img src="/auth-form-page2.jpg" alt="Customer Authorization Form - Page 2" style={{width:"100%",display:"block",borderRadius:4}}/>
+        {/* Page 1 with signature fields overlaid on the form */}
+        <div style={{position:"relative",background:"#fff",borderRadius:6,overflow:"hidden"}}>
+          <img src="/auth-form-page1.jpg" alt="Page 1" style={{width:"100%",display:"block"}}/>
+          {/* Overlay: Customer representative signature field */}
+          <div style={{position:"absolute",top:"51.5%",left:"50%",width:"48%",height:"4.5%",cursor:"pointer"}} onClick={()=>{if(!a.customerAuthSig){const el=document.getElementById("authSigTrigger");if(el)el.click();}}}>
+            {a.customerAuthSig && <img src={a.customerAuthSig} style={{height:"100%",objectFit:"contain"}}/>}
+          </div>
+          {/* Overlay: Customer representative printed name */}
+          <div style={{position:"absolute",top:"56%",left:"50%",width:"48%",height:"4%",display:"flex",alignItems:"center"}}>
+            <input style={{width:"100%",height:"100%",border:"none",background:"transparent",fontSize:"1.4vw",fontWeight:600,color:"#000",outline:"none",fontFamily:"Arial,sans-serif"}} value={a.customerAuthName||""} onChange={e=>sa("customerAuthName",e.target.value)} placeholder="Print name here"/>
+          </div>
+          {/* Overlay: Date */}
+          <div style={{position:"absolute",top:"60%",left:"50%",width:"48%",height:"4%",display:"flex",alignItems:"center"}}>
+            <span style={{fontSize:"1.4vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : ""}</span>
+          </div>
+          {/* Overlay: Property address */}
+          <div style={{position:"absolute",top:"64%",left:"50%",width:"48%",height:"4%",display:"flex",alignItems:"center"}}>
+            <span style={{fontSize:"1.4vw",color:"#000",fontFamily:"Arial,sans-serif",fontWeight:600}}>{p.address||""}</span>
+          </div>
         </div>
-
-        {/* ── Signature block ── */}
-        <div style={{padding:10,borderRadius:6,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.02)"}}>
-          <SigPad label="Customer Signature" value={a.customerAuthSig||""} onChange={v=>{sa("customerAuthSig",v);if(v&&!a.authDate)sa("authDate",new Date().toISOString());}}/>
-          <F label="Customer Printed Name" value={a.customerAuthName||""} onChange={v=>sa("customerAuthName",v)}/>
+        {/* Hidden sig pad trigger */}
+        {!a.customerAuthSig && <div style={{marginTop:6}}>
+          <div id="authSigTrigger"/>
+          <SigPad label="Sign here — fills into form above" value={a.customerAuthSig||""} onChange={v=>{sa("customerAuthSig",v);if(v&&!a.authDate)sa("authDate",new Date().toISOString());}}/>
+        </div>}
+        {/* Page 2 */}
+        <div style={{background:"#fff",borderRadius:6,overflow:"hidden",marginTop:4}}>
+          <img src="/auth-form-page2.jpg" alt="Page 2" style={{width:"100%",display:"block"}}/>
         </div>
-
         {a.customerAuthSig && <div style={{marginTop:8}}>
           <button style={{...S.btn,padding:"8px 16px",fontSize:12}} onClick={()=>{
-            const sigImg = a.customerAuthSig ? `<img src="${a.customerAuthSig}" style="max-width:300px;height:60px;object-fit:contain;display:block"/>` : "";
+            const sigImg = a.customerAuthSig ? `<img src="${a.customerAuthSig}" style="max-width:280px;height:55px;object-fit:contain"/>` : "";
             const authDate = a.authDate ? new Date(a.authDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) : "";
             savePrint(`<div style="max-width:720px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#000;padding:20px">
-<img src="/auth-form-page1.jpg" style="width:100%;display:block;margin-bottom:8px"/>
-<table style="width:100%;border-collapse:collapse;margin-bottom:20px">
-<tr style="background:#2196F3;color:#fff"><td colspan="2" style="padding:6px 10px;font-size:11px;font-weight:bold">Customer Signature</td></tr>
-<tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc;width:50%">Customer representative signature</td><td style="padding:4px 10px;border:1px solid #ccc">${sigImg}</td></tr>
-<tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc">Customer representative printed name</td><td style="padding:8px 10px;font-size:12px;border:1px solid #ccc;font-weight:bold">${a.customerAuthName||""}</td></tr>
-<tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc">Date</td><td style="padding:8px 10px;font-size:12px;border:1px solid #ccc">${authDate}</td></tr>
-<tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc">Property address</td><td style="padding:8px 10px;font-size:12px;border:1px solid #ccc;font-weight:bold">${p.address||""}</td></tr>
-</table>
+<div style="position:relative">
+<img src="/auth-form-page1.jpg" style="width:100%;display:block"/>
+<div style="position:absolute;top:51.5%;left:50%;width:48%;height:4.5%">${sigImg}</div>
+<div style="position:absolute;top:56%;left:50%;width:48%;height:4%;display:flex;align-items:center"><span style="font-size:11px;font-weight:bold">${a.customerAuthName||""}</span></div>
+<div style="position:absolute;top:60%;left:50%;width:48%;height:4%;display:flex;align-items:center"><span style="font-size:11px">${authDate}</span></div>
+<div style="position:absolute;top:64%;left:50%;width:48%;height:4%;display:flex;align-items:center"><span style="font-size:11px;font-weight:bold">${p.address||""}</span></div>
+</div>
 <div style="page-break-before:always"></div>
 <img src="/auth-form-page2.jpg" style="width:100%;display:block"/>
 </div>`);
-          }}>🖨️ Print Signed Authorization Form</button>
-          <Rec type="rec">Customer Authorization signed {a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : ""} ✓</Rec>
+          }}>🖨️ Print Signed Form</button>
         </div>}
       </Sec>
 
