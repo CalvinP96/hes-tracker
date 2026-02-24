@@ -1126,16 +1126,15 @@ function AuditTab({p,u,onLog,user}) {
             <span style={{fontSize:"1.2vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{p.address||""}</span>
           </div>
         </div>
-        {/* Hidden sig pad trigger */}
-        {!a.customerAuthSig && <div style={{marginTop:6}}>
-          <div id="authSigTrigger"/>
-          <SigPad label="Sign here — fills into form above" value={a.customerAuthSig||""} onChange={v=>{sa("customerAuthSig",v);if(v&&!a.authDate)sa("authDate",new Date().toISOString());}}/>
-        </div>}
         {/* Page 2 */}
         <div style={{background:"#fff",borderRadius:6,overflow:"hidden",marginTop:4}}>
           <img src="/auth-form-page2.jpg" alt="Page 2" style={{width:"100%",display:"block"}}/>
         </div>
-        {a.customerAuthSig && <div style={{marginTop:8}}>
+        {/* Sign / Re-sign after both pages */}
+        {!a.customerAuthSig && <div style={{marginTop:8}}>
+          <SigPad label="Customer Signature" value={a.customerAuthSig||""} onChange={v=>{sa("customerAuthSig",v);if(v&&!a.authDate)sa("authDate",new Date().toISOString());}}/>
+        </div>}
+        {a.customerAuthSig && <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
           <button style={{...S.btn,padding:"8px 16px",fontSize:12}} onClick={()=>{
             const sigImg = a.customerAuthSig ? `<img src="${a.customerAuthSig}" style="height:100%;object-fit:contain"/>` : "";
             const authDate = a.authDate ? new Date(a.authDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) : "";
@@ -1151,6 +1150,7 @@ function AuditTab({p,u,onLog,user}) {
 <img src="/auth-form-page2.jpg" style="width:100%;display:block"/>
 </div>`);
           }}>🖨️ Print Signed Form</button>
+          <button style={{...S.ghost,padding:"8px 16px",fontSize:12,color:"#ef4444",borderColor:"rgba(239,68,68,.3)"}} onClick={()=>{sa("customerAuthSig","");sa("authDate","");sa("customerAuthName","");}}>✕ Clear & Re-sign</button>
         </div>}
       </Sec>
 
