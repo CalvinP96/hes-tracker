@@ -626,9 +626,10 @@ const exportProjectForms = async (proj) => {
             checkPage(16);
             cx = ML;
             row.forEach((cell, ci) => {
-              const txt = String(cell.t || cell || "—");
-              if (cell.c === "g") doc.setTextColor(...green);
-              else if (cell.c === "r") doc.setTextColor(...red);
+              const isObj = cell && typeof cell === "object";
+              const txt = String(isObj ? (cell.t||"—") : (cell!=null ? cell : "—"));
+              if (isObj && cell.c === "g") doc.setTextColor(...green);
+              else if (isObj && cell.c === "r") doc.setTextColor(...red);
               else doc.setTextColor(...black);
               doc.text(txt, cx + 3, y + 10, { maxWidth: colW[ci] - 6 });
               cx += colW[ci];
@@ -644,8 +645,8 @@ const exportProjectForms = async (proj) => {
           sec.rows.forEach(row => {
             checkPage(16);
             doc.setFont("helvetica","normal"); doc.setTextColor(...gray);
-            const lbl = String(row[0] || "");
-            const val = String(row[1] || "—");
+            const lbl = String(row[0]!=null ? row[0] : "—");
+            const val = String(row[1]!=null ? row[1] : "—");
             doc.text(lbl, ML, y + 10, { maxWidth: CW * 0.55 });
             // Color
             if (row[2] === "g") doc.setTextColor(...green);
