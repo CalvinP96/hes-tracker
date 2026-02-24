@@ -564,8 +564,7 @@ function printScope(p, s) {
   var sub = (p.customerName || "") + " \u00b7 " + (p.address || "") + " \u00b7 RISE: " + (p.riseId || "\u2014") + " \u00b7 " + new Date().toLocaleDateString();
   var doc = "<html><head><style>" + css + "</style></head><body>";
   doc += "<div style='font-size:16px;font-weight:bold;border-bottom:2px solid #333;padding-bottom:6px;margin-bottom:4px'>" + title + "</div>";
-  doc += "<div style='font-size:11px;color:#666;margin-bottom:2px'>" + sub + "</div>";
-  doc += "<div style='font-size:8px;color:#f00;margin-bottom:8px'>PRINT V6 \u2014 23 sections \u2014 " + new Date().toLocaleTimeString() + "</div>";
+  doc += "<div style='font-size:11px;color:#666;margin-bottom:10px'>" + sub + "</div>";
   doc += h;
   doc += "</body></html>";
 
@@ -965,21 +964,171 @@ const exportProjectForms = async (proj) => {
 
       // 3. Scope
       stepEl.textContent = "3/6 Scope…";
-      if (p.measures?.length || p.healthSafety?.length) {
+      {
+        const s2 = p.scope2026 || {};
+        const htg = s2.htg||{}; const clg = s2.clg||{}; const dhw = s2.dhw||{};
+        const int2 = s2.int||{}; const exh = s2.exh||{}; const att = s2.attic||{};
+        const col2 = s2.collar||{}; const oCJ = s2.outerCeiling||{}; const kw = s2.kneeWall||{};
+        const ew1 = s2.extWall1||{}; const ew2 = s2.extWall2||{}; const fnd = s2.fnd||{};
+        const yr = new Date().getFullYear();
+        const CK = b => b===true?"\u2611":b===false?"\u2610":"\u2014";
+        const YN2 = b => b===true?"Yes":b===false?"No":"\u2014";
+        const afue2 = (htg.btuIn && htg.btuOut) ? (Number(htg.btuOut)/Number(htg.btuIn)*100).toFixed(1)+"%" : "\u2014";
+
         const secs = [];
-        if (p.measures?.length) secs.push({ title: "Energy Efficiency Measures ("+p.measures.length+")", table: {
-          cols: [{label:"Measure",w:380},{label:"Qty",w:60},{label:"Cost",w:92}],
-          rows: p.measures.map(m => [m.name, m.qty||1, m.cost?"$"+m.cost:"—"])
+        secs.push({ title: "Customer Information", rows: [
+          ["Customer", p.customerName], ["Address", p.address], ["RISE ID", p.riseId],
+          ["Sq Ft", p.sqft], ["Volume", Number(p.sqft)?(Number(p.sqft)*8).toLocaleString()+" ft\u00b3":null],
+          ["Stories", p.stories], ["Bedrooms", s2.bedrooms], ["Year Built", p.yearBuilt],
+          ["Home Age", p.yearBuilt?(yr-Number(p.yearBuilt))+" yrs":null], ["Occupants", p.occupants]
+        ]});
+        secs.push({ title: "Building Property Type", rows: [
+          ["Style", s2.style], ["Tenant Type", s2.tenantType],
+          ["Gutters Exist", CK(s2.gutterExist)], ["Downspouts", CK(s2.downspouts)], ["Gutter Repairs", CK(s2.gutterRepair)],
+          ["Roof Condition", s2.roofCondition], ["Roof Type", s2.roofType], ["Roof Age", s2.roofAge], ["Roof Repairs", CK(s2.roofRepair)]
+        ]});
+        secs.push({ title: "Interior Conditions", rows: [
+          ["Ceiling Condition", s2.ceilingCond], ["Wall Condition", s2.wallCond], ["Walls Need Insulation", s2.wallsNeedInsul]
+        ]});
+        secs.push({ title: "Smoke / CO / Weatherization", rows: [
+          ["Smoke \u2014 present", s2.smokePresent], ["Smoke \u2014 to install", s2.smokeNeeded],
+          ["CO \u2014 present", s2.coPresent], ["CO \u2014 to install", s2.coNeeded],
+          ["Tenmats Needed", s2.tenmats], ["Door Sweeps", s2.doorSweeps]
+        ]});
+        secs.push({ title: "Heating System", rows: [
+          ["Thermostat", htg.thermostat], ["Fuel", htg.fuel], ["System", htg.system], ["Flue", htg.flue],
+          ["Manufacturer", htg.mfg], ["Install Year", htg.year], ["Age", htg.year?(yr-Number(htg.year))+" yrs":null],
+          ["Condition", htg.condition], ["BTU In", htg.btuIn], ["BTU Out", htg.btuOut], ["AFUE", afue2], ["Draft", htg.draft],
+          ["Gas Shut Off", CK(htg.gasShutoff)], ["Asbestos Pipes", CK(htg.asbestosPipes)],
+          ["Replace Rec", CK(htg.replaceRec)], ["Clean & Tune", CK(htg.cleanTune||htg.cleanTuneOverride)]
+        ]});
+        if (htg.notes) secs[secs.length-1].rows.push(["Notes", htg.notes]);
+        secs.push({ title: "Cooling System", rows: [
+          ["Type", clg.type], ["Manufacturer", clg.mfg], ["Install Year", clg.year],
+          ["Age", clg.year?(yr-Number(clg.year))+" yrs":null], ["SEER", clg.seer],
+          ["Condition", clg.condition], ["BTU Size", clg.btu], ["Replace Rec", CK(clg.replaceRec)]
+        ]});
+        secs.push({ title: "Domestic Hot Water", rows: [
+          ["Fuel", dhw.fuel], ["System", dhw.system], ["Manufacturer", dhw.mfg],
+          ["Install Year", dhw.year], ["Age", dhw.year?(yr-Number(dhw.year))+" yrs":null],
+          ["Condition", dhw.condition], ["Input BTU", dhw.btuIn],
+          ["Insulated Pipes", CK(dhw.insulPipes)], ["Flue Repair", CK(dhw.flueRepair)],
+          ["Replace Rec", CK(dhw.replaceRec)], ["Ducts Sealing", CK(dhw.ductsSealed)]
+        ]});
+        secs.push({ title: "Interior Inspection", rows: [
+          ["Mold", CK(int2.mold)], ["Moisture", CK(int2.moisture)], ["Knob & Tube", CK(int2.knobTube)],
+          ["Electrical", CK(int2.electrical)], ["Broken Glass", CK(int2.brokenGlass)],
+          ["Vermiculite", CK(int2.vermiculite)], ["Water Leaks", CK(int2.waterLeaks)], ["Roof Leaks", CK(int2.roofLeaks)],
+          ["Ceiling", int2.ceiling], ["Wall", int2.wall],
+          ["Dropped Ceiling", CK(int2.droppedCeiling)], ["Drywall Repair", CK(int2.drywallRepair)],
+          ["Recessed Light", CK(int2.recessedLight)], ["CO Detector", CK(int2.coDetector)], ["Smoke Detector", CK(int2.smokeDetector)]
+        ]});
+        secs.push({ title: "Door Types / Exhaust", rows: [
+          ["Front", CK(s2.doors?.Front)], ["Back", CK(s2.doors?.Back)],
+          ["Basement", CK(s2.doors?.Basement)], ["Attic", CK(s2.doors?.Attic)],
+          ["Sweeps Needed", s2.totalSweeps],
+          ["Fan Replace", CK(exh.fanReplace)], ["Bath Fan Light", CK(exh.bathFanLight)],
+          ["Vent Kit", CK(exh.ventKit)], ["Term Cap", CK(exh.termCap)],
+          ["Dryer Proper", CK(exh.dryerProper)], ["Dryer Repair", CK(exh.dryerRepair)],
+          ["BD In", exh.bdIn], ["BD Out", exh.bdOut]
+        ]});
+        secs.push({ title: "Attic", rows: [
+          ["Finished", CK(att.finished)], ["Unfinished", CK(att.unfinished)], ["Flat", CK(att.flat)],
+          ["Sq Ft", att.sqft], ["Pre R", att.preR], ["R to Add", att.addR],
+          ["Total R", (att.preR||att.addR)?"R-"+(Number(att.preR||0)+Number(att.addR||0)):null],
+          ["Ductwork", CK(att.ductwork)], ["Floor Boards", CK(att.floorBoards)],
+          ["Mold", CK(att.moldPresent)], ["Vermiculite", CK(att.vermPresent)], ["Knob & Tube", CK(att.knobTube)],
+          ["Existing Vent", att.existVent], ["Needed Vent", att.needVent], ["Access", att.accessLoc]
+        ]});
+        secs.push({ title: "Collar Beam", rows: [
+          ["Sq Ft", col2.sqft], ["Pre R", col2.preR], ["R to Add", col2.addR],
+          ["Accessible", CK(col2.accessible)], ["Cut In", CK(col2.cutIn)], ["Ductwork", CK(col2.ductwork)]
+        ]});
+        secs.push({ title: "Outer Ceiling Joists", rows: [
+          ["Sq Ft", oCJ.sqft], ["Pre R", oCJ.preR], ["R to Add", oCJ.addR],
+          ["Accessible", CK(oCJ.accessible)], ["Cut In", CK(oCJ.cutIn)], ["Ductwork", CK(oCJ.ductwork)]
+        ]});
+        secs.push({ title: "Knee Walls", rows: [
+          ["Sq Ft", kw.sqft], ["Pre R", kw.preR], ["R to Add", kw.addR],
+          ["Dense Pack", YN2(kw.densePack)], ["Rigid Foam", YN2(kw.rigidFoam)],
+          ["Tyvek", YN2(kw.tyvek)], ["Wall Type", kw.wallType]
+        ]});
+        secs.push({ title: "Ext Walls \u2014 1st Floor", rows: [
+          ["Sq Ft", ew1.sqft], ["Pre R", ew1.preR], ["R to Add", ew1.addR],
+          ["Dense Pack", YN2(ew1.densePack)], ["Cladding", ew1.cladding],
+          ["Insulate From", ew1.insulFrom], ["Wall Type", ew1.wallType], ["Phenolic", YN2(ew1.phenolic)]
+        ]});
+        secs.push({ title: "Ext Walls \u2014 2nd Floor", rows: [
+          ["Sq Ft", ew2.sqft], ["Pre R", ew2.preR], ["R to Add", ew2.addR],
+          ["Dense Pack", YN2(ew2.densePack)], ["Cladding", ew2.cladding]
+        ]});
+        secs.push({ title: "Foundation / Crawl", rows: [
+          ["Type", fnd.type], ["Above SqFt", fnd.aboveSqft], ["Below SqFt", fnd.belowSqft],
+          ["Pre R", fnd.preR], ["Insul Type", fnd.insulType],
+          ["Band Access", CK(fnd.bandAccess)], ["Band LnFt", fnd.bandLnft],
+          ["Vented", CK(fnd.vented)], ["Vapor Barrier", YN2(fnd.vaporBarrier)], ["Water Issues", YN2(fnd.waterIssues)],
+          ["Crawl Duct", CK(fnd.crawlDuct)], ["Crawl Floor", fnd.crawlFloor],
+          ["Crawl Above", fnd.crawlAbove], ["Crawl Below", fnd.crawlBelow], ["Crawl R", fnd.crawlR]
+        ]});
+        secs.push({ title: "Diagnostics", rows: [
+          ["Pre CFM50", p.preCFM50], ["Ext Temp", s2.extTemp], ["BD Location", p.bdLoc]
+        ]});
+
+        // ASHRAE
+        var baseSq2 = Number(p.sqft)||0;
+        var finB = fnd.type==="Finished"?(Number(fnd.aboveSqft)||0)+(Number(fnd.belowSqft)||0):0;
+        var sqA = baseSq2+finB; var NbrA = (Number(s2.bedrooms)||0)+1; var Q50A = Number(p.preCFM50)||0;
+        var stA = Number(p.stories)||1; var HA = stA>=2?16:stA>=1.5?14:8;
+        var qiA = Q50A>0?Q50A*0.56*Math.pow(HA/8.202,0.25)/17.8:0;
+        var qtA = sqA>0?0.03*sqA+7.5*NbrA:0;
+        var ash2 = s2.ashrae||{}; var a2 = p.audit||{};
+        var kC2=Number(ash2.kitchenCFM||a2.kitchenFan||0); var b1C=Number(ash2.bath1CFM||a2.bathFan1||0);
+        var b2C=Number(ash2.bath2CFM||a2.bathFan2||0); var b3C=Number(ash2.bath3CFM||a2.bathFan3||0);
+        var kD2=kC2>0?(ash2.kWin?0:Math.max(0,100-kC2)):0;
+        var b1D2=b1C>0?(ash2.b1Win?0:Math.max(0,50-b1C)):0;
+        var b2D2=b2C>0?(ash2.b2Win?0:Math.max(0,50-b2C)):0;
+        var b3D2=b3C>0?(ash2.b3Win?0:Math.max(0,50-b3C)):0;
+        var tdA=kD2+b1D2+b2D2+b3D2; var suppA=tdA*0.25;
+        var qfA=Math.max(0,qtA+suppA-qiA);
+        var RN=function(x){return Math.round(x*100)/100;};
+        var fanA=Number(ash2.fanSetting)||0;
+
+        secs.push({ title: "ASHRAE 62.2-2016 Ventilation", rows: [
+          ["Floor Area", sqA+" ft\u00b2"], ["Occupants", NbrA], ["Height", HA+" ft"],
+          ["Leakage @50Pa", Q50A+" CFM"],
+          ["Kitchen Fan", kC2>0?kC2+" CFM":null], ["Bath #1", b1C>0?b1C+" CFM":null],
+          ["Bath #2", b2C>0?b2C+" CFM":null], ["Bath #3", b3C>0?b3C+" CFM":null],
+          ["Total Deficit", Math.round(tdA)+" CFM"],
+          ["Infiltration (qi)", RN(qiA)+" CFM"],
+          ["Qtot", RN(qtA)+" CFM"], ["Supplement", RN(suppA)+" CFM"],
+          ["Qfan Required", RN(qfA)+" CFM", qfA>0?"r":"g"]
+        ]});
+        if(fanA>0) secs[secs.length-1].rows.push(["Fan Setting", fanA+" CFM"], ["Run-time", RN(qfA/fanA*60)+" min/hr"]);
+
+        // Measures
+        if (p.measures?.length) secs.push({ title: "EE Measures ("+p.measures.length+")", table: {
+          cols: [{label:"Measure",w:380},{label:"Qty",w:60},{label:"Unit",w:92}],
+          rows: p.measures.map(function(m) { return [m, getResolvedQty(p,m)||"\u2014", measUnit(m)]; })
         }});
-        if (p.healthSafety?.length) secs.push({ title: "Health & Safety ("+p.healthSafety.length+")", table: {
+        if (p.healthSafety?.length) secs.push({ title: "H&S Measures ("+p.healthSafety.length+")", table: {
           cols: [{label:"Measure",w:432},{label:"Qty",w:100}],
-          rows: p.healthSafety.map(m => [m.name, m.qty||1])
+          rows: p.healthSafety.map(function(m) { return [m, getResolvedQty(p,m)||"\u2014"]; })
         }});
+
+        // Insulation quantities
+        secs.push({ title: "Insulation Quantities", rows:
+          ["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].map(function(m) {
+            var q2 = s2.insulQty?.[m]; return [m, q2?(q2+" "+(m.indexOf("Rim Joist")>=0?"LnFt":"SqFt")):null];
+          })
+        });
+
+        secs.push({ title: "Notes", rows: [["Work Notes", p.measureNotes], ["H&S Notes", s2.hsNotes]] });
         secs.push({ title: "Approvals", rows: [
           ["Scope Approved", p.scopeApproved?"Yes":"No", p.scopeApproved?"g":"r"],
-          ["RISE Status", p.riseStatus||"—"]
+          ["RISE Status", p.riseStatus||"\u2014"]
         ]});
-        zip.file(nm+"_scope.pdf", buildPDF("Scope of Work", secs));
+
+        zip.file(nm+"_scope.pdf", buildPDF("2026 HEA/IE Retrofit Form \u2014 Scope of Work", secs));
       }
 
       // 4. Final Inspection
@@ -2287,7 +2436,7 @@ function ScopeTab({p,u,onLog}) {
 
 
     const html = `<!DOCTYPE html><html><head><title>HEA/IE Retrofit Form — ${p.customerName}</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:11px}h1{font-size:16px;border-bottom:2px solid #333;padding-bottom:6px}h2{font-size:11px;color:#666;margin-bottom:12px}.sec{margin-bottom:10px;border:1px solid #ddd;border-radius:5px;padding:8px}.sec h3{font-size:12px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:3px}.row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}</style></head><body>
-      <h1>2026 HEA / IE Retrofit Form</h1><h2>${p.customerName} · ${p.address} · RISE: ${p.riseId||"—"} · ${new Date().toLocaleDateString()}</h2><p style="font-size:9px;color:#dc2626;margin:0 0 8px;font-weight:bold">v4 FULL — 23 sections · scope2026 keys: ${Object.keys(s).length} · htg keys: ${Object.keys(htg).length}</p>${body}</body></html>`;
+      <h1>2026 HEA / IE Retrofit Form</h1><h2>${p.customerName} · ${p.address} · RISE: ${p.riseId||"—"} · ${new Date().toLocaleDateString()}</h2>${body}</body></html>`;
     return html;
   };
 
