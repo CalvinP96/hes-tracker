@@ -484,6 +484,42 @@ export default function App() {
     setSession(null);
   };
 
+  // ── Export Functions ──
+  const exportData = () => {
+    const data = JSON.stringify(projects, null, 2);
+    const blob = new Blob([data], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `hes-retrofits-export-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const exportPhotos = async () => {
+    if (typeof JSZip === "undefined") { alert("JSZip not loaded"); return; }
+    const zip = new window.JSZip();
+    let count = 0;
+    projects.forEach(p => {
+      const name = (p.customerName||"unnamed").replace(/[^a-zA-Z0-9]/g,"_");
+      const folder = zip.folder(`${name}_${p.id.slice(0,6)}`);
+      Object.entries(p.photos||{}).forEach(([key, val]) => {
+        const arr = Array.isArray(val) ? val : (val ? [val] : []);
+        arr.forEach((ph, i) => {
+          const d = ph?.d || ph;
+          if (!d || typeof d !== "string" || !d.startsWith("data:")) return;
+          const ext = d.startsWith("data:image/png") ? "png" : d.startsWith("data:image/gif") ? "gif" : "jpg";
+          const b64 = d.split(",")[1];
+          if (b64) { folder.file(`${key}${arr.length>1?`_${i+1}`:""}.${ext}`, b64, {base64:true}); count++; }
+        });
+      });
+    });
+    if (count === 0) { alert("No photos to export"); return; }
+    const blob = await zip.generateAsync({type:"blob"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `hes-photos-${new Date().toISOString().slice(0,10)}.zip`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
   if (!curUser) return (
     <div style={S.app}>{globalCSS}
       <div style={S.rpWrap}>
@@ -642,7 +678,7 @@ export default function App() {
     <div style={S.app}>{globalCSS}
       <Hdr role={curRole} user={userName} onSw={doLogout} title="HES Retrofits"
         sub={`${projects.length} projects`}
-        actions={<>{role==="admin" && <button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={()=>setShowUsers(!showUsers)}>👥 Users</button>}<button style={{...S.btn,padding:"8px 16px",fontSize:13}} onClick={()=>setView("new")}>+ New Lead</button></>}
+        actions={<>{role==="admin" && <><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={()=>setShowUsers(!showUsers)}>👥 Users</button><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={exportData}>📥 Data</button><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={exportPhotos}>📷 Photos</button></>}<button style={{...S.btn,padding:"8px 16px",fontSize:13}} onClick={()=>setView("new")}>+ New Lead</button></>}
       />
 
       {/* ── User Management (Admin only) ── */}
