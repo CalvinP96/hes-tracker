@@ -1109,28 +1109,20 @@ function AuditTab({p,u,onLog,user}) {
 
         {/* ── Signature block ── */}
         <div style={{padding:10,borderRadius:6,border:"1px solid rgba(255,255,255,.1)",background:"rgba(255,255,255,.02)"}}>
-          <div style={{display:"grid",gap:6,marginBottom:8}}>
-            <F label="Property Address" computed={p.address||"—"}/>
-            <F label="Customer Name" computed={p.customerName||"—"}/>
-            <F label="Date" computed={a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : new Date().toLocaleDateString("en-US")}/>
-            <F label="Customer Rep Printed Name" value={a.repName||""} onChange={v=>sa("repName",v)}/>
-          </div>
           <SigPad label="Customer Signature" value={a.customerAuthSig||""} onChange={v=>{sa("customerAuthSig",v);if(v&&!a.authDate)sa("authDate",new Date().toISOString());}}/>
-          <SigPad label="Customer Representative Signature" value={a.repSig||""} onChange={v=>sa("repSig",v)}/>
+          <F label="Customer Printed Name" value={a.customerAuthName||""} onChange={v=>sa("customerAuthName",v)}/>
         </div>
 
         {a.customerAuthSig && <div style={{marginTop:8}}>
           <button style={{...S.btn,padding:"8px 16px",fontSize:12}} onClick={()=>{
             const sigImg = a.customerAuthSig ? `<img src="${a.customerAuthSig}" style="max-width:300px;height:60px;object-fit:contain;display:block"/>` : "";
-            const repSigImg = a.repSig ? `<img src="${a.repSig}" style="max-width:300px;height:60px;object-fit:contain;display:block"/>` : "";
             const authDate = a.authDate ? new Date(a.authDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) : "";
             savePrint(`<div style="max-width:720px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#000;padding:20px">
 <img src="/auth-form-page1.jpg" style="width:100%;display:block;margin-bottom:8px"/>
 <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
 <tr style="background:#2196F3;color:#fff"><td colspan="2" style="padding:6px 10px;font-size:11px;font-weight:bold">Customer Signature</td></tr>
-<tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc;width:50%">Customer Signature</td><td style="padding:4px 10px;border:1px solid #ccc">${sigImg}</td></tr>
-<tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc">Customer representative signature</td><td style="padding:4px 10px;border:1px solid #ccc">${repSigImg}</td></tr>
-<tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc">Customer representative printed name</td><td style="padding:8px 10px;font-size:12px;border:1px solid #ccc;font-weight:bold">${a.repName||""}</td></tr>
+<tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc;width:50%">Customer representative signature</td><td style="padding:4px 10px;border:1px solid #ccc">${sigImg}</td></tr>
+<tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc">Customer representative printed name</td><td style="padding:8px 10px;font-size:12px;border:1px solid #ccc;font-weight:bold">${a.customerAuthName||""}</td></tr>
 <tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc">Date</td><td style="padding:8px 10px;font-size:12px;border:1px solid #ccc">${authDate}</td></tr>
 <tr><td style="padding:8px 10px;font-size:11px;border:1px solid #ccc">Property address</td><td style="padding:8px 10px;font-size:12px;border:1px solid #ccc;font-weight:bold">${p.address||""}</td></tr>
 </table>
