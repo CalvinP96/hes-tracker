@@ -574,10 +574,11 @@ export default function App() {
 
     const toPDF = async (html) => {
       const container = document.createElement("div");
-      container.style.cssText = "position:absolute;left:-9999px;top:0;width:760px";
+      container.style.cssText = "position:fixed;left:0;top:0;width:760px;background:#fff;z-index:99998;overflow:auto;height:auto;pointer-events:none;color:#000";
       container.innerHTML = css + html;
       document.body.appendChild(container);
-      const blob = await html2pdf().set({margin:0.4,image:{type:"jpeg",quality:0.95},html2canvas:{scale:2},jsPDF:{unit:"in",format:"letter",orientation:"portrait"}}).from(container).outputPdf("blob");
+      await new Promise(r => setTimeout(r, 200));
+      const blob = await html2pdf().set({margin:0.4,image:{type:"jpeg",quality:0.95},html2canvas:{scale:2,useCORS:true,scrollY:0,windowWidth:760,height:container.scrollHeight},jsPDF:{unit:"in",format:"letter",orientation:"portrait"}}).from(container).outputPdf("blob");
       document.body.removeChild(container);
       return blob;
     };
