@@ -1115,7 +1115,7 @@ function AuditTab({p,u,onLog,user}) {
           </div>
           {/* Overlay: Customer representative printed name — row at 44.9%-46.5% */}
           <div style={{position:"absolute",top:"45%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
-            <input style={{width:"100%",height:"100%",border:"none",background:"transparent",fontSize:"1.2vw",fontWeight:600,color:"#000",outline:"none",fontFamily:"Arial,sans-serif",padding:0}} value={a.customerAuthName||""} onChange={e=>sa("customerAuthName",e.target.value)} placeholder=""/>
+            <input style={{width:"100%",height:"100%",border:"none",background:"transparent",fontSize:"1.2vw",fontWeight:600,color:"#000",outline:"none",fontFamily:"Arial,sans-serif",padding:0}} value={a.customerAuthName||p.customerName||""} onChange={e=>sa("customerAuthName",e.target.value)} placeholder=""/>
           </div>
           {/* Overlay: Date — row at 46.5%-48.1% */}
           <div style={{position:"absolute",top:"46.6%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
@@ -1143,7 +1143,7 @@ function AuditTab({p,u,onLog,user}) {
 <div style="position:relative">
 <img src="/auth-form-page1.jpg" style="width:100%;display:block"/>
 <div style="position:absolute;top:43.4%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center;overflow:hidden">${sigImg}</div>
-<div style="position:absolute;top:45%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;font-weight:bold;color:#000">${a.customerAuthName||""}</span></div>
+<div style="position:absolute;top:45%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;font-weight:bold;color:#000">${a.customerAuthName||p.customerName||""}</span></div>
 <div style="position:absolute;top:46.6%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;color:#000">${authDate}</span></div>
 <div style="position:absolute;top:48.2%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;color:#000">${p.address||""}</span></div>
 </div>
@@ -3248,7 +3248,7 @@ const S = {
   rCard: { display:"flex", alignItems:"center", gap:12, padding:"14px 16px", background:"rgba(255,255,255,.03)", border:"1px solid rgba(255,255,255,.08)", borderRadius:10, cursor:"pointer", color:"#e2e8f0", fontFamily:"'DM Sans',sans-serif", width:"100%" },
 
   // Header
-  hdr: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 16px", borderBottom:"1px solid rgba(255,255,255,.06)", background:"rgba(255,255,255,.02)", flexWrap:"wrap", gap:6, position:"sticky", top:0, zIndex:100 },
+  hdr: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 16px", borderBottom:"1px solid rgba(255,255,255,.06)", background:"#0b0e18", flexWrap:"wrap", gap:6, position:"sticky", top:0, zIndex:100 },
   hT: { fontSize:16, fontWeight:700, margin:0, color:"#f1f5f9" },
   hS: { fontSize:11, color:"#64748b", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
   back: { background:"none", border:"none", color:"#94a3b8", cursor:"pointer", fontSize:18, fontFamily:"'DM Sans',sans-serif", padding:"4px 6px", minWidth:44, minHeight:44, display:"flex", alignItems:"center", justifyContent:"center" },
