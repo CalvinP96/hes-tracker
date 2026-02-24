@@ -931,9 +931,16 @@ function AuditTab({p,u,onLog,user}) {
 
   const handleFile = (id, file) => {
     if (!file) return;
-    const img = new Image();
     const reader = new FileReader();
     reader.onload = (e) => {
+      if (file.type === "image/gif") {
+        const existing = getPhotos(p.photos, id);
+        const newEntry = {d:e.target.result,at:new Date().toISOString(),by:user};
+        u({photos:{...p.photos,[id]:[...existing, newEntry]}});
+        if(onLog) onLog(`📸 ${preItems.find(x=>x.id===id)?.l||id} (${existing.length+1})`);
+        return;
+      }
+      const img = new Image();
       img.onload = () => {
         const maxW = 1600;
         let w = img.width, h = img.height;
@@ -1102,21 +1109,21 @@ function AuditTab({p,u,onLog,user}) {
         {/* Page 1 with signature fields overlaid on the form */}
         <div style={{position:"relative",background:"#fff",borderRadius:6,overflow:"hidden"}}>
           <img src="/auth-form-page1.jpg" alt="Page 1" style={{width:"100%",display:"block"}}/>
-          {/* Overlay: Customer representative signature field */}
-          <div style={{position:"absolute",top:"51.5%",left:"50%",width:"48%",height:"4.5%",cursor:"pointer"}} onClick={()=>{if(!a.customerAuthSig){const el=document.getElementById("authSigTrigger");if(el)el.click();}}}>
+          {/* Overlay: Customer representative signature — row at 43.3%-44.9% */}
+          <div style={{position:"absolute",top:"43.4%",left:"41.5%",width:"52%",height:"1.4%",cursor:"pointer",display:"flex",alignItems:"center"}} onClick={()=>{if(!a.customerAuthSig){const el=document.getElementById("authSigTrigger");if(el)el.click();}}}>
             {a.customerAuthSig && <img src={a.customerAuthSig} style={{height:"100%",objectFit:"contain"}}/>}
           </div>
-          {/* Overlay: Customer representative printed name */}
-          <div style={{position:"absolute",top:"56%",left:"50%",width:"48%",height:"4%",display:"flex",alignItems:"center"}}>
-            <input style={{width:"100%",height:"100%",border:"none",background:"transparent",fontSize:"1.4vw",fontWeight:600,color:"#000",outline:"none",fontFamily:"Arial,sans-serif"}} value={a.customerAuthName||""} onChange={e=>sa("customerAuthName",e.target.value)} placeholder="Print name here"/>
+          {/* Overlay: Customer representative printed name — row at 44.9%-46.5% */}
+          <div style={{position:"absolute",top:"45%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
+            <input style={{width:"100%",height:"100%",border:"none",background:"transparent",fontSize:"1.2vw",fontWeight:600,color:"#000",outline:"none",fontFamily:"Arial,sans-serif",padding:0}} value={a.customerAuthName||""} onChange={e=>sa("customerAuthName",e.target.value)} placeholder=""/>
           </div>
-          {/* Overlay: Date */}
-          <div style={{position:"absolute",top:"60%",left:"50%",width:"48%",height:"4%",display:"flex",alignItems:"center"}}>
-            <span style={{fontSize:"1.4vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : ""}</span>
+          {/* Overlay: Date — row at 46.5%-48.1% */}
+          <div style={{position:"absolute",top:"46.6%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
+            <span style={{fontSize:"1.2vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : ""}</span>
           </div>
-          {/* Overlay: Property address */}
-          <div style={{position:"absolute",top:"64%",left:"50%",width:"48%",height:"4%",display:"flex",alignItems:"center"}}>
-            <span style={{fontSize:"1.4vw",color:"#000",fontFamily:"Arial,sans-serif",fontWeight:600}}>{p.address||""}</span>
+          {/* Overlay: Property address — row at 48.1%-49.6% */}
+          <div style={{position:"absolute",top:"48.2%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
+            <span style={{fontSize:"1.2vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{p.address||""}</span>
           </div>
         </div>
         {/* Hidden sig pad trigger */}
@@ -1135,10 +1142,10 @@ function AuditTab({p,u,onLog,user}) {
             savePrint(`<div style="max-width:720px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#000;padding:20px">
 <div style="position:relative">
 <img src="/auth-form-page1.jpg" style="width:100%;display:block"/>
-<div style="position:absolute;top:51.5%;left:50%;width:48%;height:4.5%">${sigImg}</div>
-<div style="position:absolute;top:56%;left:50%;width:48%;height:4%;display:flex;align-items:center"><span style="font-size:11px;font-weight:bold">${a.customerAuthName||""}</span></div>
-<div style="position:absolute;top:60%;left:50%;width:48%;height:4%;display:flex;align-items:center"><span style="font-size:11px">${authDate}</span></div>
-<div style="position:absolute;top:64%;left:50%;width:48%;height:4%;display:flex;align-items:center"><span style="font-size:11px;font-weight:bold">${p.address||""}</span></div>
+<div style="position:absolute;top:43.4%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center">${sigImg}</div>
+<div style="position:absolute;top:45%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:11px;font-weight:bold">${a.customerAuthName||""}</span></div>
+<div style="position:absolute;top:46.6%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:11px">${authDate}</span></div>
+<div style="position:absolute;top:48.2%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:11px">${p.address||""}</span></div>
 </div>
 <div style="page-break-before:always"></div>
 <img src="/auth-form-page2.jpg" style="width:100%;display:block"/>
@@ -1200,9 +1207,17 @@ function PhotoTab({p,u,onLog,user,role}) {
 
   const compressAndSave = (id, file) => {
     if (!file) return;
-    const img = new Image();
     const reader = new FileReader();
     reader.onload = (e) => {
+      if (file.type === "image/gif") {
+        const existing = getPhotos(p.photos, id);
+        const newEntry = {d:e.target.result,at:new Date().toISOString(),by:user};
+        u({photos:{...p.photos,[id]:[...existing, newEntry]}});
+        const it = allItems.find(x=>x.id===id);
+        onLog(`📸 ${it?.l||id} (${existing.length+1})`);
+        return;
+      }
+      const img = new Image();
       img.onload = () => {
         const maxW = 1600;
         let w = img.width, h = img.height;
@@ -2440,9 +2455,16 @@ function InstallTab({p,u,onLog,user,role}) {
 
   const handleFile = (id, file) => {
     if (!file) return;
-    const img = new Image();
     const reader = new FileReader();
     reader.onload = (e) => {
+      if (file.type === "image/gif") {
+        const existing = getPhotos(p.photos, id);
+        const newEntry = {d:e.target.result,at:new Date().toISOString(),by:user};
+        u({photos:{...p.photos,[id]:[...existing, newEntry]}});
+        if(onLog) onLog(`📸 ${postItems.find(x=>x.id===id)?.l||id} (${existing.length+1})`);
+        return;
+      }
+      const img = new Image();
       img.onload = () => {
         const maxW = 1600;
         let w = img.width, h = img.height;
