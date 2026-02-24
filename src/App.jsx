@@ -325,7 +325,17 @@ function savePrint(html) {
   overlay.appendChild(iframe);
   document.body.appendChild(overlay);
 
-  iframe.contentDocument.write(`<html><head><style>@media print{@page{margin:0}html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;margin:0;padding:0.4in}}</style></head><body style="margin:0">${html}</body></html>`);
+  // Detect if html is already a full document or just a fragment
+  const isFullDoc = html.trim().toLowerCase().startsWith("<!doctype") || html.trim().toLowerCase().startsWith("<html");
+  const printStyle = "@media print{@page{margin:0}html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;margin:0;padding:0.4in}}";
+  let finalHTML;
+  if (isFullDoc) {
+    // Inject print styles into existing document
+    finalHTML = html.replace("</head>", "<style>" + printStyle + "</style></head>");
+  } else {
+    finalHTML = "<html><head><style>" + printStyle + "</style></head><body style='margin:0'>" + html + "</body></html>";
+  }
+  iframe.contentDocument.write(finalHTML);
   iframe.contentDocument.close();
 
   printBtn.addEventListener("click", () => {
@@ -1846,6 +1856,7 @@ function ScopeTab({p,u,onLog}) {
   }, []);
 
   const getScopeHTML = () => {
+    console.log("getScopeHTML v4 FULL", {scopeKeys: Object.keys(s), htgKeys: Object.keys(s.htg||{}), clgKeys: Object.keys(s.clg||{}), dhwKeys: Object.keys(s.dhw||{})});
     const yn = v => v===true?"Yes":v===false?"No":"—";
     const v = k => s[k]||"—";
     const nv = (sec,k) => s[sec]?.[k]||"—";
@@ -1855,301 +1866,204 @@ function ScopeTab({p,u,onLog}) {
     const measTable = p.measures.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#f0fdf4;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.measures.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:3px 6px;border:1px solid #ddd">${measUnit(m)}</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
     const hsTable = p.healthSafety.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#fffbeb;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.healthSafety.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:3px 6px;border:1px solid #ddd">ea</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
 
-    const ck = v => v===true?"☑":v===false?"☐":"—";
+    const chk = b => b===true?"☑":b===false?"☐":"—";
     const htg = s.htg||{}; const clg = s.clg||{}; const dhw = s.dhw||{};
     const int2 = s.int||{}; const exh = s.exh||{}; const att = s.attic||{};
     const col = s.collar||{}; const oc = s.outerCeiling||{}; const kw = s.kneeWall||{};
     const ew1 = s.extWall1||{}; const ew2 = s.extWall2||{}; const fnd = s.fnd||{};
     const afue = htg.btuIn && htg.btuOut ? (Number(htg.btuOut)/Number(htg.btuIn)*100).toFixed(1)+"%" : "—";
 
-    const body = `
-      <div class="sec"><h3>Customer Information</h3><div class="grid">
-        <div class="row"><span class="lbl">Customer</span><span class="val">${p.customerName}</span></div>
-        <div class="row"><span class="lbl">Address</span><span class="val">${p.address}</span></div>
-        <div class="row"><span class="lbl">RISE ID</span><span class="val">${p.riseId||"—"}</span></div>
-        <div class="row"><span class="lbl">Assessment Date</span><span class="val">${p.assessmentDate?fmts(p.assessmentDate):"—"}</span></div>
-        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${p.sqft||"—"}</span></div>
-        <div class="row"><span class="lbl">Volume</span><span class="val">${Number(p.sqft)?(Number(p.sqft)*8).toLocaleString()+" ft³":"—"}</span></div>
-        <div class="row"><span class="lbl">Stories</span><span class="val">${p.stories||"—"}</span></div>
-        <div class="row"><span class="lbl">Bedrooms</span><span class="val">${s.bedrooms||"—"}</span></div>
-        <div class="row"><span class="lbl">Year Built</span><span class="val">${p.yearBuilt||"—"}</span></div>
-        <div class="row"><span class="lbl">Home Age</span><span class="val">${p.yearBuilt?(new Date().getFullYear()-Number(p.yearBuilt))+" yrs":"—"}</span></div>
-        <div class="row"><span class="lbl">Occupants</span><span class="val">${p.occupants||"—"}</span></div>
-      </div></div>
+    // Build ASHRAE HTML first (avoid nested template literals)
+    const ashraeHTML = (() => {
+      const a2=p.audit||{};const baseSq=Number(p.sqft)||0;const finBsmt=s.fnd?.type==="Finished"?(Number(s.fnd?.aboveSqft)||0)+(Number(s.fnd?.belowSqft)||0):0;const sq=baseSq+finBsmt;const oc2=(Number(s.bedrooms)||0)+1;const c50=Number(p.preCFM50)||0;
+      const st2=Number(p.stories)||1;const hh=st2>=2?16:st2>=1.5?14:8;const wsf2=0.56;const hr=8.202;
+      const kRw=String(s.ashrae?.kitchenCFM??a2.kitchenFan??"");const b1Rw=String(s.ashrae?.bath1CFM??a2.bathFan1??"");
+      const b2Rw=String(s.ashrae?.bath2CFM??a2.bathFan2??"");const b3Rw=String(s.ashrae?.bath3CFM??a2.bathFan3??"");
+      const kP=kRw.trim()!=="";const b1P=b1Rw.trim()!=="";const b2P=b2Rw.trim()!=="";const b3P=b3Rw.trim()!=="";
+      const kC=Number(kRw)||0;const b1c=Number(b1Rw)||0;const b2c=Number(b2Rw)||0;const b3c=Number(b3Rw)||0;
+      const kW=s.ashrae?.kWin;const b1W=s.ashrae?.b1Win;const b2W=s.ashrae?.b2Win;const b3W=s.ashrae?.b3Win;
+      const qi=c50>0?c50*wsf2*Math.pow(hh/hr,0.25)/17.8:0;
+      const qt=sq>0&&oc2>0?0.03*sq+7.5*oc2:0;
+      const kD=kP?(kW?0:Math.max(0,100-kC)):0;const b1D=b1P?(b1W?0:Math.max(0,50-b1c)):0;
+      const b2D=b2P?(b2W?0:Math.max(0,50-b2c)):0;const b3D=b3P?(b3W?0:Math.max(0,50-b3c)):0;
+      const td=kD+b1D+b2D+b3D;const supp=td*0.25;
+      const qf=Math.max(0,qt+supp-qi);
+      const R2=vv=>Math.round(vv*100)/100;
+      const fan=Number(s.ashrae?.fanSetting)||0;const minHr=fan>0?R2(qf/fan*60):0;
+      let h = "";
+      h += '<div class="grid">';
+      h += '<div class="row"><span class="lbl">Floor area'+(finBsmt>0?" (incl. fin. bsmt)":"")+'</span><span class="val">'+sq+' ft\u00b2</span></div>';
+      h += '<div class="row"><span class="lbl">Occupants (Nbr = beds+1)</span><span class="val">'+oc2+'</span></div>';
+      h += '<div class="row"><span class="lbl">Dwelling height</span><span class="val">'+hh+' ft ('+(st2>=2?"2":st2>=1.5?"1.5":"1")+'-story)</span></div>';
+      h += '<div class="row"><span class="lbl">Leakage @ 50Pa</span><span class="val">'+c50+' CFM</span></div>';
+      h += '<div class="row"><span class="lbl">Kitchen fan'+(kP?"":" (none)")+'</span><span class="val">'+(kP?kC+" CFM":"\u2014")+' '+(kW?"(window)":"")+" "+(kP?"(req 100)":"")+'</span></div>';
+      h += '<div class="row"><span class="lbl">Bath #1'+(b1P?"":" (none)")+'</span><span class="val">'+(b1P?b1c+" CFM":"\u2014")+' '+(b1W?"(window)":"")+" "+(b1P?"(req 50)":"")+'</span></div>';
+      h += '<div class="row"><span class="lbl">Bath #2'+(b2P?"":" (none)")+'</span><span class="val">'+(b2P?b2c+" CFM":"\u2014")+' '+(b2W?"(window)":"")+" "+(b2P?"(req 50)":"")+'</span></div>';
+      h += '<div class="row"><span class="lbl">Bath #3'+(b3P?"":" (none)")+'</span><span class="val">'+(b3P?b3c+" CFM":"\u2014")+' '+(b3W?"(window)":"")+" "+(b3P?"(req 50)":"")+'</span></div>';
+      h += '<div class="row"><span class="lbl">Total deficit (intermittent)</span><span class="val">'+Math.round(td)+' CFM</span></div>';
+      h += '</div>';
+      h += '<div style="margin-top:8px;padding:8px;background:#f0f0ff;border-radius:4px">';
+      h += '<div style="font-weight:700;font-size:11px;color:#4338ca;margin-bottom:4px">Dwelling-Unit Ventilation Results</div>';
+      h += '<div class="row"><span class="lbl">Eff. annual avg infiltration</span><span class="val">'+R2(qi)+' CFM</span></div>';
+      h += '<div class="row"><span class="lbl">Qtot = 0.03\u00d7'+sq+' + 7.5\u00d7'+oc2+'</span><span class="val">'+R2(qt)+' CFM</span></div>';
+      h += '<div class="row"><span class="lbl">Alt. compliance supplement = '+Math.round(td)+'\u00d70.25</span><span class="val">'+R2(supp)+' CFM</span></div>';
+      h += '<div class="row"><span class="lbl">Infiltration credit (full, existing)</span><span class="val">'+R2(qi)+' CFM</span></div>';
+      h += '<div class="row" style="border-top:2px solid #4338ca;padding-top:4px;margin-top:4px"><span style="font-weight:700">Qfan = '+R2(qt)+' + '+R2(supp)+' \u2212 '+R2(qi)+'</span><span style="font-weight:700;color:#4338ca;font-size:14px">'+R2(qf)+' CFM</span></div>';
+      if(fan>0) h += '<div class="row"><span class="lbl">Fan setting: '+fan+' CFM \u00b7 Run-time: '+minHr+' min/hr (continuous = 60)</span></div>';
+      h += '</div>';
+      return h;
+    })();
 
-      <div class="sec"><h3>Building Property Type</h3><div class="grid">
-        <div class="row"><span class="lbl">Style</span><span class="val">${v("style")}</span></div>
-        <div class="row"><span class="lbl">Tenant Type</span><span class="val">${v("tenantType")}</span></div>
-        <div class="row"><span class="lbl">Gutters Exist</span><span class="val">${ck(s.gutterExist)}</span></div>
-        <div class="row"><span class="lbl">Downspouts</span><span class="val">${ck(s.downspouts)}</span></div>
-        <div class="row"><span class="lbl">Gutter Repairs</span><span class="val">${ck(s.gutterRepair)}</span></div>
-        <div class="row"><span class="lbl">Roof Condition</span><span class="val">${v("roofCondition")}</span></div>
-        <div class="row"><span class="lbl">Roof Type</span><span class="val">${v("roofType")}</span></div>
-        <div class="row"><span class="lbl">Roof Age</span><span class="val">${v("roofAge")}</span></div>
-        <div class="row"><span class="lbl">Roof Repairs</span><span class="val">${ck(s.roofRepair)}</span></div>
-      </div></div>
+    // Build body with string concatenation (no nested template literals)
+    let body = "";
+    const R = (l, vv) => '<div class="row"><span class="lbl">'+l+'</span><span class="val">'+(vv!=null?vv:"\u2014")+'</span></div>';
 
-      <div class="sec"><h3>Interior Conditions</h3><div class="grid">
-        <div class="row"><span class="lbl">Ceiling Condition</span><span class="val">${v("ceilingCond")}</span></div>
-        <div class="row"><span class="lbl">Wall Condition</span><span class="val">${v("wallCond")}</span></div>
-        <div class="row"><span class="lbl">Walls Need Insulation</span><span class="val">${v("wallsNeedInsul")}</span></div>
-      </div></div>
+    body += '<div class="sec"><h3>Customer Information</h3><div class="grid">';
+    body += R("Customer",p.customerName) + R("Address",p.address) + R("RISE ID",p.riseId||"\u2014");
+    body += R("Assessment Date",p.assessmentDate?fmts(p.assessmentDate):"\u2014");
+    body += R("Sq Ft",p.sqft||"\u2014") + R("Volume",Number(p.sqft)?(Number(p.sqft)*8).toLocaleString()+" ft\u00b3":"\u2014");
+    body += R("Stories",p.stories||"\u2014") + R("Bedrooms",s.bedrooms||"\u2014");
+    body += R("Year Built",p.yearBuilt||"\u2014") + R("Home Age",p.yearBuilt?(new Date().getFullYear()-Number(p.yearBuilt))+" yrs":"\u2014");
+    body += R("Occupants",p.occupants||"\u2014");
+    body += '</div></div>';
 
-      <div class="sec"><h3>Smoke / CO / Weatherization</h3><div class="grid">
-        <div class="row"><span class="lbl">Smoke — present</span><span class="val">${v("smokePresent")}</span></div>
-        <div class="row"><span class="lbl">Smoke — to install</span><span class="val">${v("smokeNeeded")}</span></div>
-        <div class="row"><span class="lbl">CO — present</span><span class="val">${v("coPresent")}</span></div>
-        <div class="row"><span class="lbl">CO — to install</span><span class="val">${v("coNeeded")}</span></div>
-        <div class="row"><span class="lbl">Tenmats Needed</span><span class="val">${v("tenmats")}</span></div>
-        <div class="row"><span class="lbl">Doors Need Sweeps/WS</span><span class="val">${v("doorSweeps")}</span></div>
-      </div></div>
+    body += '<div class="sec"><h3>Building Property Type</h3><div class="grid">';
+    body += R("Style",v("style")) + R("Tenant Type",v("tenantType"));
+    body += R("Gutters Exist",chk(s.gutterExist)) + R("Downspouts",chk(s.downspouts)) + R("Gutter Repairs",chk(s.gutterRepair));
+    body += R("Roof Condition",v("roofCondition")) + R("Roof Type",v("roofType")) + R("Roof Age",v("roofAge")) + R("Roof Repairs",chk(s.roofRepair));
+    body += '</div></div>';
 
-      <div class="sec"><h3>Heating System Info</h3><div class="grid">
-        <div class="row"><span class="lbl">Thermostat</span><span class="val">${htg.thermostat||"—"}</span></div>
-        <div class="row"><span class="lbl">Fuel Type</span><span class="val">${htg.fuel||"—"}</span></div>
-        <div class="row"><span class="lbl">System Type</span><span class="val">${htg.system||"—"}</span></div>
-        <div class="row"><span class="lbl">Flue Condition</span><span class="val">${htg.flue||"—"}</span></div>
-        <div class="row"><span class="lbl">Manufacturer</span><span class="val">${htg.mfg||"—"}</span></div>
-        <div class="row"><span class="lbl">Install Year</span><span class="val">${htg.year||"—"}</span></div>
-        <div class="row"><span class="lbl">Age</span><span class="val">${htg.year?(new Date().getFullYear()-Number(htg.year))+" yrs":"—"}</span></div>
-        <div class="row"><span class="lbl">Condition</span><span class="val">${htg.condition||"—"}</span></div>
-        <div class="row"><span class="lbl">BTU Input</span><span class="val">${htg.btuIn||"—"}</span></div>
-        <div class="row"><span class="lbl">BTU Output</span><span class="val">${htg.btuOut||"—"}</span></div>
-        <div class="row"><span class="lbl">AFUE</span><span class="val">${afue}</span></div>
-        <div class="row"><span class="lbl">Draft</span><span class="val">${htg.draft||"—"}</span></div>
-        <div class="row"><span class="lbl">Gas Shut Off</span><span class="val">${ck(htg.gasShutoff)}</span></div>
-        <div class="row"><span class="lbl">Pipes Asbestos Wrapped</span><span class="val">${ck(htg.asbestosPipes)}</span></div>
-        <div class="row"><span class="lbl">Replacement Recommended</span><span class="val">${ck(htg.replaceRec)}</span></div>
-        <div class="row"><span class="lbl">Clean & Tune</span><span class="val">${ck(htg.cleanTune||htg.cleanTuneOverride)}</span></div>
-      </div>${htg.notes?'<p style="color:#333;margin-top:6px">Notes: '+htg.notes+'</p>':""}</div>
+    body += '<div class="sec"><h3>Interior Conditions</h3><div class="grid">';
+    body += R("Ceiling Condition",v("ceilingCond")) + R("Wall Condition",v("wallCond")) + R("Walls Need Insulation",v("wallsNeedInsul"));
+    body += '</div></div>';
 
-      <div class="sec"><h3>Cooling System Info</h3><div class="grid">
-        <div class="row"><span class="lbl">Type</span><span class="val">${clg.type||"—"}</span></div>
-        <div class="row"><span class="lbl">Manufacturer</span><span class="val">${clg.mfg||"—"}</span></div>
-        <div class="row"><span class="lbl">Install Year</span><span class="val">${clg.year||"—"}</span></div>
-        <div class="row"><span class="lbl">Age</span><span class="val">${clg.year?(new Date().getFullYear()-Number(clg.year))+" yrs":"—"}</span></div>
-        <div class="row"><span class="lbl">SEER</span><span class="val">${clg.seer||"—"}</span></div>
-        <div class="row"><span class="lbl">Condition</span><span class="val">${clg.condition||"—"}</span></div>
-        <div class="row"><span class="lbl">BTU Size</span><span class="val">${clg.btu||"—"}</span></div>
-        <div class="row"><span class="lbl">Replacement Recommended</span><span class="val">${ck(clg.replaceRec)}</span></div>
-        ${clg.replaceReason?'<div class="row"><span class="lbl">Reason</span><span class="val">'+clg.replaceReason+'</span></div>':""}
-      </div></div>
+    body += '<div class="sec"><h3>Smoke / CO / Weatherization</h3><div class="grid">';
+    body += R("Smoke \u2014 present",v("smokePresent")) + R("Smoke \u2014 to install",v("smokeNeeded"));
+    body += R("CO \u2014 present",v("coPresent")) + R("CO \u2014 to install",v("coNeeded"));
+    body += R("Tenmats Needed",v("tenmats")) + R("Doors Need Sweeps/WS",v("doorSweeps"));
+    body += '</div></div>';
 
-      <div class="sec"><h3>Domestic Hot Water Info</h3><div class="grid">
-        <div class="row"><span class="lbl">Fuel</span><span class="val">${dhw.fuel||"—"}</span></div>
-        <div class="row"><span class="lbl">System Type</span><span class="val">${dhw.system||"—"}</span></div>
-        <div class="row"><span class="lbl">Manufacturer</span><span class="val">${dhw.mfg||"—"}</span></div>
-        <div class="row"><span class="lbl">Install Year</span><span class="val">${dhw.year||"—"}</span></div>
-        <div class="row"><span class="lbl">Age</span><span class="val">${dhw.year?(new Date().getFullYear()-Number(dhw.year))+" yrs":"—"}</span></div>
-        <div class="row"><span class="lbl">Condition</span><span class="val">${dhw.condition||"—"}</span></div>
-        <div class="row"><span class="lbl">Input BTU</span><span class="val">${dhw.btuIn||"—"}</span></div>
-        <div class="row"><span class="lbl">Insulated Pipes</span><span class="val">${ck(dhw.insulPipes)}</span></div>
-        <div class="row"><span class="lbl">Flue Repair Needed</span><span class="val">${ck(dhw.flueRepair)}</span></div>
-        <div class="row"><span class="lbl">Replacement Recommended</span><span class="val">${ck(dhw.replaceRec)}</span></div>
-        <div class="row"><span class="lbl">Ducts Need Sealing</span><span class="val">${ck(dhw.ductsSealed)}</span></div>
-        ${dhw.replaceReason?'<div class="row"><span class="lbl">Reason</span><span class="val">'+dhw.replaceReason+'</span></div>':""}
-      </div></div>
+    body += '<div class="sec"><h3>Heating System Info</h3><div class="grid">';
+    body += R("Thermostat",htg.thermostat||"\u2014") + R("Fuel Type",htg.fuel||"\u2014") + R("System Type",htg.system||"\u2014") + R("Flue Condition",htg.flue||"\u2014");
+    body += R("Manufacturer",htg.mfg||"\u2014") + R("Install Year",htg.year||"\u2014") + R("Age",htg.year?(new Date().getFullYear()-Number(htg.year))+" yrs":"\u2014") + R("Condition",htg.condition||"\u2014");
+    body += R("BTU Input",htg.btuIn||"\u2014") + R("BTU Output",htg.btuOut||"\u2014") + R("AFUE",afue) + R("Draft",htg.draft||"\u2014");
+    body += R("Gas Shut Off",chk(htg.gasShutoff)) + R("Pipes Asbestos Wrapped",chk(htg.asbestosPipes)) + R("Replacement Recommended",chk(htg.replaceRec)) + R("Clean & Tune",chk(htg.cleanTune||htg.cleanTuneOverride));
+    body += '</div>'+(htg.notes?'<p style="color:#333;margin-top:6px">Notes: '+htg.notes+'</p>':"")+'</div>';
 
-      <div class="sec"><h3>Interior Inspection</h3><div class="grid">
-        <div class="row"><span class="lbl">Mold</span><span class="val">${ck(int2.mold)}</span></div>
-        <div class="row"><span class="lbl">Moisture Problems</span><span class="val">${ck(int2.moisture)}</span></div>
-        <div class="row"><span class="lbl">Live Knob & Tube</span><span class="val">${ck(int2.knobTube)}</span></div>
-        <div class="row"><span class="lbl">Electrical Issues</span><span class="val">${ck(int2.electrical)}</span></div>
-        <div class="row"><span class="lbl">Broken Glass</span><span class="val">${ck(int2.brokenGlass)}</span></div>
-        <div class="row"><span class="lbl">Vermiculite/Asbestos</span><span class="val">${ck(int2.vermiculite)}</span></div>
-        <div class="row"><span class="lbl">Water Leaks</span><span class="val">${ck(int2.waterLeaks)}</span></div>
-        <div class="row"><span class="lbl">Roof Leaks</span><span class="val">${ck(int2.roofLeaks)}</span></div>
-        ${int2.waterLoc?'<div class="row"><span class="lbl">Water Leak Location</span><span class="val">'+int2.waterLoc+'</span></div>':""}
-        ${int2.roofLoc?'<div class="row"><span class="lbl">Roof Leak Location</span><span class="val">'+int2.roofLoc+'</span></div>':""}
-        <div class="row"><span class="lbl">Ceiling Condition</span><span class="val">${int2.ceiling||"—"}</span></div>
-        <div class="row"><span class="lbl">Wall Condition</span><span class="val">${int2.wall||"—"}</span></div>
-        <div class="row"><span class="lbl">Dropped Ceiling</span><span class="val">${ck(int2.droppedCeiling)}</span></div>
-        <div class="row"><span class="lbl">Drywall Repair</span><span class="val">${ck(int2.drywallRepair)}</span></div>
-        <div class="row"><span class="lbl">Recessed Lighting</span><span class="val">${ck(int2.recessedLight)}</span></div>
-        ${int2.recessedLoc?'<div class="row"><span class="lbl">Recessed Loc</span><span class="val">'+int2.recessedLoc+'</span></div>':""}
-        <div class="row"><span class="lbl">CO Detector</span><span class="val">${ck(int2.coDetector)}</span></div>
-        <div class="row"><span class="lbl">Smoke Detector</span><span class="val">${ck(int2.smokeDetector)}</span></div>
-      </div></div>
+    body += '<div class="sec"><h3>Cooling System Info</h3><div class="grid">';
+    body += R("Type",clg.type||"\u2014") + R("Manufacturer",clg.mfg||"\u2014") + R("Install Year",clg.year||"\u2014");
+    body += R("Age",clg.year?(new Date().getFullYear()-Number(clg.year))+" yrs":"\u2014") + R("SEER",clg.seer||"\u2014") + R("Condition",clg.condition||"\u2014");
+    body += R("BTU Size",clg.btu||"\u2014") + R("Replacement Recommended",chk(clg.replaceRec));
+    if(clg.replaceReason) body += R("Reason",clg.replaceReason);
+    body += '</div></div>';
 
-      <div class="sec"><h3>Door Types / Exhaust Venting</h3><div class="grid">
-        <div class="row"><span class="lbl">Front — Existing</span><span class="val">${ck(s.doors?.Front)}</span></div>
-        <div class="row"><span class="lbl">Back — Existing</span><span class="val">${ck(s.doors?.Back)}</span></div>
-        <div class="row"><span class="lbl">Basement — Existing</span><span class="val">${ck(s.doors?.Basement)}</span></div>
-        <div class="row"><span class="lbl">Attic — Existing</span><span class="val">${ck(s.doors?.Attic)}</span></div>
-        <div class="row"><span class="lbl">Strips/Sweeps Needed</span><span class="val">${s.totalSweeps||"—"}</span></div>
-        <div class="row"><span class="lbl">Exhaust Fan Replace</span><span class="val">${ck(exh.fanReplace)}</span></div>
-        <div class="row"><span class="lbl">Bath Fan w/ Light</span><span class="val">${ck(exh.bathFanLight)}</span></div>
-        <div class="row"><span class="lbl">Vent Kit Needed</span><span class="val">${ck(exh.ventKit)}</span></div>
-        <div class="row"><span class="lbl">Termination Cap</span><span class="val">${ck(exh.termCap)}</span></div>
-        <div class="row"><span class="lbl">Dryer Vented Properly</span><span class="val">${ck(exh.dryerProper)}</span></div>
-        <div class="row"><span class="lbl">Dryer Vent Repair</span><span class="val">${ck(exh.dryerRepair)}</span></div>
-        <div class="row"><span class="lbl">BD In</span><span class="val">${exh.bdIn||"—"}</span></div>
-        <div class="row"><span class="lbl">BD Out</span><span class="val">${exh.bdOut||"—"}</span></div>
-        <div class="row"><span class="lbl">No BD (estimated)</span><span class="val">${ck(exh.noBD)}</span></div>
-      </div>${exh.notes?'<p style="color:#333;margin-top:6px">Notes: '+exh.notes+'</p>':""}</div>
+    body += '<div class="sec"><h3>Domestic Hot Water Info</h3><div class="grid">';
+    body += R("Fuel",dhw.fuel||"\u2014") + R("System Type",dhw.system||"\u2014") + R("Manufacturer",dhw.mfg||"\u2014");
+    body += R("Install Year",dhw.year||"\u2014") + R("Age",dhw.year?(new Date().getFullYear()-Number(dhw.year))+" yrs":"\u2014") + R("Condition",dhw.condition||"\u2014");
+    body += R("Input BTU",dhw.btuIn||"\u2014") + R("Insulated Pipes",chk(dhw.insulPipes)) + R("Flue Repair Needed",chk(dhw.flueRepair));
+    body += R("Replacement Recommended",chk(dhw.replaceRec)) + R("Ducts Need Sealing",chk(dhw.ductsSealed));
+    if(dhw.replaceReason) body += R("Reason",dhw.replaceReason);
+    body += '</div></div>';
 
-      <div class="sec"><h3>Attic</h3><div class="grid">
-        <div class="row"><span class="lbl">Finished</span><span class="val">${ck(att.finished)}</span></div>
-        <div class="row"><span class="lbl">Unfinished</span><span class="val">${ck(att.unfinished)}</span></div>
-        <div class="row"><span class="lbl">Flat</span><span class="val">${ck(att.flat)}</span></div>
-        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("attic","sqft")}</span></div>
-        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("attic","preR")}</span></div>
-        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("attic","addR")}</span></div>
-        <div class="row"><span class="lbl">Total R</span><span class="val">${att.preR||att.addR?"R-"+(Number(att.preR||0)+Number(att.addR||0)):"—"}</span></div>
-        <div class="row"><span class="lbl">Recessed Lighting Qty</span><span class="val">${att.recessQty||"—"}</span></div>
-        <div class="row"><span class="lbl">Storage Created</span><span class="val">${att.storage||"—"}</span></div>
-        <div class="row"><span class="lbl">Ductwork Present</span><span class="val">${ck(att.ductwork)}</span></div>
-        <div class="row"><span class="lbl">Floor Boards</span><span class="val">${ck(att.floorBoards)}</span></div>
-        <div class="row"><span class="lbl">Mold Present</span><span class="val">${ck(att.moldPresent)}</span></div>
-        <div class="row"><span class="lbl">Vermiculite Present</span><span class="val">${ck(att.vermPresent)}</span></div>
-        <div class="row"><span class="lbl">Knob & Tube</span><span class="val">${ck(att.knobTube)}</span></div>
-        ${att.ductwork?'<div class="row"><span class="lbl">Duct Condition</span><span class="val">'+(att.condition||"—")+'</span></div><div class="row"><span class="lbl">Ln Ft Air Seal</span><span class="val">'+(att.lnftAirSeal||"—")+'</span></div>':""}
-        <div class="row"><span class="lbl">Existing Ventilation</span><span class="val">${att.existVent||"—"}</span></div>
-        <div class="row"><span class="lbl">Needed Ventilation</span><span class="val">${att.needVent||"—"}</span></div>
-        <div class="row"><span class="lbl">Access Location</span><span class="val">${att.accessLoc||"—"}</span></div>
-      </div>${att.notes?'<p style="color:#333;margin-top:6px">Notes: '+att.notes+'</p>':""}</div>
+    body += '<div class="sec"><h3>Interior Inspection</h3><div class="grid">';
+    body += R("Mold",chk(int2.mold)) + R("Moisture Problems",chk(int2.moisture)) + R("Live Knob & Tube",chk(int2.knobTube)) + R("Electrical Issues",chk(int2.electrical));
+    body += R("Broken Glass",chk(int2.brokenGlass)) + R("Vermiculite/Asbestos",chk(int2.vermiculite)) + R("Water Leaks",chk(int2.waterLeaks)) + R("Roof Leaks",chk(int2.roofLeaks));
+    if(int2.waterLoc) body += R("Water Leak Location",int2.waterLoc);
+    if(int2.roofLoc) body += R("Roof Leak Location",int2.roofLoc);
+    body += R("Ceiling Condition",int2.ceiling||"\u2014") + R("Wall Condition",int2.wall||"\u2014");
+    body += R("Dropped Ceiling",chk(int2.droppedCeiling)) + R("Drywall Repair",chk(int2.drywallRepair)) + R("Recessed Lighting",chk(int2.recessedLight));
+    if(int2.recessedLoc) body += R("Recessed Loc",int2.recessedLoc);
+    body += R("CO Detector",chk(int2.coDetector)) + R("Smoke Detector",chk(int2.smokeDetector));
+    body += '</div></div>';
 
-      <div class="sec"><h3>Collar Beam</h3><div class="grid">
-        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${col.sqft||"—"}</span></div>
-        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${col.preR||"—"}</span></div>
-        <div class="row"><span class="lbl">R to Add</span><span class="val">${col.addR||"—"}</span></div>
-        <div class="row"><span class="lbl">Total R</span><span class="val">${col.preR||col.addR?"R-"+(Number(col.preR||0)+Number(col.addR||0)):"—"}</span></div>
-        <div class="row"><span class="lbl">Accessible</span><span class="val">${ck(col.accessible)}</span></div>
-        <div class="row"><span class="lbl">Cut In Needed</span><span class="val">${ck(col.cutIn)}</span></div>
-        <div class="row"><span class="lbl">Ductwork</span><span class="val">${ck(col.ductwork)}</span></div>
-        ${col.ductwork?'<div class="row"><span class="lbl">Condition</span><span class="val">'+(col.condition||"—")+'</span></div><div class="row"><span class="lbl">Ln Ft Air Seal</span><span class="val">'+(col.lnftAirSeal||"—")+'</span></div>':""}
-      </div></div>
+    body += '<div class="sec"><h3>Door Types / Exhaust Venting</h3><div class="grid">';
+    body += R("Front \u2014 Existing",chk(s.doors?.Front)) + R("Back \u2014 Existing",chk(s.doors?.Back)) + R("Basement \u2014 Existing",chk(s.doors?.Basement)) + R("Attic \u2014 Existing",chk(s.doors?.Attic));
+    body += R("Strips/Sweeps Needed",s.totalSweeps||"\u2014");
+    body += R("Exhaust Fan Replace",chk(exh.fanReplace)) + R("Bath Fan w/ Light",chk(exh.bathFanLight)) + R("Vent Kit Needed",chk(exh.ventKit));
+    body += R("Termination Cap",chk(exh.termCap)) + R("Dryer Vented Properly",chk(exh.dryerProper)) + R("Dryer Vent Repair",chk(exh.dryerRepair));
+    body += R("BD In",exh.bdIn||"\u2014") + R("BD Out",exh.bdOut||"\u2014") + R("No BD (estimated)",chk(exh.noBD));
+    body += '</div>'+(exh.notes?'<p style="color:#333;margin-top:6px">Notes: '+exh.notes+'</p>':"")+'</div>';
 
-      <div class="sec"><h3>Outer Ceiling Joists</h3><div class="grid">
-        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("outerCeiling","sqft")}</span></div>
-        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("outerCeiling","preR")}</span></div>
-        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("outerCeiling","addR")}</span></div>
-        <div class="row"><span class="lbl">Accessible</span><span class="val">${ck(oc.accessible)}</span></div>
-        <div class="row"><span class="lbl">Cut In</span><span class="val">${ck(oc.cutIn)}</span></div>
-        <div class="row"><span class="lbl">Floor Boards</span><span class="val">${ck(oc.floorBoards)}</span></div>
-        <div class="row"><span class="lbl">Ductwork</span><span class="val">${ck(oc.ductwork)}</span></div>
-        ${oc.ductwork?'<div class="row"><span class="lbl">Condition</span><span class="val">'+(oc.condition||"—")+'</span></div><div class="row"><span class="lbl">Ln Ft Air Seal</span><span class="val">'+(oc.lnftAirSeal||"—")+'</span></div>':""}
-      </div></div>
+    body += '<div class="sec"><h3>Attic</h3><div class="grid">';
+    body += R("Finished",chk(att.finished)) + R("Unfinished",chk(att.unfinished)) + R("Flat",chk(att.flat));
+    body += R("Sq Ft",nv("attic","sqft")) + R("Pre-Existing R",nv("attic","preR")) + R("R to Add",nv("attic","addR"));
+    body += R("Total R",(att.preR||att.addR)?"R-"+(Number(att.preR||0)+Number(att.addR||0)):"\u2014");
+    body += R("Recessed Lighting Qty",att.recessQty||"\u2014") + R("Storage Created",att.storage||"\u2014");
+    body += R("Ductwork Present",chk(att.ductwork)) + R("Floor Boards",chk(att.floorBoards)) + R("Mold Present",chk(att.moldPresent));
+    body += R("Vermiculite Present",chk(att.vermPresent)) + R("Knob & Tube",chk(att.knobTube));
+    if(att.ductwork) body += R("Duct Condition",att.condition||"\u2014") + R("Ln Ft Air Seal",att.lnftAirSeal||"\u2014");
+    body += R("Existing Ventilation",att.existVent||"\u2014") + R("Needed Ventilation",att.needVent||"\u2014") + R("Access Location",att.accessLoc||"\u2014");
+    body += '</div>'+(att.notes?'<p style="color:#333;margin-top:6px">Notes: '+att.notes+'</p>':"")+'</div>';
 
-      <div class="sec"><h3>Knee Walls</h3><div class="grid">
-        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("kneeWall","sqft")}</span></div>
-        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("kneeWall","preR")}</span></div>
-        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("kneeWall","addR")}</span></div>
-        <div class="row"><span class="lbl">Dense Pack</span><span class="val">${nyn("kneeWall","densePack")}</span></div>
-        <div class="row"><span class="lbl">Rigid Foam</span><span class="val">${nyn("kneeWall","rigidFoam")}</span></div>
-        <div class="row"><span class="lbl">Tyvek</span><span class="val">${nyn("kneeWall","tyvek")}</span></div>
-        <div class="row"><span class="lbl">Fiberglass Batts</span><span class="val">${nyn("kneeWall","fgBatts")}</span></div>
-        <div class="row"><span class="lbl">Wall Type</span><span class="val">${nv("kneeWall","wallType")}</span></div>
-        ${kw.tyvek?'<div class="row"><span class="lbl">Tyvek Sq Ft</span><span class="val">'+(kw.tyvekSqft||"—")+'</span></div>':""}
-      </div></div>
+    body += '<div class="sec"><h3>Collar Beam</h3><div class="grid">';
+    body += R("Sq Ft",col.sqft||"\u2014") + R("Pre-Existing R",col.preR||"\u2014") + R("R to Add",col.addR||"\u2014");
+    body += R("Total R",(col.preR||col.addR)?"R-"+(Number(col.preR||0)+Number(col.addR||0)):"\u2014");
+    body += R("Accessible",chk(col.accessible)) + R("Cut In Needed",chk(col.cutIn)) + R("Ductwork",chk(col.ductwork));
+    if(col.ductwork) body += R("Condition",col.condition||"\u2014") + R("Ln Ft Air Seal",col.lnftAirSeal||"\u2014");
+    body += '</div></div>';
 
-      <div class="sec"><h3>Exterior Walls — 1st Floor</h3><div class="grid">
-        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("extWall1","sqft")}</span></div>
-        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("extWall1","preR")}</span></div>
-        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("extWall1","addR")}</span></div>
-        <div class="row"><span class="lbl">Window/Door SqFt</span><span class="val">${ew1.sqft ? Math.round(Number(ew1.sqft)*0.16) : "—"}</span></div>
-        <div class="row"><span class="lbl">Net Insulation SqFt</span><span class="val">${ew1.sqft ? Math.round(Number(ew1.sqft)*0.84) : "—"}</span></div>
-        <div class="row"><span class="lbl">Dense Pack</span><span class="val">${nyn("extWall1","densePack")}</span></div>
-        <div class="row"><span class="lbl">Cladding</span><span class="val">${nv("extWall1","cladding")}</span></div>
-        <div class="row"><span class="lbl">Insulate From</span><span class="val">${nv("extWall1","insulFrom")}</span></div>
-        <div class="row"><span class="lbl">Wall Type</span><span class="val">${nv("extWall1","wallType")}</span></div>
-        <div class="row"><span class="lbl">Phenolic Foam</span><span class="val">${nyn("extWall1","phenolic")}</span></div>
-      </div></div>
+    body += '<div class="sec"><h3>Outer Ceiling Joists</h3><div class="grid">';
+    body += R("Sq Ft",nv("outerCeiling","sqft")) + R("Pre-Existing R",nv("outerCeiling","preR")) + R("R to Add",nv("outerCeiling","addR"));
+    body += R("Accessible",chk(oc.accessible)) + R("Cut In",chk(oc.cutIn)) + R("Floor Boards",chk(oc.floorBoards)) + R("Ductwork",chk(oc.ductwork));
+    if(oc.ductwork) body += R("Condition",oc.condition||"\u2014") + R("Ln Ft Air Seal",oc.lnftAirSeal||"\u2014");
+    body += '</div></div>';
 
-      <div class="sec"><h3>Exterior Walls — 2nd Floor</h3><div class="grid">
-        <div class="row"><span class="lbl">Sq Ft</span><span class="val">${nv("extWall2","sqft")}</span></div>
-        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("extWall2","preR")}</span></div>
-        <div class="row"><span class="lbl">R to Add</span><span class="val">${nv("extWall2","addR")}</span></div>
-        <div class="row"><span class="lbl">Window/Door SqFt</span><span class="val">${ew2.sqft ? Math.round(Number(ew2.sqft)*0.14) : "—"}</span></div>
-        <div class="row"><span class="lbl">Net Insulation SqFt</span><span class="val">${ew2.sqft ? Math.round(Number(ew2.sqft)*0.86) : "—"}</span></div>
-        <div class="row"><span class="lbl">Dense Pack</span><span class="val">${nyn("extWall2","densePack")}</span></div>
-        <div class="row"><span class="lbl">Cladding</span><span class="val">${nv("extWall2","cladding")}</span></div>
-      </div></div>
+    body += '<div class="sec"><h3>Knee Walls</h3><div class="grid">';
+    body += R("Sq Ft",nv("kneeWall","sqft")) + R("Pre-Existing R",nv("kneeWall","preR")) + R("R to Add",nv("kneeWall","addR"));
+    body += R("Dense Pack",nyn("kneeWall","densePack")) + R("Rigid Foam",nyn("kneeWall","rigidFoam")) + R("Tyvek",nyn("kneeWall","tyvek"));
+    body += R("Fiberglass Batts",nyn("kneeWall","fgBatts")) + R("Wall Type",nv("kneeWall","wallType"));
+    if(kw.tyvek) body += R("Tyvek Sq Ft",kw.tyvekSqft||"\u2014");
+    body += '</div></div>';
 
-      <div class="sec"><h3>Foundation / Crawl</h3><div class="grid">
-        <div class="row"><span class="lbl">Type</span><span class="val">${nv("fnd","type")}</span></div>
-        <div class="row"><span class="lbl">Above Grade SqFt</span><span class="val">${nv("fnd","aboveSqft")}</span></div>
-        <div class="row"><span class="lbl">Below Grade SqFt</span><span class="val">${nv("fnd","belowSqft")}</span></div>
-        <div class="row"><span class="lbl">Pre-Existing R</span><span class="val">${nv("fnd","preR")}</span></div>
-        <div class="row"><span class="lbl">Insulation Type</span><span class="val">${nv("fnd","insulType")}</span></div>
-        <div class="row"><span class="lbl">Band Joist Access</span><span class="val">${ck(fnd.bandAccess)}</span></div>
-        <div class="row"><span class="lbl">Band Joist LnFt</span><span class="val">${nv("fnd","bandLnft")}</span></div>
-        <div class="row"><span class="lbl">Band Joist R</span><span class="val">${fnd.bandR||"—"}</span></div>
-        <div class="row"><span class="lbl">Band Insulation</span><span class="val">${fnd.bandInsul||"—"}</span></div>
-        <div class="row"><span class="lbl">Vented</span><span class="val">${ck(fnd.vented)}</span></div>
-        <div class="row"><span class="lbl">Vapor Barrier</span><span class="val">${nyn("fnd","vaporBarrier")}</span></div>
-        <div class="row"><span class="lbl">Water Issues</span><span class="val">${nyn("fnd","waterIssues")}</span></div>
-        <div class="row"><span class="lbl">Crawl Ductwork</span><span class="val">${ck(fnd.crawlDuct)}</span></div>
-        <div class="row"><span class="lbl">Crawl Floor</span><span class="val">${fnd.crawlFloor||"—"}</span></div>
-        ${fnd.vented?'<div class="row"><span class="lbl"># of Vents</span><span class="val">'+(fnd.ventCount||"—")+'</span></div>':""}
-        ${fnd.vaporBarrier?'<div class="row"><span class="lbl">Barrier SqFt</span><span class="val">'+(fnd.barrierSqft||"—")+'</span></div>':""}
-        <div class="row"><span class="lbl">Crawl Above SqFt</span><span class="val">${fnd.crawlAbove||"—"}</span></div>
-        <div class="row"><span class="lbl">Crawl Below SqFt</span><span class="val">${fnd.crawlBelow||"—"}</span></div>
-        <div class="row"><span class="lbl">Crawl Pre-Existing R</span><span class="val">${fnd.crawlR||"—"}</span></div>
-        <div class="row"><span class="lbl">Crawl Band Access</span><span class="val">${ck(fnd.crawlBandAccess)}</span></div>
-        ${fnd.crawlBandAccess?'<div class="row"><span class="lbl">Crawl Band LnFt</span><span class="val">'+(fnd.crawlBandLnft||"—")+'</span></div><div class="row"><span class="lbl">Crawl Band R</span><span class="val">'+(fnd.crawlBandR||"—")+'</span></div>':""}
-      </div></div>
+    body += '<div class="sec"><h3>Exterior Walls \u2014 1st Floor</h3><div class="grid">';
+    body += R("Sq Ft",nv("extWall1","sqft")) + R("Pre-Existing R",nv("extWall1","preR")) + R("R to Add",nv("extWall1","addR"));
+    body += R("Window/Door SqFt",ew1.sqft?Math.round(Number(ew1.sqft)*0.16):"\u2014") + R("Net Insulation SqFt",ew1.sqft?Math.round(Number(ew1.sqft)*0.84):"\u2014");
+    body += R("Dense Pack",nyn("extWall1","densePack")) + R("Cladding",nv("extWall1","cladding")) + R("Insulate From",nv("extWall1","insulFrom"));
+    body += R("Wall Type",nv("extWall1","wallType")) + R("Phenolic Foam",nyn("extWall1","phenolic"));
+    body += '</div></div>';
 
-      <div class="sec"><h3>Diagnostics</h3><div class="grid">
-        <div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"—"}</span></div>
-        <div class="row"><span class="lbl">Ext Temp</span><span class="val">${v("extTemp")}</span></div>
-        <div class="row"><span class="lbl">BD Location</span><span class="val">${p.bdLoc||"—"}</span></div>
-      </div>${s.diagNotes?'<p style="color:#333;margin-top:6px">Notes: '+s.diagNotes+'</p>':""}</div>
+    body += '<div class="sec"><h3>Exterior Walls \u2014 2nd Floor</h3><div class="grid">';
+    body += R("Sq Ft",nv("extWall2","sqft")) + R("Pre-Existing R",nv("extWall2","preR")) + R("R to Add",nv("extWall2","addR"));
+    body += R("Window/Door SqFt",ew2.sqft?Math.round(Number(ew2.sqft)*0.14):"\u2014") + R("Net Insulation SqFt",ew2.sqft?Math.round(Number(ew2.sqft)*0.86):"\u2014");
+    body += R("Dense Pack",nyn("extWall2","densePack")) + R("Cladding",nv("extWall2","cladding"));
+    body += '</div></div>';
 
-      <div class="sec"><h3>ASHRAE 62.2-2016 Ventilation</h3>
-        <p style="font-size:9px;color:#999;margin:0 0 6px">Existing · Detached · Infiltration credit: Yes · Alt. compliance: Yes · wsf = 0.56 (Chicago Midway AP)</p>
-        ${(()=>{
-          const a2=p.audit||{};const baseSq=Number(p.sqft)||0;const finBsmt=s.fnd?.type==="Finished"?(Number(s.fnd?.aboveSqft)||0)+(Number(s.fnd?.belowSqft)||0):0;const sq=baseSq+finBsmt;const oc2=(Number(s.bedrooms)||0)+1;const c50=Number(p.preCFM50)||0;
-          const st2=Number(p.stories)||1;const hh=st2>=2?16:st2>=1.5?14:8;const wsf2=0.56;const hr=8.202;
-          const kRw=String(s.ashrae?.kitchenCFM??a2.kitchenFan??"");const b1Rw=String(s.ashrae?.bath1CFM??a2.bathFan1??"");
-          const b2Rw=String(s.ashrae?.bath2CFM??a2.bathFan2??"");const b3Rw=String(s.ashrae?.bath3CFM??a2.bathFan3??"");
-          const kP=kRw.trim()!=="";const b1P=b1Rw.trim()!=="";const b2P=b2Rw.trim()!=="";const b3P=b3Rw.trim()!=="";
-          const kC=Number(kRw)||0;const b1c=Number(b1Rw)||0;const b2c=Number(b2Rw)||0;const b3c=Number(b3Rw)||0;
-          const kW=s.ashrae?.kWin;const b1W=s.ashrae?.b1Win;const b2W=s.ashrae?.b2Win;const b3W=s.ashrae?.b3Win;
-          const NL2=sq>0&&c50>0?c50/(17.8*sq)*Math.sqrt(hr/hh):0;
-          const qi=c50>0?c50*wsf2*Math.pow(hh/hr,0.25)/17.8:0;
-          const qt=sq>0&&oc2>0?0.03*sq+7.5*oc2:0;
-          const kD=kP?(kW?0:Math.max(0,100-kC)):0;const b1D=b1P?(b1W?0:Math.max(0,50-b1c)):0;
-          const b2D=b2P?(b2W?0:Math.max(0,50-b2c)):0;const b3D=b3P?(b3W?0:Math.max(0,50-b3c)):0;
-          const td=kD+b1D+b2D+b3D;const supp=td*0.25;
-          const qf=Math.max(0,qt+supp-qi);
-          const R=v2=>Math.round(v2*100)/100;
-          const fan=Number(s.ashrae?.fanSetting)||0;const minHr=fan>0?R(qf/fan*60):0;
-          return `<div class="grid">
-            <div class="row"><span class="lbl">Floor area${finBsmt>0?" (incl. fin. bsmt)":""}</span><span class="val">${sq} ft²</span></div>
-            <div class="row"><span class="lbl">Occupants (Nbr = beds+1)</span><span class="val">${oc2}</span></div>
-            <div class="row"><span class="lbl">Dwelling height</span><span class="val">${hh} ft (${st2>=2?"2":st2>=1.5?"1.5":"1"}-story)</span></div>
-            <div class="row"><span class="lbl">Leakage @ 50Pa</span><span class="val">${c50} CFM</span></div>
-            <div class="row"><span class="lbl">Kitchen fan${kP?"":" (none)"}</span><span class="val">${kP?kC+" CFM":"—"} ${kW?"(window)":""} ${kP?"(req 100)":""}</span></div>
-            <div class="row"><span class="lbl">Bath #1${b1P?"":" (none)"}</span><span class="val">${b1P?b1c+" CFM":"—"} ${b1W?"(window)":""} ${b1P?"(req 50)":""}</span></div>
-            <div class="row"><span class="lbl">Bath #2${b2P?"":" (none)"}</span><span class="val">${b2P?b2c+" CFM":"—"} ${b2W?"(window)":""} ${b2P?"(req 50)":""}</span></div>
-            <div class="row"><span class="lbl">Bath #3${b3P?"":" (none)"}</span><span class="val">${b3P?b3c+" CFM":"—"} ${b3W?"(window)":""} ${b3P?"(req 50)":""}</span></div>
-            <div class="row"><span class="lbl">Total deficit (intermittent)</span><span class="val">${Math.round(td)} CFM</span></div>
-          </div>
-          <div style="margin-top:8px;padding:8px;background:#f0f0ff;border-radius:4px">
-            <div style="font-weight:700;font-size:11px;color:#4338ca;margin-bottom:4px">Dwelling-Unit Ventilation Results</div>
-            <div class="row"><span class="lbl">Eff. annual avg infiltration</span><span class="val">${R(qi)} CFM</span></div>
-            <div class="row"><span class="lbl">Qtot = 0.03×${sq} + 7.5×${oc2}</span><span class="val">${R(qt)} CFM</span></div>
-            <div class="row"><span class="lbl">Alt. compliance supplement = ${Math.round(td)}×0.25</span><span class="val">${R(supp)} CFM</span></div>
-            <div class="row"><span class="lbl">Infiltration credit (full, existing)</span><span class="val">${R(qi)} CFM</span></div>
-            <div class="row" style="border-top:2px solid #4338ca;padding-top:4px;margin-top:4px">
-              <span style="font-weight:700">Qfan = ${R(qt)} + ${R(supp)} − ${R(qi)}</span>
-              <span style="font-weight:700;color:#4338ca;font-size:14px">${R(qf)} CFM</span>
-            </div>
-            ${fan>0?`<div class="row"><span class="lbl">Fan setting: ${fan} CFM · Run-time: ${minHr} min/hr (continuous = 60)</span></div>`:""}
-          </div>`;
-        })()}</div>
+    body += '<div class="sec"><h3>Foundation / Crawl</h3><div class="grid">';
+    body += R("Type",nv("fnd","type")) + R("Above Grade SqFt",nv("fnd","aboveSqft")) + R("Below Grade SqFt",nv("fnd","belowSqft"));
+    body += R("Pre-Existing R",nv("fnd","preR")) + R("Insulation Type",nv("fnd","insulType"));
+    body += R("Band Joist Access",chk(fnd.bandAccess)) + R("Band Joist LnFt",nv("fnd","bandLnft")) + R("Band Joist R",fnd.bandR||"\u2014") + R("Band Insulation",fnd.bandInsul||"\u2014");
+    body += R("Vented",chk(fnd.vented)) + R("Vapor Barrier",nyn("fnd","vaporBarrier")) + R("Water Issues",nyn("fnd","waterIssues"));
+    body += R("Crawl Ductwork",chk(fnd.crawlDuct)) + R("Crawl Floor",fnd.crawlFloor||"\u2014");
+    if(fnd.vented) body += R("# of Vents",fnd.ventCount||"\u2014");
+    if(fnd.vaporBarrier) body += R("Barrier SqFt",fnd.barrierSqft||"\u2014");
+    body += R("Crawl Above SqFt",fnd.crawlAbove||"\u2014") + R("Crawl Below SqFt",fnd.crawlBelow||"\u2014") + R("Crawl Pre-Existing R",fnd.crawlR||"\u2014");
+    body += R("Crawl Band Access",chk(fnd.crawlBandAccess));
+    if(fnd.crawlBandAccess) body += R("Crawl Band LnFt",fnd.crawlBandLnft||"\u2014") + R("Crawl Band R",fnd.crawlBandR||"\u2014");
+    body += '</div></div>';
 
-      <div class="sec"><h3>Measures — Energy Efficiency</h3>${measTable}</div>
-      <div class="sec"><h3>Measures — Health & Safety</h3>${hsTable}</div>
-      <div class="sec"><h3>Insulation Quantities</h3><div class="grid">
-        ${["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].map(m=>`<div class="row"><span class="lbl">${m}</span><span class="val">${s.insulQty?.[m]||"—"} ${m.includes("Rim Joist")?"LnFt":"SqFt"}</span></div>`).join("")}
-      </div></div>
-      <div class="sec"><h3>Notes on Work</h3><p style="color:#333">${p.measureNotes||"—"}</p></div>
-      <div class="sec"><h3>Notes on Health & Safety</h3><p style="color:#333">${s.hsNotes||"—"}</p></div>`;
+    body += '<div class="sec"><h3>Diagnostics</h3><div class="grid">';
+    body += R("Pre CFM50",p.preCFM50||"\u2014") + R("Ext Temp",v("extTemp")) + R("BD Location",p.bdLoc||"\u2014");
+    body += '</div>'+(s.diagNotes?'<p style="color:#333;margin-top:6px">Notes: '+s.diagNotes+'</p>':"")+'</div>';
+
+    body += '<div class="sec"><h3>ASHRAE 62.2-2016 Ventilation</h3>';
+    body += '<p style="font-size:9px;color:#999;margin:0 0 6px">Existing \u00b7 Detached \u00b7 Infiltration credit: Yes \u00b7 Alt. compliance: Yes \u00b7 wsf = 0.56</p>';
+    body += ashraeHTML;
+    body += '</div>';
+
+    body += '<div class="sec"><h3>Measures \u2014 Energy Efficiency</h3>' + measTable + '</div>';
+    body += '<div class="sec"><h3>Measures \u2014 Health & Safety</h3>' + hsTable + '</div>';
+
+    body += '<div class="sec"><h3>Insulation Quantities</h3><div class="grid">';
+    ["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].forEach(function(m) { body += R(m, (s.insulQty?.[m]||"\u2014") + " " + (m.includes("Rim Joist")?"LnFt":"SqFt")); });
+    body += '</div></div>';
+
+    body += '<div class="sec"><h3>Notes on Work</h3><p style="color:#333">'+(p.measureNotes||"\u2014")+'</p></div>';
+    body += '<div class="sec"><h3>Notes on Health & Safety</h3><p style="color:#333">'+(s.hsNotes||"\u2014")+'</p></div>';
+
+
 
     const html = `<!DOCTYPE html><html><head><title>HEA/IE Retrofit Form — ${p.customerName}</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:11px}h1{font-size:16px;border-bottom:2px solid #333;padding-bottom:6px}h2{font-size:11px;color:#666;margin-bottom:12px}.sec{margin-bottom:10px;border:1px solid #ddd;border-radius:5px;padding:8px}.sec h3{font-size:12px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:3px}.row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}</style></head><body>
-      <h1>2026 HEA / IE Retrofit Form</h1><h2>${p.customerName} · ${p.address} · RISE: ${p.riseId||"—"} · ${new Date().toLocaleDateString()}</h2>${body}</body></html>`;
+      <h1>2026 HEA / IE Retrofit Form</h1><h2>${p.customerName} · ${p.address} · RISE: ${p.riseId||"—"} · ${new Date().toLocaleDateString()}</h2><p style="font-size:9px;color:#dc2626;margin:0 0 8px;font-weight:bold">v4 FULL — 23 sections · scope2026 keys: ${Object.keys(s).length} · htg keys: ${Object.keys(htg).length}</p>${body}</body></html>`;
     return html;
   };
 
