@@ -567,206 +567,268 @@ export default function App() {
   };
 
 const exportProjectForms = async (proj) => {
-    if (typeof JSZip === "undefined" || typeof html2pdf === "undefined") { alert("Libraries not loaded — refresh and try again"); return; }
+    if (typeof JSZip === "undefined" || typeof jspdf === "undefined") { alert("Libraries not loaded — refresh"); return; }
     const zip = new window.JSZip();
     const nm = (proj.customerName||"unnamed").replace(/[^a-zA-Z0-9]/g,"_");
     const p = proj;
 
-    // Full-screen overlay hides app during generation
+    // Status
     const overlay = document.createElement("div");
-    overlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:#0f172a;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-family:Arial;color:#e2e8f0";
-    overlay.innerHTML = '<div style="font-size:16px;font-weight:bold">Generating PDFs…</div><div id="pdf-step" style="font-size:13px;color:#94a3b8">Preparing…</div>';
+    overlay.style.cssText = "position:fixed;inset:0;background:#0f172a;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-family:Arial;color:#e2e8f0";
+    overlay.innerHTML = '<div style="font-size:16px;font-weight:bold">Generating PDFs…</div><div id="pdf-step" style="font-size:13px;color:#94a3b8"></div>';
     document.body.appendChild(overlay);
     const stepEl = overlay.querySelector("#pdf-step");
 
-    const toPDF = async (htmlContent) => {
-      // Hide React app, render content as only visible element
-      const root = document.getElementById("root");
-      root.style.display = "none";
-      const el = document.createElement("div");
-      el.innerHTML = htmlContent;
-      el.style.cssText = "position:absolute;top:0;left:0;width:816px;padding:20px 28px;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.4;box-sizing:border-box";
-      document.body.style.background = "#fff";
-      document.body.appendChild(el);
-      window.scrollTo(0, 0);
-      await new Promise(r => setTimeout(r, 600));
-      const blob = await html2pdf().set({
-        margin: [0.25, 0.25, 0.25, 0.25],
-        image: { type:"jpeg", quality:0.98 },
-        html2canvas: { scale:2, width:816, windowWidth:816, x:0, y:0, scrollX:0, scrollY:0, useCORS:true, logging:false },
-        jsPDF: { unit:"in", format:"letter", orientation:"portrait" },
-        pagebreak: { mode:["avoid-all","css","legacy"] }
-      }).from(el).outputPdf("blob");
-      document.body.removeChild(el);
-      document.body.style.background = "";
-      root.style.display = "";
-      return blob;
-    };
+    // Pure jsPDF text-based PDF builder — no html2canvas
+    const { jsPDF } = window.jspdf;
 
-    // Styles shared by all forms (same as working print templates)
-    const S2 = `<style>
-*{box-sizing:border-box;margin:0;padding:0}
-h1{font-size:17px;font-weight:bold;border-bottom:2px solid #333;padding-bottom:6px;margin-bottom:4px}
-h2{font-size:11px;color:#555;margin-bottom:14px;font-weight:normal}
-.sec{margin-bottom:10px;border:1px solid #ccc;border-radius:5px;padding:8px 10px}
-.sec h3{font-size:12px;font-weight:bold;margin:0 0 5px;border-bottom:1px solid #ddd;padding-bottom:3px}
-.row{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;border-bottom:1px solid #f0f0f0;font-size:11px;gap:8px}
-.row:last-child{border-bottom:none}
-.lbl{color:#444;flex:1}
-.val{font-weight:600;text-align:right;flex-shrink:0}
-.pass{color:#16a34a;font-weight:bold}
-.fail{color:#dc2626;font-weight:bold}
-.na{color:#888}
-table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px}
-th,td{border:1px solid #ccc;padding:3px 6px;text-align:left}
-th{background:#f0f0f0;font-weight:bold}
-</style>`;
+    function buildPDF(title, sections) {
+      const doc = new jsPDF({ unit:"pt", format:"letter" });
+      const W = 612, H = 792, ML = 40, MR = 40, MT = 40, MB = 40;
+      const CW = W - ML - MR; // content width
+      let y = MT;
+      const black = [0,0,0], gray = [100,100,100], green = [22,163,74], red = [220,38,38], ltgray = [180,180,180];
 
-    const hdr = (title) => `${S2}<h1>${title}</h1><h2>${p.customerName||""} &middot; ${p.address||""} &middot; ${new Date().toLocaleDateString()}</h2>`;
-    const sigBlock = (sig) => sig ? `<div style="margin-top:16px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:9px;color:#666">Signature:</p><img src="${sig}" style="max-width:250px;height:55px;object-fit:contain"/></div>` : "";
+      const checkPage = (need) => { if (y + need > H - MB) { doc.addPage(); y = MT; } };
+
+      // Title
+      doc.setFontSize(16); doc.setFont("helvetica","bold"); doc.setTextColor(...black);
+      doc.text(title, ML, y + 14); y += 20;
+      doc.setDrawColor(...black); doc.setLineWidth(1.5); doc.line(ML, y, W - MR, y); y += 6;
+
+      // Sub
+      doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(...gray);
+      doc.text((p.customerName||"") + " · " + (p.address||"") + " · " + new Date().toLocaleDateString(), ML, y + 9); y += 18;
+
+      sections.forEach(sec => {
+        checkPage(40);
+        // Section header
+        doc.setFontSize(11); doc.setFont("helvetica","bold"); doc.setTextColor(...black);
+        doc.text(sec.title, ML, y + 11); y += 14;
+        doc.setDrawColor(...ltgray); doc.setLineWidth(0.5); doc.line(ML, y, W - MR, y); y += 6;
+
+        if (sec.table) {
+          // Table with columns
+          const cols = sec.table.cols;
+          const rows = sec.table.rows;
+          const colW = cols.map(c => c.w || (CW / cols.length));
+          // Header row
+          checkPage(18);
+          doc.setFillColor(235, 235, 235);
+          doc.rect(ML, y, CW, 16, "F");
+          doc.setFontSize(8); doc.setFont("helvetica","bold"); doc.setTextColor(...black);
+          let cx = ML;
+          cols.forEach((c, ci) => { doc.text(c.label, cx + 3, y + 11, { maxWidth: colW[ci] - 6 }); cx += colW[ci]; });
+          y += 16;
+          // Data rows
+          doc.setFont("helvetica","normal"); doc.setFontSize(8);
+          rows.forEach(row => {
+            checkPage(16);
+            cx = ML;
+            row.forEach((cell, ci) => {
+              const txt = String(cell.t || cell || "—");
+              if (cell.c === "g") doc.setTextColor(...green);
+              else if (cell.c === "r") doc.setTextColor(...red);
+              else doc.setTextColor(...black);
+              doc.text(txt, cx + 3, y + 10, { maxWidth: colW[ci] - 6 });
+              cx += colW[ci];
+            });
+            doc.setDrawColor(240, 240, 240); doc.line(ML, y + 14, W - MR, y + 14);
+            y += 15;
+          });
+          y += 4;
+        }
+
+        if (sec.rows) {
+          doc.setFontSize(9);
+          sec.rows.forEach(row => {
+            checkPage(16);
+            doc.setFont("helvetica","normal"); doc.setTextColor(...gray);
+            const lbl = String(row[0] || "");
+            const val = String(row[1] || "—");
+            doc.text(lbl, ML, y + 10, { maxWidth: CW * 0.55 });
+            // Color
+            if (row[2] === "g") doc.setTextColor(...green);
+            else if (row[2] === "r") doc.setTextColor(...red);
+            else { doc.setFont("helvetica","bold"); doc.setTextColor(...black); }
+            doc.text(val, W - MR, y + 10, { align: "right", maxWidth: CW * 0.42 });
+            doc.setDrawColor(245, 245, 245); doc.line(ML, y + 14, W - MR, y + 14);
+            y += 15;
+          });
+          y += 4;
+        }
+
+        if (sec.text) {
+          checkPage(20);
+          doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(...gray);
+          const lines = doc.splitTextToSize(sec.text, CW);
+          lines.forEach(line => { checkPage(12); doc.text(line, ML, y + 10); y += 12; });
+          y += 4;
+        }
+
+        if (sec.sig) {
+          checkPage(60);
+          doc.setDrawColor(...ltgray); doc.line(ML, y, ML + 200, y);
+          doc.setFontSize(8); doc.setTextColor(...gray); doc.text("Signature (digitally signed)", ML, y + 10);
+          y += 16;
+        }
+      });
+
+      return doc.output("blob");
+    }
 
     try {
       const a = p.audit || {};
       const fi = p.qaqc?.fi || {};
       const q = p.qaqc || {};
 
-      // 1. Customer Authorization
+      // 1. Customer Auth — use image overlay approach with jsPDF addImage
       stepEl.textContent = "1/6 Customer Authorization…";
       if (a.customerAuthSig) {
-        const dt = a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : "";
-        zip.file(nm+"_customer_auth.pdf", await toPDF(`<style>*{margin:0;padding:0;box-sizing:border-box}img.pg{width:100%;display:block}.ov{position:absolute;display:flex;align-items:center;overflow:hidden}</style>
-<div style="position:relative"><img class="pg" src="/auth-form-page1.jpg"/>
-<div class="ov" style="top:43.4%;left:41.5%;width:52%;height:1.4%"><img src="${a.customerAuthSig}" style="height:100%;width:auto;object-fit:contain"/></div>
-<div class="ov" style="top:45%;left:41.5%;width:52%;height:1.4%"><span style="font-size:9px;font-weight:bold">${a.customerAuthName||p.customerName||""}</span></div>
-<div class="ov" style="top:46.6%;left:41.5%;width:52%;height:1.4%"><span style="font-size:9px">${dt}</span></div>
-<div class="ov" style="top:48.2%;left:41.5%;width:52%;height:1.4%"><span style="font-size:9px">${p.address||""}</span></div>
-</div><div style="page-break-before:always"></div><img class="pg" src="/auth-form-page2.jpg"/>`));
+        // For auth form, load the page images and overlay sig
+        const loadImg = (src) => new Promise((res, rej) => {
+          const img = new Image(); img.crossOrigin = "anonymous";
+          img.onload = () => { const c = document.createElement("canvas"); c.width = img.width; c.height = img.height; c.getContext("2d").drawImage(img, 0, 0); res(c.toDataURL("image/jpeg", 0.92)); };
+          img.onerror = rej; img.src = src;
+        });
+        try {
+          const pg1 = await loadImg("/auth-form-page1.jpg");
+          const pg2 = await loadImg("/auth-form-page2.jpg");
+          const adoc = new jsPDF({ unit:"pt", format:"letter" });
+          adoc.addImage(pg1, "JPEG", 0, 0, 612, 792);
+          // Overlay signature data
+          if (a.customerAuthSig) {
+            adoc.addImage(a.customerAuthSig, "PNG", 260, 340, 160, 14);
+            adoc.setFontSize(7); adoc.setFont("helvetica","bold");
+            adoc.text(a.customerAuthName||p.customerName||"", 260, 365);
+            const authDt = a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : "";
+            adoc.setFont("helvetica","normal"); adoc.text(authDt, 260, 377);
+            adoc.text(p.address||"", 260, 389);
+          }
+          adoc.addPage();
+          adoc.addImage(pg2, "JPEG", 0, 0, 612, 792);
+          zip.file(nm+"_customer_auth.pdf", adoc.output("blob"));
+        } catch(e) { console.warn("Auth form images not available", e); }
       }
 
       // 2. Assessment
       stepEl.textContent = "2/6 Assessment…";
-      let ab = hdr("Data Collection Tool — Assessment");
-      ab += '<div class="sec"><h3>Project Info</h3>';
-      [["RISE ID",p.riseId],["Stage",STAGES[p.currentStage]?.label],["Bedrooms",a.bedrooms],["Bathrooms",a.bathrooms],["Year Built",a.yearBuilt||p.yearBuilt],["Sq Ft",a.sqft||p.sqft],["Stories",a.stories]].forEach(([l,v])=>{ab+='<div class="row"><span class="lbl">'+l+'</span><span class="val">'+(v||"—")+'</span></div>';});
-      ab += '</div><div class="sec"><h3>Blower Door</h3>';
-      ab += '<div class="row"><span class="lbl">Pre CFM50</span><span class="val">'+(p.preCFM50||"—")+'</span></div>';
-      ab += '<div class="row"><span class="lbl">Post CFM50</span><span class="val">'+(p.postCFM50||"—")+'</span></div></div>';
-      ab += '<div class="sec"><h3>CAZ Testing</h3>';
-      [["Ambient CO",a.ambientCO],["Heat Spillage",a.heatSpill],["WH Spillage",a.whSpill],["Heating CO",a.heatCO],["WH CO",a.whCO],["Oven CO",a.ovenCO]].forEach(([l,v])=>{if(v)ab+='<div class="row"><span class="lbl">'+l+'</span><span class="val">'+v+'</span></div>';});
-      ab += '</div>' + sigBlock(a.assessorSig);
-      zip.file(nm+"_assessment.pdf", await toPDF(ab));
+      zip.file(nm+"_assessment.pdf", buildPDF("Data Collection Tool — Assessment", [
+        { title: "Project Info", rows: [
+          ["RISE ID", p.riseId], ["Stage", STAGES[p.currentStage]?.label],
+          ["Bedrooms", a.bedrooms], ["Bathrooms", a.bathrooms],
+          ["Year Built", a.yearBuilt||p.yearBuilt], ["Sq Ft", a.sqft||p.sqft], ["Stories", a.stories]
+        ]},
+        { title: "Blower Door", rows: [["Pre CFM50", p.preCFM50], ["Post CFM50", p.postCFM50]] },
+        { title: "CAZ Testing", rows: [
+          ["Ambient CO", a.ambientCO], ["Heat Spillage", a.heatSpill], ["WH Spillage", a.whSpill],
+          ["Heating CO", a.heatCO], ["WH CO", a.whCO], ["Oven CO", a.ovenCO]
+        ].filter(r => r[1]) },
+        ...(a.assessorSig ? [{ title: "Assessor", sig: true }] : [])
+      ]));
 
       // 3. Scope
-      stepEl.textContent = "3/6 Scope of Work…";
+      stepEl.textContent = "3/6 Scope…";
       if (p.measures?.length || p.healthSafety?.length) {
-        let sb = hdr("Scope of Work");
-        if (p.measures?.length) {
-          sb += '<div class="sec"><h3>Energy Efficiency Measures ('+p.measures.length+')</h3>';
-          sb += "<table><tr><th>Measure</th><th>Qty</th></tr>";
-          p.measures.forEach(m=>{sb+="<tr><td>"+m.name+"</td><td>"+(m.qty||1)+"</td></tr>";});
-          sb += "</table></div>";
-        }
-        if (p.healthSafety?.length) {
-          sb += '<div class="sec"><h3>Health &amp; Safety ('+p.healthSafety.length+')</h3>';
-          sb += "<table><tr><th>Measure</th><th>Qty</th></tr>";
-          p.healthSafety.forEach(m=>{sb+="<tr><td>"+m.name+"</td><td>"+(m.qty||1)+"</td></tr>";});
-          sb += "</table></div>";
-        }
-        sb += '<div class="sec"><h3>Approvals</h3>';
-        sb += '<div class="row"><span class="lbl">Scope Approved</span><span class="'+(p.scopeApproved?"pass":"na")+'">'+(p.scopeApproved?"Yes":"No")+'</span></div>';
-        sb += '<div class="row"><span class="lbl">RISE Status</span><span class="val">'+(p.riseStatus||"—")+'</span></div></div>';
-        zip.file(nm+"_scope.pdf", await toPDF(sb));
+        const secs = [];
+        if (p.measures?.length) secs.push({ title: "Energy Efficiency Measures ("+p.measures.length+")", table: {
+          cols: [{label:"Measure",w:380},{label:"Qty",w:60},{label:"Cost",w:92}],
+          rows: p.measures.map(m => [m.name, m.qty||1, m.cost?"$"+m.cost:"—"])
+        }});
+        if (p.healthSafety?.length) secs.push({ title: "Health & Safety ("+p.healthSafety.length+")", table: {
+          cols: [{label:"Measure",w:432},{label:"Qty",w:100}],
+          rows: p.healthSafety.map(m => [m.name, m.qty||1])
+        }});
+        secs.push({ title: "Approvals", rows: [
+          ["Scope Approved", p.scopeApproved?"Yes":"No", p.scopeApproved?"g":"r"],
+          ["RISE Status", p.riseStatus||"—"]
+        ]});
+        zip.file(nm+"_scope.pdf", buildPDF("Scope of Work", secs));
       }
 
       // 4. Final Inspection
       stepEl.textContent = "4/6 Final Inspection…";
       {
-        let fb = hdr("Home Energy Savings – Retrofits Final Inspection Form");
-        fb += '<div class="sec"><h3>Inspection Info</h3>';
-        [["Homeowner name",p.customerName],["Home address",p.address],["Date of final inspection",fi.date],["Installation Contractor",fi.contractor||"Assured Energy Solutions"]].forEach(([l,v])=>{fb+='<div class="row"><span class="lbl">'+l+'</span><span class="val">'+(v||"—")+'</span></div>';});
-        fb += '</div>';
-        fb += '<div class="sec"><h3>Health &amp; Safety</h3>';
-        fb += "<table><tr><th>Item</th><th>Reading</th><th>Pass/Fail</th><th>Follow-up</th></tr>";
-        FI_SAFETY.forEach(item=>{const d=fi[item.k]||{};const pf=d.pf==="P"?"Pass":d.pf==="F"?"Fail":"N/A";const fu=d.fu==="Y"?"Yes":d.fu==="N"?"No":"N/A";fb+="<tr><td>"+(item.sub?"&emsp;":"")+item.l+"</td><td>"+(d.reading?(d.reading+" "+(item.u||"")):(d.yn||"—"))+"</td><td>"+pf+"</td><td>"+fu+"</td></tr>";});
-        fb += "</table>";
-        fb += '<div class="row"><span class="lbl">Smoke detectors installed</span><span class="val">'+(fi.smokeQty||"—")+'</span></div>';
-        fb += '<div class="row"><span class="lbl">CO detectors installed</span><span class="val">'+(fi.coQty||"—")+'</span></div>';
-        fb += '<div class="row"><span class="lbl">Required ventilation (ASHRAE 62.2)</span><span class="val">'+(fi.ventCFM||"—")+' CFM</span></div>';
-        fb += '<div class="row"><span class="lbl">New exhaust fan installed?</span><span class="val">'+(fi.newFan||"—")+'</span></div>';
-        fb += '<div class="row"><span class="lbl">All H&amp;S issues addressed?</span><span class="'+(fi.hsAddressed==="Yes"?"pass":"fail")+'">'+(fi.hsAddressed||"—")+'</span></div>';
-        if(fi.hsWhyNot)fb+='<div class="row"><span class="lbl">If no, why not</span><span class="val">'+fi.hsWhyNot+'</span></div>';
-        fb += '</div>';
-
-        fb += '<div class="sec"><h3>Insulation</h3>';
-        fb += "<table><tr><th>Area</th><th>Pre R-value</th><th>Post R-value</th><th>Insulated?</th></tr>";
-        FI_INSUL.forEach(ins=>{const d=fi[ins.k]||{};fb+="<tr><td><b>"+ins.l+"</b></td><td>"+(d.preR||"—")+"</td><td>"+(d.postR||"—")+"</td><td>"+(d.done||"—")+"</td></tr>";});
-        fb += "</table></div>";
-
-        fb += '<div class="sec"><h3>Combustion Appliances — Space Heating and DHW</h3>';
-        fb += "<table><tr><th>#</th><th>Equipment Type</th><th>Vent Type</th><th>Replaced?</th><th>Follow-up?</th></tr>";
-        [1,2,3].forEach(n=>{const d=fi["equip"+n]||{};fb+="<tr><td>"+n+"</td><td>"+(d.type||"—")+"</td><td>"+(d.vent||"—")+"</td><td>"+(d.replaced||"—")+"</td><td>"+(d.fu||"—")+"</td></tr>";});
-        fb += "</table></div>";
-
-        fb += '<div class="sec"><h3>Blower Door</h3>';
-        fb += '<div class="row"><span class="lbl">Pre CFM50</span><span class="val">'+(p.preCFM50||"—")+'</span></div>';
-        fb += '<div class="row"><span class="lbl">Post CFM50</span><span class="val">'+(p.postCFM50||"—")+'</span></div></div>';
-
-        fb += '<div class="sec"><h3>Duct Sealing – Duct Blaster</h3>';
-        fb += '<div class="row"><span class="lbl">Pre CFM25</span><span class="val">'+(fi.preCFM25||"—")+'</span></div>';
-        fb += '<div class="row"><span class="lbl">Post CFM25</span><span class="val">'+(fi.postCFM25||"—")+'</span></div></div>';
-
-        fb += '<div class="sec"><h3>Direct Installs</h3>';
-        fb += '<div class="row"><span class="lbl">New thermostat installed?</span><span class="val">'+(fi.thermostat||"—")+'</span></div></div>';
-
-        fb += '<div class="sec"><h3>Follow-up Needed</h3><p style="font-size:11px">'+(fi.followUpNA?"N/A":(fi.followUp||"None"))+'</p></div>';
-        fb += '<div class="sec"><h3>Contractor Checklist</h3>';
-        FI_CONTRACTOR_CK.forEach(ck=>{fb+='<div class="row"><span class="lbl">'+ck+'</span><span class="val">'+(fi.ck?.[ck]?"☑":"☐")+'</span></div>';});
-        fb += '</div>';
-        fb += sigBlock(fi.inspectorSig);
-        zip.file(nm+"_final_inspection.pdf", await toPDF(fb));
+        const secs = [];
+        secs.push({ title: "Inspection Info", rows: [
+          ["Homeowner name", p.customerName], ["Home address", p.address],
+          ["Date of final inspection", fi.date], ["Installation Contractor", fi.contractor||"Assured Energy Solutions"]
+        ]});
+        secs.push({ title: "Health & Safety", table: {
+          cols: [{label:"Item",w:240},{label:"Reading",w:80},{label:"Pass/Fail",w:60},{label:"Follow-up",w:60}],
+          rows: FI_SAFETY.map(item => {
+            const d = fi[item.k]||{};
+            return [
+              (item.sub?"   ":"")+item.l,
+              d.reading ? d.reading+" "+(item.u||"") : (d.yn||"—"),
+              { t: d.pf==="P"?"Pass":d.pf==="F"?"Fail":"N/A", c: d.pf==="P"?"g":d.pf==="F"?"r":"" },
+              d.fu==="Y"?"Yes":d.fu==="N"?"No":"N/A"
+            ];
+          })
+        }});
+        secs.push({ title: "Detectors & Ventilation", rows: [
+          ["Smoke detectors installed", fi.smokeQty||"—"],
+          ["CO detectors installed", fi.coQty||"—"],
+          ["Required ventilation ASHRAE 62.2", (fi.ventCFM||"—")+" CFM"],
+          ["New exhaust fan installed?", fi.newFan||"—"],
+          ["All H&S issues addressed?", fi.hsAddressed||"—", fi.hsAddressed==="Yes"?"g":"r"],
+          ...(fi.hsWhyNot ? [["If no, why not", fi.hsWhyNot]] : [])
+        ]});
+        secs.push({ title: "Insulation", table: {
+          cols: [{label:"Area",w:170},{label:"Pre R-value",w:90},{label:"Post R-value",w:90},{label:"Insulated?",w:90}],
+          rows: FI_INSUL.map(ins => { const d=fi[ins.k]||{}; return [ins.l, d.preR||"—", d.postR||"—", d.done||"—"]; })
+        }});
+        secs.push({ title: "Combustion Appliances — Space Heating and DHW", table: {
+          cols: [{label:"#",w:25},{label:"Equipment Type",w:180},{label:"Vent Type",w:120},{label:"Replaced?",w:70},{label:"Follow-up?",w:70}],
+          rows: [1,2,3].map(n => { const d=fi["equip"+n]||{}; return [String(n), d.type||"—", d.vent||"—", d.replaced||"—", d.fu||"—"]; })
+        }});
+        secs.push({ title: "Blower Door", rows: [["Pre CFM50", p.preCFM50||"—"], ["Post CFM50", p.postCFM50||"—"]] });
+        secs.push({ title: "Duct Sealing – Duct Blaster", rows: [["Pre CFM25", fi.preCFM25||"—"], ["Post CFM25", fi.postCFM25||"—"]] });
+        secs.push({ title: "Direct Installs", rows: [["New thermostat installed?", fi.thermostat||"—"]] });
+        secs.push({ title: "Follow-up Needed", text: fi.followUpNA?"N/A":(fi.followUp||"None") });
+        secs.push({ title: "Contractor Checklist", rows: FI_CONTRACTOR_CK.map(ck => [ck, fi.ck?.[ck]?"☑ Done":"☐", fi.ck?.[ck]?"g":""]) });
+        if (fi.inspectorSig) secs.push({ title: "Inspector", sig: true });
+        zip.file(nm+"_final_inspection.pdf", buildPDF("Home Energy Savings – Retrofits Final Inspection Form", secs));
       }
 
-      // 5. QAQC Observation
-      stepEl.textContent = "5/6 QAQC Observation…";
+      // 5. QAQC
+      stepEl.textContent = "5/6 QAQC…";
       {
-        let qb = hdr("QAQC Observation Form");
-        qb += '<div class="sec"><h3>Inspection Info</h3>';
-        qb += '<div class="row"><span class="lbl">Date</span><span class="val">'+(q.date||"—")+'</span></div>';
-        qb += '<div class="row"><span class="lbl">Inspector</span><span class="val">'+(q.inspector||"—")+'</span></div></div>';
-        Object.entries(QAQC_SECTIONS).forEach(([cat,items])=>{
-          qb += '<div class="sec"><h3>'+cat+'</h3>';
-          items.forEach((item,i)=>{const r=q.results?.[cat+"-"+i]||{};const cls=r.v==="Y"?"pass":r.v==="N"?"fail":"na";qb+='<div class="row"><span class="lbl">'+(i+1)+'. '+item+'</span><span class="'+cls+'">'+(r.v||"—")+(r.c?" — "+r.c:"")+'</span></div>';});
-          qb += '</div>';
+        const secs = [{ title: "Inspection Info", rows: [["Date", q.date||"—"], ["Inspector", q.inspector||"—"]] }];
+        Object.entries(QAQC_SECTIONS).forEach(([cat, items]) => {
+          secs.push({ title: cat, rows: items.map((item, i) => {
+            const r = q.results?.[cat+"-"+i]||{};
+            return [(i+1)+". "+item, (r.v||"—")+(r.c?" — "+r.c:""), r.v==="Y"?"g":r.v==="N"?"r":""];
+          })});
         });
-        qb += '<div class="sec"><h3>Overall Result</h3>';
-        qb += '<div class="row"><span class="lbl">Result</span><span class="'+(q.passed===true?"pass":"fail")+'">'+(q.passed===true?"PASS":q.passed===false?"FAIL":"—")+'</span></div>';
-        if(q.notes)qb+='<p style="font-size:11px;color:#555;margin-top:6px">'+q.notes+'</p>';
-        qb += '</div>';
-        qb += sigBlock(q.inspectorSig);
-        zip.file(nm+"_qaqc_observation.pdf", await toPDF(qb));
+        secs.push({ title: "Overall Result", rows: [
+          ["Result", q.passed===true?"PASS":q.passed===false?"FAIL":"—", q.passed===true?"g":"r"],
+          ...(q.notes ? [["Notes", q.notes]] : [])
+        ]});
+        if (q.inspectorSig) secs.push({ title: "Inspector", sig: true });
+        zip.file(nm+"_qaqc_observation.pdf", buildPDF("QAQC Observation Form", secs));
       }
 
       // 6. Activity Log
       stepEl.textContent = "6/6 Activity Log…";
       if (p.activityLog?.length) {
-        let lb = hdr("Activity Log");
-        lb += '<div class="sec"><h3>'+p.activityLog.length+' Entries</h3>';
-        p.activityLog.slice(0,100).forEach(l=>{lb+='<div class="row"><span class="lbl">'+new Date(l.ts).toLocaleString()+" — "+l.by+'</span><span class="val">'+l.txt+'</span></div>';});
-        lb += '</div>';
-        zip.file(nm+"_activity_log.pdf", await toPDF(lb));
+        zip.file(nm+"_activity_log.pdf", buildPDF("Activity Log", [
+          { title: p.activityLog.length + " Entries", rows:
+            p.activityLog.slice(0,100).map(l => [new Date(l.ts).toLocaleString()+" — "+l.by, l.txt])
+          }
+        ]));
       }
 
       stepEl.textContent = "Compressing ZIP…";
       const blob = await zip.generateAsync({type:"blob"});
       const url = URL.createObjectURL(blob);
-      const dl = document.createElement("a");
-      dl.href = url; dl.download = nm+"_forms.zip";
+      const dl = document.createElement("a"); dl.href = url; dl.download = nm+"_forms.zip";
       dl.click(); URL.revokeObjectURL(url);
     } catch(err) { alert("Error: "+err.message); console.error(err); }
     document.body.removeChild(overlay);
   };
 
-      if (!curUser) return (
+        if (!curUser) return (
     <div style={S.app}>{globalCSS}
       <div style={S.rpWrap}>
         <div style={{textAlign:"center",marginBottom:24}}>
