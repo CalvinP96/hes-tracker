@@ -1856,7 +1856,6 @@ function ScopeTab({p,u,onLog}) {
   }, []);
 
   const getScopeHTML = () => {
-    console.log("getScopeHTML v4 FULL", {scopeKeys: Object.keys(s), htgKeys: Object.keys(s.htg||{}), clgKeys: Object.keys(s.clg||{}), dhwKeys: Object.keys(s.dhw||{})});
     const yn = v => v===true?"Yes":v===false?"No":"—";
     const v = k => s[k]||"—";
     const nv = (sec,k) => s[sec]?.[k]||"—";
@@ -1866,7 +1865,7 @@ function ScopeTab({p,u,onLog}) {
     const measTable = p.measures.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#f0fdf4;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.measures.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:3px 6px;border:1px solid #ddd">${measUnit(m)}</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
     const hsTable = p.healthSafety.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#fffbeb;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.healthSafety.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:3px 6px;border:1px solid #ddd">ea</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
 
-    const chk = b => b===true?"☑":b===false?"☐":"—";
+    const ck = b => b===true?"☑":b===false?"☐":"—";
     const htg = s.htg||{}; const clg = s.clg||{}; const dhw = s.dhw||{};
     const int2 = s.int||{}; const exh = s.exh||{}; const att = s.attic||{};
     const col = s.collar||{}; const oc = s.outerCeiling||{}; const kw = s.kneeWall||{};
