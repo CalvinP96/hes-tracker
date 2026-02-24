@@ -548,12 +548,6 @@ function printScope(p, s) {
   });
   if (!(p.healthSafety || []).length) h += "<div style='color:#999;font-size:11px;padding:4px 0'>None selected</div>";
 
-  sec("Insulation Quantities");
-  ["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].forEach(function(m) {
-    var q = s.insulQty && s.insulQty[m] ? s.insulQty[m] : null;
-    row(m, q ? q + " " + (m.indexOf("Rim Joist") >= 0 ? "LnFt" : "SqFt") : null);
-  });
-
   sec("Notes");
   row("Work Notes", p.measureNotes);
   row("H&S Notes", s.hsNotes);
@@ -1116,17 +1110,7 @@ const exportProjectForms = async (proj) => {
         }});
 
         // Insulation quantities
-        secs.push({ title: "Insulation Quantities", rows:
-          ["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].map(function(m) {
-            var q2 = s2.insulQty?.[m]; return [m, q2?(q2+" "+(m.indexOf("Rim Joist")>=0?"LnFt":"SqFt")):null];
-          })
-        });
-
         secs.push({ title: "Notes", rows: [["Work Notes", p.measureNotes], ["H&S Notes", s2.hsNotes]] });
-        secs.push({ title: "Approvals", rows: [
-          ["Scope Approved", p.scopeApproved?"Yes":"No", p.scopeApproved?"g":"r"],
-          ["RISE Status", p.riseStatus||"\u2014"]
-        ]});
 
         zip.file(nm+"_scope.pdf", buildPDF("2026 HEA/IE Retrofit Form \u2014 Scope of Work", secs));
       }
