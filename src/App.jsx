@@ -1132,7 +1132,7 @@ function AuditTab({p,u,onLog,user}) {
         </div>
         {/* Sign / Re-sign after both pages */}
         {!a.customerAuthSig && <div style={{marginTop:8}}>
-          <SigPad label="Customer Signature" value={a.customerAuthSig||""} onChange={v=>{sa("customerAuthSig",v);if(v&&!a.authDate)sa("authDate",new Date().toISOString());}}/>
+          <SigPad label="Customer Signature" value={a.customerAuthSig||""} onChange={v=>{u({audit:{...a,customerAuthSig:v,...(v&&!a.authDate?{authDate:new Date().toISOString()}:{})}});}}/>
         </div>}
         {a.customerAuthSig && <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
           <button style={{...S.btn,padding:"8px 16px",fontSize:12}} onClick={()=>{
