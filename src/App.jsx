@@ -347,6 +347,231 @@ function savePrint(html) {
   });
 }
 
+function printScope(p, s) {
+  var h = "";
+  var htg = s.htg || {};
+  var clg = s.clg || {};
+  var dhw = s.dhw || {};
+  var int2 = s.int || {};
+  var exh = s.exh || {};
+  var att = s.attic || {};
+  var col = s.collar || {};
+  var oCJ = s.outerCeiling || {};
+  var kw = s.kneeWall || {};
+  var ew1 = s.extWall1 || {};
+  var ew2 = s.extWall2 || {};
+  var fnd = s.fnd || {};
+  var a = p.audit || {};
+  var yr = new Date().getFullYear();
+
+  function V(x) { return (x != null && x !== "") ? String(x) : "\u2014"; }
+  function YN(x) { return x === true ? "Yes" : x === false ? "No" : "\u2014"; }
+  function CK(x) { return x === true ? "\u2611" : x === false ? "\u2610" : "\u2014"; }
+  function sec(title) { h += "<div style='margin:8px 0 4px;font-weight:bold;font-size:13px;border-bottom:2px solid #333;padding-bottom:2px'>" + title + "</div>"; }
+  function row(label, val) { h += "<div style='display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #eee;font-size:11px'><span style='color:#555'>" + label + "</span><span style='font-weight:600'>" + V(val) + "</span></div>"; }
+
+  var afue = (htg.btuIn && htg.btuOut) ? (Number(htg.btuOut) / Number(htg.btuIn) * 100).toFixed(1) + "%" : "\u2014";
+
+  sec("Customer Information");
+  row("Customer", p.customerName); row("Address", p.address); row("RISE ID", p.riseId);
+  row("Sq Ft", p.sqft); row("Volume", Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() + " ft\u00b3" : null);
+  row("Stories", p.stories); row("Bedrooms", s.bedrooms); row("Year Built", p.yearBuilt);
+  row("Home Age", p.yearBuilt ? (yr - Number(p.yearBuilt)) + " yrs" : null); row("Occupants", p.occupants);
+
+  sec("Building Property Type");
+  row("Style", s.style); row("Tenant Type", s.tenantType);
+  row("Gutters Exist", CK(s.gutterExist)); row("Downspouts", CK(s.downspouts)); row("Gutter Repairs", CK(s.gutterRepair));
+  row("Roof Condition", s.roofCondition); row("Roof Type", s.roofType); row("Roof Age", s.roofAge); row("Roof Repairs", CK(s.roofRepair));
+
+  sec("Interior Conditions");
+  row("Ceiling Condition", s.ceilingCond); row("Wall Condition", s.wallCond); row("Walls Need Insulation", s.wallsNeedInsul);
+
+  sec("Smoke / CO / Weatherization");
+  row("Smoke \u2014 present", s.smokePresent); row("Smoke \u2014 to install", s.smokeNeeded);
+  row("CO \u2014 present", s.coPresent); row("CO \u2014 to install", s.coNeeded);
+  row("Tenmats Needed", s.tenmats); row("Door Sweeps Needed", s.doorSweeps);
+
+  sec("Heating System Info");
+  row("Thermostat", htg.thermostat); row("Fuel Type", htg.fuel); row("System Type", htg.system); row("Flue Condition", htg.flue);
+  row("Manufacturer", htg.mfg); row("Install Year", htg.year);
+  row("Age", htg.year ? (yr - Number(htg.year)) + " yrs" : null); row("Condition", htg.condition);
+  row("BTU Input", htg.btuIn); row("BTU Output", htg.btuOut); row("AFUE", afue); row("Draft", htg.draft);
+  row("Gas Shut Off", CK(htg.gasShutoff)); row("Asbestos Pipes", CK(htg.asbestosPipes));
+  row("Replacement Rec", CK(htg.replaceRec)); row("Clean & Tune", CK(htg.cleanTune || htg.cleanTuneOverride));
+  if (htg.notes) row("Notes", htg.notes);
+
+  sec("Cooling System Info");
+  row("Type", clg.type); row("Manufacturer", clg.mfg); row("Install Year", clg.year);
+  row("Age", clg.year ? (yr - Number(clg.year)) + " yrs" : null);
+  row("SEER", clg.seer); row("Condition", clg.condition); row("BTU Size", clg.btu);
+  row("Replacement Rec", CK(clg.replaceRec));
+  if (clg.replaceReason) row("Reason", clg.replaceReason);
+
+  sec("Domestic Hot Water");
+  row("Fuel", dhw.fuel); row("System Type", dhw.system); row("Manufacturer", dhw.mfg);
+  row("Install Year", dhw.year); row("Age", dhw.year ? (yr - Number(dhw.year)) + " yrs" : null);
+  row("Condition", dhw.condition); row("Input BTU", dhw.btuIn);
+  row("Insulated Pipes", CK(dhw.insulPipes)); row("Flue Repair", CK(dhw.flueRepair));
+  row("Replacement Rec", CK(dhw.replaceRec)); row("Ducts Need Sealing", CK(dhw.ductsSealed));
+
+  sec("Interior Inspection");
+  row("Mold", CK(int2.mold)); row("Moisture", CK(int2.moisture)); row("Knob & Tube", CK(int2.knobTube));
+  row("Electrical Issues", CK(int2.electrical)); row("Broken Glass", CK(int2.brokenGlass));
+  row("Vermiculite/Asbestos", CK(int2.vermiculite)); row("Water Leaks", CK(int2.waterLeaks));
+  row("Roof Leaks", CK(int2.roofLeaks));
+  if (int2.waterLoc) row("Water Leak Loc", int2.waterLoc);
+  if (int2.roofLoc) row("Roof Leak Loc", int2.roofLoc);
+  row("Ceiling Cond", int2.ceiling); row("Wall Cond", int2.wall);
+  row("Dropped Ceiling", CK(int2.droppedCeiling)); row("Drywall Repair", CK(int2.drywallRepair));
+  row("Recessed Lighting", CK(int2.recessedLight)); row("CO Detector", CK(int2.coDetector));
+  row("Smoke Detector", CK(int2.smokeDetector));
+
+  sec("Door Types / Exhaust");
+  row("Front \u2014 Existing", CK(s.doors && s.doors.Front)); row("Back \u2014 Existing", CK(s.doors && s.doors.Back));
+  row("Basement \u2014 Existing", CK(s.doors && s.doors.Basement)); row("Attic \u2014 Existing", CK(s.doors && s.doors.Attic));
+  row("Strips/Sweeps Needed", s.totalSweeps);
+  row("Exhaust Fan Replace", CK(exh.fanReplace)); row("Bath Fan w/ Light", CK(exh.bathFanLight));
+  row("Vent Kit", CK(exh.ventKit)); row("Term Cap", CK(exh.termCap));
+  row("Dryer Vented Properly", CK(exh.dryerProper)); row("Dryer Vent Repair", CK(exh.dryerRepair));
+  row("BD In", exh.bdIn); row("BD Out", exh.bdOut); row("No BD (estimated)", CK(exh.noBD));
+  if (exh.notes) row("Notes", exh.notes);
+
+  sec("Attic");
+  row("Finished", CK(att.finished)); row("Unfinished", CK(att.unfinished)); row("Flat", CK(att.flat));
+  row("Sq Ft", att.sqft); row("Pre-Existing R", att.preR); row("R to Add", att.addR);
+  row("Total R", (att.preR || att.addR) ? "R-" + (Number(att.preR||0) + Number(att.addR||0)) : null);
+  row("Recessed Qty", att.recessQty); row("Storage", att.storage);
+  row("Ductwork", CK(att.ductwork)); row("Floor Boards", CK(att.floorBoards));
+  row("Mold", CK(att.moldPresent)); row("Vermiculite", CK(att.vermPresent)); row("Knob & Tube", CK(att.knobTube));
+  if (att.ductwork) { row("Duct Condition", att.condition); row("Ln Ft Air Seal", att.lnftAirSeal); }
+  row("Existing Ventilation", att.existVent); row("Needed Ventilation", att.needVent); row("Access Location", att.accessLoc);
+  if (att.notes) row("Attic Notes", att.notes);
+
+  sec("Collar Beam");
+  row("Sq Ft", col.sqft); row("Pre-Existing R", col.preR); row("R to Add", col.addR);
+  row("Accessible", CK(col.accessible)); row("Cut In", CK(col.cutIn)); row("Ductwork", CK(col.ductwork));
+
+  sec("Outer Ceiling Joists");
+  row("Sq Ft", oCJ.sqft); row("Pre-Existing R", oCJ.preR); row("R to Add", oCJ.addR);
+  row("Accessible", CK(oCJ.accessible)); row("Cut In", CK(oCJ.cutIn)); row("Floor Boards", CK(oCJ.floorBoards));
+  row("Ductwork", CK(oCJ.ductwork));
+
+  sec("Knee Walls");
+  row("Sq Ft", kw.sqft); row("Pre-Existing R", kw.preR); row("R to Add", kw.addR);
+  row("Dense Pack", YN(kw.densePack)); row("Rigid Foam", YN(kw.rigidFoam)); row("Tyvek", YN(kw.tyvek));
+  row("FG Batts", YN(kw.fgBatts)); row("Wall Type", kw.wallType);
+
+  sec("Exterior Walls \u2014 1st Floor");
+  row("Sq Ft", ew1.sqft); row("Pre-Existing R", ew1.preR); row("R to Add", ew1.addR);
+  row("Win/Door SqFt", ew1.sqft ? Math.round(Number(ew1.sqft) * 0.16) : null);
+  row("Net Insul SqFt", ew1.sqft ? Math.round(Number(ew1.sqft) * 0.84) : null);
+  row("Dense Pack", YN(ew1.densePack)); row("Cladding", ew1.cladding);
+  row("Insulate From", ew1.insulFrom); row("Wall Type", ew1.wallType); row("Phenolic Foam", YN(ew1.phenolic));
+
+  sec("Exterior Walls \u2014 2nd Floor");
+  row("Sq Ft", ew2.sqft); row("Pre-Existing R", ew2.preR); row("R to Add", ew2.addR);
+  row("Dense Pack", YN(ew2.densePack)); row("Cladding", ew2.cladding);
+
+  sec("Foundation / Crawl");
+  row("Type", fnd.type); row("Above Grade SqFt", fnd.aboveSqft); row("Below Grade SqFt", fnd.belowSqft);
+  row("Pre-Existing R", fnd.preR); row("Insulation Type", fnd.insulType);
+  row("Band Joist Access", CK(fnd.bandAccess)); row("Band LnFt", fnd.bandLnft);
+  row("Band R", fnd.bandR); row("Band Insulation", fnd.bandInsul);
+  row("Vented", CK(fnd.vented)); row("Vapor Barrier", YN(fnd.vaporBarrier)); row("Water Issues", YN(fnd.waterIssues));
+  row("Crawl Ductwork", CK(fnd.crawlDuct)); row("Crawl Floor", fnd.crawlFloor);
+  row("Crawl Above SqFt", fnd.crawlAbove); row("Crawl Below SqFt", fnd.crawlBelow);
+  row("Crawl R", fnd.crawlR); row("Crawl Band Access", CK(fnd.crawlBandAccess));
+
+  sec("Diagnostics");
+  row("Pre CFM50", p.preCFM50); row("Ext Temp", s.extTemp); row("BD Location", p.bdLoc);
+  if (s.diagNotes) row("Notes", s.diagNotes);
+
+  // ASHRAE 62.2 calc
+  sec("ASHRAE 62.2-2016 Ventilation");
+  var baseSq = Number(p.sqft) || 0;
+  var finBsmt = (fnd.type === "Finished") ? (Number(fnd.aboveSqft)||0) + (Number(fnd.belowSqft)||0) : 0;
+  var sq = baseSq + finBsmt;
+  var Nbr = (Number(s.bedrooms) || 0) + 1;
+  var Q50 = Number(p.preCFM50) || 0;
+  var st = Number(p.stories) || 1;
+  var H2 = st >= 2 ? 16 : st >= 1.5 ? 14 : 8;
+  var wsf = 0.56;
+  var Hr = 8.202;
+  var ash = s.ashrae || {};
+  var kCFM = Number(ash.kitchenCFM || a.kitchenFan || 0);
+  var b1CFM = Number(ash.bath1CFM || a.bathFan1 || 0);
+  var b2CFM = Number(ash.bath2CFM || a.bathFan2 || 0);
+  var b3CFM = Number(ash.bath3CFM || a.bathFan3 || 0);
+  var kWin = ash.kWin; var b1Win = ash.b1Win; var b2Win = ash.b2Win; var b3Win = ash.b3Win;
+  var qi2 = Q50 > 0 ? Q50 * wsf * Math.pow(H2/Hr, 0.25) / 17.8 : 0;
+  var qt2 = (sq > 0 && Nbr > 0) ? 0.03 * sq + 7.5 * Nbr : 0;
+  var kD = kCFM > 0 ? (kWin ? 0 : Math.max(0, 100 - kCFM)) : 0;
+  var b1D = b1CFM > 0 ? (b1Win ? 0 : Math.max(0, 50 - b1CFM)) : 0;
+  var b2D = b2CFM > 0 ? (b2Win ? 0 : Math.max(0, 50 - b2CFM)) : 0;
+  var b3D = b3CFM > 0 ? (b3Win ? 0 : Math.max(0, 50 - b3CFM)) : 0;
+  var totalDef = kD + b1D + b2D + b3D;
+  var supp = totalDef * 0.25;
+  var qf = Math.max(0, qt2 + supp - qi2);
+  var RND = function(x) { return Math.round(x * 100) / 100; };
+  var fanSet = Number(ash.fanSetting) || 0;
+  var minHr = fanSet > 0 ? RND(qf / fanSet * 60) : 0;
+
+  row("Floor Area", sq + " ft\u00b2" + (finBsmt > 0 ? " (incl fin bsmt)" : ""));
+  row("Occupants (beds+1)", Nbr);
+  row("Height", H2 + " ft"); row("Leakage @50Pa", Q50 + " CFM");
+  row("Kitchen Fan", kCFM > 0 ? kCFM + " CFM" + (kWin ? " (window)" : "") : null);
+  row("Bath #1", b1CFM > 0 ? b1CFM + " CFM" + (b1Win ? " (window)" : "") : null);
+  row("Bath #2", b2CFM > 0 ? b2CFM + " CFM" + (b2Win ? " (window)" : "") : null);
+  row("Bath #3", b3CFM > 0 ? b3CFM + " CFM" + (b3Win ? " (window)" : "") : null);
+  row("Total Deficit (intermittent)", Math.round(totalDef) + " CFM");
+  h += "<div style='margin:6px 0;padding:6px;background:#f0f0ff;border:1px solid #c7d2fe;border-radius:4px;font-size:11px'>";
+  h += "<div style='font-weight:700;color:#4338ca;margin-bottom:4px'>Ventilation Results</div>";
+  row("Infiltration Credit (qi)", RND(qi2) + " CFM");
+  row("Qtot (0.03\u00d7" + sq + " + 7.5\u00d7" + Nbr + ")", RND(qt2) + " CFM");
+  row("Supplement (" + Math.round(totalDef) + "\u00d70.25)", RND(supp) + " CFM");
+  h += "<div style='border-top:2px solid #4338ca;padding-top:4px;margin-top:4px;display:flex;justify-content:space-between'>";
+  h += "<span style='font-weight:700'>Qfan = " + RND(qt2) + " + " + RND(supp) + " \u2212 " + RND(qi2) + "</span>";
+  h += "<span style='font-weight:700;color:#4338ca;font-size:14px'>" + RND(qf) + " CFM</span></div>";
+  if (fanSet > 0) row("Fan: " + fanSet + " CFM", "Run-time: " + minHr + " min/hr");
+  h += "</div>";
+
+  // Measures
+  sec("Measures \u2014 Energy Efficiency (" + (p.measures || []).length + ")");
+  (p.measures || []).forEach(function(m) {
+    row(m, (getResolvedQty(p, m) || "\u2014") + " " + measUnit(m));
+  });
+  if (!(p.measures || []).length) h += "<div style='color:#999;font-size:11px;padding:4px 0'>None selected</div>";
+
+  sec("Measures \u2014 Health & Safety (" + (p.healthSafety || []).length + ")");
+  (p.healthSafety || []).forEach(function(m) {
+    row(m, (getResolvedQty(p, m) || "\u2014") + " ea");
+  });
+  if (!(p.healthSafety || []).length) h += "<div style='color:#999;font-size:11px;padding:4px 0'>None selected</div>";
+
+  sec("Insulation Quantities");
+  ["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].forEach(function(m) {
+    var q = s.insulQty && s.insulQty[m] ? s.insulQty[m] : null;
+    row(m, q ? q + " " + (m.indexOf("Rim Joist") >= 0 ? "LnFt" : "SqFt") : null);
+  });
+
+  sec("Notes");
+  row("Work Notes", p.measureNotes);
+  row("H&S Notes", s.hsNotes);
+
+  // Build final document
+  var css = "@page{margin:.3in} *{box-sizing:border-box} body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:12px;color:#000;background:#fff}";
+  var title = "2026 HEA / IE Retrofit Form";
+  var sub = (p.customerName || "") + " \u00b7 " + (p.address || "") + " \u00b7 RISE: " + (p.riseId || "\u2014") + " \u00b7 " + new Date().toLocaleDateString();
+  var doc = "<html><head><style>" + css + "</style></head><body>";
+  doc += "<div style='font-size:16px;font-weight:bold;border-bottom:2px solid #333;padding-bottom:6px;margin-bottom:4px'>" + title + "</div>";
+  doc += "<div style='font-size:11px;color:#666;margin-bottom:2px'>" + sub + "</div>";
+  doc += "<div style='font-size:8px;color:#f00;margin-bottom:8px'>PRINT V6 \u2014 23 sections \u2014 " + new Date().toLocaleTimeString() + "</div>";
+  doc += h;
+  doc += "</body></html>";
+
+  savePrint(doc);
+}
+
 function photoPageHTML(title, photos, items, p) {
   const rows = items.filter(i => hasPhoto(photos,i.id)).map(i => {
     return getPhotos(photos, i.id).map((ph,idx) => `<div style="break-inside:avoid;margin-bottom:12px;border:1px solid #ddd;border-radius:6px;overflow:hidden">
@@ -2076,65 +2301,7 @@ function ScopeTab({p,u,onLog}) {
               const conf = confirm("Re-fill empty scope fields from assessment data?");
               if(conf){setFilled(false);}
             }}>↻ Sync from Assessment</button>
-            <PrintBtn onClick={()=>{
-              const el = document.getElementById("scope-print-content");
-              if(!el) return alert("Cannot find scope content");
-              const clone = el.cloneNode(true);
-              // Bake current values into the clone's HTML attributes
-              const origInputs = el.querySelectorAll("input,select,textarea");
-              const cloneInputs = clone.querySelectorAll("input,select,textarea");
-              origInputs.forEach((orig,i) => {
-                const cl = cloneInputs[i];
-                if(!cl) return;
-                if(orig.tagName==="SELECT") {
-                  // Replace select with its display value
-                  const span = document.createElement("span");
-                  span.textContent = orig.options[orig.selectedIndex]?.text || orig.value || "—";
-                  span.style.cssText = "font-weight:600;color:#000";
-                  cl.replaceWith(span);
-                } else if(orig.tagName==="TEXTAREA") {
-                  const span = document.createElement("span");
-                  span.textContent = orig.value || "—";
-                  span.style.cssText = "white-space:pre-wrap;color:#333";
-                  cl.replaceWith(span);
-                } else if(orig.type==="checkbox") {
-                  const span = document.createElement("span");
-                  span.textContent = orig.checked ? "☑" : "☐";
-                  span.style.cssText = "font-size:14px";
-                  cl.replaceWith(span);
-                } else {
-                  // text/number input — replace with value text
-                  const span = document.createElement("span");
-                  span.textContent = orig.value || "—";
-                  span.style.cssText = "font-weight:600;color:#000";
-                  cl.replaceWith(span);
-                }
-              });
-              // Remove buttons
-              clone.querySelectorAll("button").forEach(n=>n.remove());
-              const html = `<!DOCTYPE html><html><head><title>HEA/IE Retrofit Form — ${p.customerName}</title>
-<style>
-@page{margin:.3in}
-*{box-sizing:border-box}
-body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:12px;font-size:11px;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff!important}
-div,span,p,label,h3,h4{color:#000!important}
-div[style*="background"]{background:#fff!important;border:1px solid #ddd!important}
-div[style*="rgb(15"]{background:#fff!important}
-div[style*="rgb(30"]{background:#f9f9f9!important}
-div[style*="rgb(51"]{background:#f5f5f5!important}
-span[style*="color: rgb(148"]{color:#666!important}
-span[style*="color: rgb(129"]{color:#555!important}
-span[style*="color: rgb(226"]{color:#333!important}
-span[style*="color: rgb(165"]{color:#333!important}
-div[style*="border-color"]{border-color:#ddd!important}
-svg{display:none!important}
-</style></head><body>
-<div style="font-size:16px;font-weight:bold;border-bottom:2px solid #333;padding-bottom:6px;margin-bottom:4px">2026 HEA / IE Retrofit Form</div>
-<div style="font-size:11px;color:#666;margin-bottom:12px">${p.customerName} · ${p.address} · RISE: ${p.riseId||"—"} · ${new Date().toLocaleDateString()}</div>
-${clone.innerHTML}
-</body></html>`;
-              savePrint(html);
-            }}/>
+            <PrintBtn onClick={()=>printScope(p,s)}/>
           </div>
         </div>
         {!filled && <div style={{fontSize:10,color:"#22c55e",marginTop:4}}>✓ Auto-filled empty fields from assessment data</div>}
