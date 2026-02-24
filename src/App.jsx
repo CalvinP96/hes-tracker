@@ -566,110 +566,207 @@ export default function App() {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const exportProjectForms = async (proj) => {
+const exportProjectForms = async (proj) => {
     if (typeof JSZip === "undefined" || typeof html2pdf === "undefined") { alert("Libraries not loaded — refresh and try again"); return; }
     const zip = new window.JSZip();
-    const name = (proj.customerName||"unnamed").replace(/[^a-zA-Z0-9]/g,"_");
-    const css = `<style>body{font-family:Arial,sans-serif;max-width:760px;margin:0 auto;padding:16px;font-size:12px;color:#000}h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px}h2{font-size:12px;color:#666;margin-bottom:16px}.sec{margin-bottom:12px;border:1px solid #ddd;border-radius:6px;padding:10px}.sec h3{font-size:13px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:4px}.row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f0f0f0}.lbl{color:#555}.val{font-weight:600}.pass{color:#16a34a;font-weight:600}.fail{color:#dc2626;font-weight:600}.na{color:#999}</style>`;
+    const nm = (proj.customerName||"unnamed").replace(/[^a-zA-Z0-9]/g,"_");
+    const p = proj;
 
-    const toPDF = async (html) => {
-      const container = document.createElement("div");
-      container.style.cssText = "position:fixed;left:0;top:0;width:760px;background:#fff;z-index:99998;overflow:auto;height:auto;pointer-events:none;color:#000";
-      container.innerHTML = css + html;
-      document.body.appendChild(container);
-      await new Promise(r => setTimeout(r, 200));
-      const blob = await html2pdf().set({margin:0.4,image:{type:"jpeg",quality:0.95},html2canvas:{scale:2,useCORS:true,scrollY:0,windowWidth:760,height:container.scrollHeight},jsPDF:{unit:"in",format:"letter",orientation:"portrait"}}).from(container).outputPdf("blob");
-      document.body.removeChild(container);
+    // Full-screen overlay hides app during generation
+    const overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100vw;height:100vh;background:#0f172a;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-family:Arial;color:#e2e8f0";
+    overlay.innerHTML = '<div style="font-size:16px;font-weight:bold">Generating PDFs…</div><div id="pdf-step" style="font-size:13px;color:#94a3b8">Preparing…</div>';
+    document.body.appendChild(overlay);
+    const stepEl = overlay.querySelector("#pdf-step");
+
+    const toPDF = async (htmlContent) => {
+      // Hide React app, render content as only visible element
+      const root = document.getElementById("root");
+      root.style.display = "none";
+      const el = document.createElement("div");
+      el.innerHTML = htmlContent;
+      el.style.cssText = "position:absolute;top:0;left:0;width:816px;padding:20px 28px;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.4;box-sizing:border-box";
+      document.body.style.background = "#fff";
+      document.body.appendChild(el);
+      window.scrollTo(0, 0);
+      await new Promise(r => setTimeout(r, 600));
+      const blob = await html2pdf().set({
+        margin: [0.25, 0.25, 0.25, 0.25],
+        image: { type:"jpeg", quality:0.98 },
+        html2canvas: { scale:2, width:816, windowWidth:816, x:0, y:0, scrollX:0, scrollY:0, useCORS:true, logging:false },
+        jsPDF: { unit:"in", format:"letter", orientation:"portrait" },
+        pagebreak: { mode:["avoid-all","css","legacy"] }
+      }).from(el).outputPdf("blob");
+      document.body.removeChild(el);
+      document.body.style.background = "";
+      root.style.display = "";
       return blob;
     };
 
-    // Status indicator
-    const status = document.createElement("div");
-    status.style.cssText = "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1e293b;color:#e2e8f0;padding:20px 32px;border-radius:10px;z-index:99999;font-family:Arial;font-size:14px;box-shadow:0 4px 20px rgba(0,0,0,.5)";
-    status.textContent = "Generating PDFs…";
-    document.body.appendChild(status);
+    // Styles shared by all forms (same as working print templates)
+    const S2 = `<style>
+*{box-sizing:border-box;margin:0;padding:0}
+h1{font-size:17px;font-weight:bold;border-bottom:2px solid #333;padding-bottom:6px;margin-bottom:4px}
+h2{font-size:11px;color:#555;margin-bottom:14px;font-weight:normal}
+.sec{margin-bottom:10px;border:1px solid #ccc;border-radius:5px;padding:8px 10px}
+.sec h3{font-size:12px;font-weight:bold;margin:0 0 5px;border-bottom:1px solid #ddd;padding-bottom:3px}
+.row{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;border-bottom:1px solid #f0f0f0;font-size:11px;gap:8px}
+.row:last-child{border-bottom:none}
+.lbl{color:#444;flex:1}
+.val{font-weight:600;text-align:right;flex-shrink:0}
+.pass{color:#16a34a;font-weight:bold}
+.fail{color:#dc2626;font-weight:bold}
+.na{color:#888}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:6px}
+th,td{border:1px solid #ccc;padding:3px 6px;text-align:left}
+th{background:#f0f0f0;font-weight:bold}
+</style>`;
+
+    const hdr = (title) => `${S2}<h1>${title}</h1><h2>${p.customerName||""} &middot; ${p.address||""} &middot; ${new Date().toLocaleDateString()}</h2>`;
+    const sigBlock = (sig) => sig ? `<div style="margin-top:16px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:9px;color:#666">Signature:</p><img src="${sig}" style="max-width:250px;height:55px;object-fit:contain"/></div>` : "";
 
     try {
-      const p = proj;
-      // 1. Project data summary
-      status.textContent = "Generating project summary…";
-      zip.file(`${name}_project_data.pdf`, await toPDF(`<h1>${p.customerName||"Project"}</h1><h2>${p.address||""}</h2><div class="sec"><h3>Project Info</h3><div class="row"><span class="lbl">RISE ID</span><span class="val">${p.riseId||"—"}</span></div><div class="row"><span class="lbl">Stage</span><span class="val">${STAGES[p.currentStage]?.label||"—"}</span></div><div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"—"}</span></div><div class="row"><span class="lbl">Post CFM50</span><span class="val">${p.postCFM50||"—"}</span></div></div>`));
-
-      // 2. Final Inspection
+      const a = p.audit || {};
       const fi = p.qaqc?.fi || {};
-      if (fi.date || fi.contractor) {
-        status.textContent = "Generating Final Inspection…";
-        let fiBody = `<h1>Home Energy Savings – Retrofits Final Inspection Form</h1><h2>${p.customerName} — ${p.address}</h2>`;
-        fiBody += `<div class="sec"><h3>Inspection Info</h3><div class="row"><span class="lbl">Homeowner</span><span class="val">${p.customerName||"—"}</span></div><div class="row"><span class="lbl">Address</span><span class="val">${p.address||"—"}</span></div><div class="row"><span class="lbl">Date</span><span class="val">${fi.date||"—"}</span></div><div class="row"><span class="lbl">Installation Contractor</span><span class="val">${fi.contractor||"Assured Energy Solutions"}</span></div></div>`;
-        fiBody += `<div class="sec"><h3>Health &amp; Safety</h3>`;
-        FI_SAFETY.forEach(item => { const d=fi[item.k]||{}; fiBody+=`<div class="row"><span class="lbl">${item.l}${d.reading?" ("+d.reading+" "+(item.u||"")+")":""}${item.yn?" — "+(d.yn||"—"):""}</span><span class="${d.pf==="P"?"pass":d.pf==="F"?"fail":"na"}">${d.pf||"—"} | F/U: ${d.fu||"—"}</span></div>`; });
-        fiBody += `<div class="row"><span class="lbl">Smoke detectors</span><span class="val">${fi.smokeQty||"—"}</span></div>`;
-        fiBody += `<div class="row"><span class="lbl">CO detectors</span><span class="val">${fi.coQty||"—"}</span></div>`;
-        fiBody += `<div class="row"><span class="lbl">Ventilation (ASHRAE 62.2)</span><span class="val">${fi.ventCFM||"—"} CFM</span></div>`;
-        fiBody += `<div class="row"><span class="lbl">New exhaust fan</span><span class="val">${fi.newFan||"—"}</span></div>`;
-        fiBody += `<div class="row"><span class="lbl">All H&amp;S addressed</span><span class="${fi.hsAddressed==="Yes"?"pass":"fail"}">${fi.hsAddressed||"—"}</span></div>`;
-        if(fi.hsWhyNot) fiBody += `<div class="row"><span class="lbl">Why not</span><span class="val">${fi.hsWhyNot}</span></div>`;
-        fiBody += `</div>`;
-        fiBody += `<div class="sec"><h3>Insulation</h3>`;
-        FI_INSUL.forEach(ins => { const d=fi[ins.k]||{}; fiBody+=`<div class="row"><span class="lbl"><b>${ins.l}</b> — Pre: R-${d.preR||"?"} → Post: R-${d.postR||"?"} — ${ins.q} ${d.done||"—"}</span></div>`; });
-        fiBody += `</div>`;
-        fiBody += `<div class="sec"><h3>Combustion Appliances — Space Heating &amp; DHW</h3>`;
-        [1,2,3].forEach(n => { const d=fi[`equip${n}`]||{}; if(d.type) fiBody+=`<div class="row"><span class="lbl">${n}. ${d.type} — ${d.vent||""}</span><span class="val">Replaced: ${d.replaced||"—"} | F/U: ${d.fu||"—"}</span></div>`; });
-        fiBody += `</div>`;
-        fiBody += `<div class="sec"><h3>Blower Door</h3><div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"—"}</span></div><div class="row"><span class="lbl">Post CFM50</span><span class="val">${p.postCFM50||"—"}</span></div></div>`;
-        fiBody += `<div class="sec"><h3>Duct Sealing – Duct Blaster</h3><div class="row"><span class="lbl">Pre CFM25</span><span class="val">${fi.preCFM25||"—"}</span></div><div class="row"><span class="lbl">Post CFM25</span><span class="val">${fi.postCFM25||"—"}</span></div></div>`;
-        fiBody += `<div class="sec"><h3>Direct Installs</h3><div class="row"><span class="lbl">New thermostat</span><span class="val">${fi.thermostat||"—"}</span></div></div>`;
-        if(fi.followUp) fiBody += `<div class="sec"><h3>Follow-up Needed</h3><p>${fi.followUp}</p></div>`;
-        fiBody += `<div class="sec"><h3>Contractor Checklist</h3>`;
-        FI_CONTRACTOR_CK.forEach(ck => { fiBody+=`<div class="row"><span class="lbl">${ck}</span><span class="${fi.ck?.[ck]?"pass":"na"}">${fi.ck?.[ck]?"☑":"☐"}</span></div>`; });
-        fiBody += `</div>`;
-        zip.file(`${name}_final_inspection.pdf`, await toPDF(fiBody));
-      }
-
-      // 3. QAQC Observation
       const q = p.qaqc || {};
-      if (q.date || q.inspector) {
-        status.textContent = "Generating QAQC Observation…";
-        let qBody = `<h1>QAQC Observation Form</h1><h2>${p.customerName} — ${p.address}</h2>`;
-        qBody += `<div class="sec"><h3>Info</h3><div class="row"><span class="lbl">Date</span><span class="val">${q.date||"—"}</span></div><div class="row"><span class="lbl">Inspector</span><span class="val">${q.inspector||"—"}</span></div></div>`;
-        Object.entries(QAQC_SECTIONS).forEach(([cat,items]) => {
-          const rows = items.map((item,i) => { const r=q.results?.[`${cat}-${i}`]||{}; return `<div class="row"><span class="lbl">${i+1}. ${item}</span><span class="${r.v==="Y"?"pass":r.v==="N"?"fail":"na"}">${r.v||"—"}${r.c?" — "+r.c:""}</span></div>`; }).join("");
-          qBody += `<div class="sec"><h3>${cat}</h3>${rows}</div>`;
+
+      // 1. Customer Authorization
+      stepEl.textContent = "1/6 Customer Authorization…";
+      if (a.customerAuthSig) {
+        const dt = a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : "";
+        zip.file(nm+"_customer_auth.pdf", await toPDF(`<style>*{margin:0;padding:0;box-sizing:border-box}img.pg{width:100%;display:block}.ov{position:absolute;display:flex;align-items:center;overflow:hidden}</style>
+<div style="position:relative"><img class="pg" src="/auth-form-page1.jpg"/>
+<div class="ov" style="top:43.4%;left:41.5%;width:52%;height:1.4%"><img src="${a.customerAuthSig}" style="height:100%;width:auto;object-fit:contain"/></div>
+<div class="ov" style="top:45%;left:41.5%;width:52%;height:1.4%"><span style="font-size:9px;font-weight:bold">${a.customerAuthName||p.customerName||""}</span></div>
+<div class="ov" style="top:46.6%;left:41.5%;width:52%;height:1.4%"><span style="font-size:9px">${dt}</span></div>
+<div class="ov" style="top:48.2%;left:41.5%;width:52%;height:1.4%"><span style="font-size:9px">${p.address||""}</span></div>
+</div><div style="page-break-before:always"></div><img class="pg" src="/auth-form-page2.jpg"/>`));
+      }
+
+      // 2. Assessment
+      stepEl.textContent = "2/6 Assessment…";
+      let ab = hdr("Data Collection Tool — Assessment");
+      ab += '<div class="sec"><h3>Project Info</h3>';
+      [["RISE ID",p.riseId],["Stage",STAGES[p.currentStage]?.label],["Bedrooms",a.bedrooms],["Bathrooms",a.bathrooms],["Year Built",a.yearBuilt||p.yearBuilt],["Sq Ft",a.sqft||p.sqft],["Stories",a.stories]].forEach(([l,v])=>{ab+='<div class="row"><span class="lbl">'+l+'</span><span class="val">'+(v||"—")+'</span></div>';});
+      ab += '</div><div class="sec"><h3>Blower Door</h3>';
+      ab += '<div class="row"><span class="lbl">Pre CFM50</span><span class="val">'+(p.preCFM50||"—")+'</span></div>';
+      ab += '<div class="row"><span class="lbl">Post CFM50</span><span class="val">'+(p.postCFM50||"—")+'</span></div></div>';
+      ab += '<div class="sec"><h3>CAZ Testing</h3>';
+      [["Ambient CO",a.ambientCO],["Heat Spillage",a.heatSpill],["WH Spillage",a.whSpill],["Heating CO",a.heatCO],["WH CO",a.whCO],["Oven CO",a.ovenCO]].forEach(([l,v])=>{if(v)ab+='<div class="row"><span class="lbl">'+l+'</span><span class="val">'+v+'</span></div>';});
+      ab += '</div>' + sigBlock(a.assessorSig);
+      zip.file(nm+"_assessment.pdf", await toPDF(ab));
+
+      // 3. Scope
+      stepEl.textContent = "3/6 Scope of Work…";
+      if (p.measures?.length || p.healthSafety?.length) {
+        let sb = hdr("Scope of Work");
+        if (p.measures?.length) {
+          sb += '<div class="sec"><h3>Energy Efficiency Measures ('+p.measures.length+')</h3>';
+          sb += "<table><tr><th>Measure</th><th>Qty</th></tr>";
+          p.measures.forEach(m=>{sb+="<tr><td>"+m.name+"</td><td>"+(m.qty||1)+"</td></tr>";});
+          sb += "</table></div>";
+        }
+        if (p.healthSafety?.length) {
+          sb += '<div class="sec"><h3>Health &amp; Safety ('+p.healthSafety.length+')</h3>';
+          sb += "<table><tr><th>Measure</th><th>Qty</th></tr>";
+          p.healthSafety.forEach(m=>{sb+="<tr><td>"+m.name+"</td><td>"+(m.qty||1)+"</td></tr>";});
+          sb += "</table></div>";
+        }
+        sb += '<div class="sec"><h3>Approvals</h3>';
+        sb += '<div class="row"><span class="lbl">Scope Approved</span><span class="'+(p.scopeApproved?"pass":"na")+'">'+(p.scopeApproved?"Yes":"No")+'</span></div>';
+        sb += '<div class="row"><span class="lbl">RISE Status</span><span class="val">'+(p.riseStatus||"—")+'</span></div></div>';
+        zip.file(nm+"_scope.pdf", await toPDF(sb));
+      }
+
+      // 4. Final Inspection
+      stepEl.textContent = "4/6 Final Inspection…";
+      {
+        let fb = hdr("Home Energy Savings – Retrofits Final Inspection Form");
+        fb += '<div class="sec"><h3>Inspection Info</h3>';
+        [["Homeowner name",p.customerName],["Home address",p.address],["Date of final inspection",fi.date],["Installation Contractor",fi.contractor||"Assured Energy Solutions"]].forEach(([l,v])=>{fb+='<div class="row"><span class="lbl">'+l+'</span><span class="val">'+(v||"—")+'</span></div>';});
+        fb += '</div>';
+        fb += '<div class="sec"><h3>Health &amp; Safety</h3>';
+        fb += "<table><tr><th>Item</th><th>Reading</th><th>Pass/Fail</th><th>Follow-up</th></tr>";
+        FI_SAFETY.forEach(item=>{const d=fi[item.k]||{};const pf=d.pf==="P"?"Pass":d.pf==="F"?"Fail":"N/A";const fu=d.fu==="Y"?"Yes":d.fu==="N"?"No":"N/A";fb+="<tr><td>"+(item.sub?"&emsp;":"")+item.l+"</td><td>"+(d.reading?(d.reading+" "+(item.u||"")):(d.yn||"—"))+"</td><td>"+pf+"</td><td>"+fu+"</td></tr>";});
+        fb += "</table>";
+        fb += '<div class="row"><span class="lbl">Smoke detectors installed</span><span class="val">'+(fi.smokeQty||"—")+'</span></div>';
+        fb += '<div class="row"><span class="lbl">CO detectors installed</span><span class="val">'+(fi.coQty||"—")+'</span></div>';
+        fb += '<div class="row"><span class="lbl">Required ventilation (ASHRAE 62.2)</span><span class="val">'+(fi.ventCFM||"—")+' CFM</span></div>';
+        fb += '<div class="row"><span class="lbl">New exhaust fan installed?</span><span class="val">'+(fi.newFan||"—")+'</span></div>';
+        fb += '<div class="row"><span class="lbl">All H&amp;S issues addressed?</span><span class="'+(fi.hsAddressed==="Yes"?"pass":"fail")+'">'+(fi.hsAddressed||"—")+'</span></div>';
+        if(fi.hsWhyNot)fb+='<div class="row"><span class="lbl">If no, why not</span><span class="val">'+fi.hsWhyNot+'</span></div>';
+        fb += '</div>';
+
+        fb += '<div class="sec"><h3>Insulation</h3>';
+        fb += "<table><tr><th>Area</th><th>Pre R-value</th><th>Post R-value</th><th>Insulated?</th></tr>";
+        FI_INSUL.forEach(ins=>{const d=fi[ins.k]||{};fb+="<tr><td><b>"+ins.l+"</b></td><td>"+(d.preR||"—")+"</td><td>"+(d.postR||"—")+"</td><td>"+(d.done||"—")+"</td></tr>";});
+        fb += "</table></div>";
+
+        fb += '<div class="sec"><h3>Combustion Appliances — Space Heating and DHW</h3>';
+        fb += "<table><tr><th>#</th><th>Equipment Type</th><th>Vent Type</th><th>Replaced?</th><th>Follow-up?</th></tr>";
+        [1,2,3].forEach(n=>{const d=fi["equip"+n]||{};fb+="<tr><td>"+n+"</td><td>"+(d.type||"—")+"</td><td>"+(d.vent||"—")+"</td><td>"+(d.replaced||"—")+"</td><td>"+(d.fu||"—")+"</td></tr>";});
+        fb += "</table></div>";
+
+        fb += '<div class="sec"><h3>Blower Door</h3>';
+        fb += '<div class="row"><span class="lbl">Pre CFM50</span><span class="val">'+(p.preCFM50||"—")+'</span></div>';
+        fb += '<div class="row"><span class="lbl">Post CFM50</span><span class="val">'+(p.postCFM50||"—")+'</span></div></div>';
+
+        fb += '<div class="sec"><h3>Duct Sealing – Duct Blaster</h3>';
+        fb += '<div class="row"><span class="lbl">Pre CFM25</span><span class="val">'+(fi.preCFM25||"—")+'</span></div>';
+        fb += '<div class="row"><span class="lbl">Post CFM25</span><span class="val">'+(fi.postCFM25||"—")+'</span></div></div>';
+
+        fb += '<div class="sec"><h3>Direct Installs</h3>';
+        fb += '<div class="row"><span class="lbl">New thermostat installed?</span><span class="val">'+(fi.thermostat||"—")+'</span></div></div>';
+
+        fb += '<div class="sec"><h3>Follow-up Needed</h3><p style="font-size:11px">'+(fi.followUpNA?"N/A":(fi.followUp||"None"))+'</p></div>';
+        fb += '<div class="sec"><h3>Contractor Checklist</h3>';
+        FI_CONTRACTOR_CK.forEach(ck=>{fb+='<div class="row"><span class="lbl">'+ck+'</span><span class="val">'+(fi.ck?.[ck]?"☑":"☐")+'</span></div>';});
+        fb += '</div>';
+        fb += sigBlock(fi.inspectorSig);
+        zip.file(nm+"_final_inspection.pdf", await toPDF(fb));
+      }
+
+      // 5. QAQC Observation
+      stepEl.textContent = "5/6 QAQC Observation…";
+      {
+        let qb = hdr("QAQC Observation Form");
+        qb += '<div class="sec"><h3>Inspection Info</h3>';
+        qb += '<div class="row"><span class="lbl">Date</span><span class="val">'+(q.date||"—")+'</span></div>';
+        qb += '<div class="row"><span class="lbl">Inspector</span><span class="val">'+(q.inspector||"—")+'</span></div></div>';
+        Object.entries(QAQC_SECTIONS).forEach(([cat,items])=>{
+          qb += '<div class="sec"><h3>'+cat+'</h3>';
+          items.forEach((item,i)=>{const r=q.results?.[cat+"-"+i]||{};const cls=r.v==="Y"?"pass":r.v==="N"?"fail":"na";qb+='<div class="row"><span class="lbl">'+(i+1)+'. '+item+'</span><span class="'+cls+'">'+(r.v||"—")+(r.c?" — "+r.c:"")+'</span></div>';});
+          qb += '</div>';
         });
-        qBody += `<div class="sec"><h3>Result</h3><div class="row"><span class="lbl">Overall</span><span class="${q.passed===true?"pass":"fail"}">${q.passed===true?"PASS":q.passed===false?"FAIL":"—"}</span></div>${q.notes?`<p style="color:#666;margin-top:6px">${q.notes}</p>`:""}</div>`;
-        zip.file(`${name}_qaqc_observation.pdf`, await toPDF(qBody));
+        qb += '<div class="sec"><h3>Overall Result</h3>';
+        qb += '<div class="row"><span class="lbl">Result</span><span class="'+(q.passed===true?"pass":"fail")+'">'+(q.passed===true?"PASS":q.passed===false?"FAIL":"—")+'</span></div>';
+        if(q.notes)qb+='<p style="font-size:11px;color:#555;margin-top:6px">'+q.notes+'</p>';
+        qb += '</div>';
+        qb += sigBlock(q.inspectorSig);
+        zip.file(nm+"_qaqc_observation.pdf", await toPDF(qb));
       }
 
-      // 4. Measures
-      if (p.measures?.length) {
-        status.textContent = "Generating Scope of Work…";
-        let mBody = `<h1>Scope of Work</h1><h2>${p.customerName} — ${p.address}</h2><div class="sec"><h3>Energy Efficiency Measures</h3>`;
-        p.measures.forEach(m => { mBody += `<div class="row"><span class="lbl">${m.name}</span><span class="val">Qty: ${m.qty||1}</span></div>`; });
-        mBody += `</div>`;
-        if (p.healthSafety?.length) { mBody += `<div class="sec"><h3>Health &amp; Safety</h3>`; p.healthSafety.forEach(m => { mBody += `<div class="row"><span class="lbl">${m.name}</span><span class="val">Qty: ${m.qty||1}</span></div>`; }); mBody += `</div>`; }
-        zip.file(`${name}_measures.pdf`, await toPDF(mBody));
-      }
-
-      // 5. Activity log
+      // 6. Activity Log
+      stepEl.textContent = "6/6 Activity Log…";
       if (p.activityLog?.length) {
-        status.textContent = "Generating Activity Log…";
-        let logBody = `<h1>Activity Log</h1><h2>${p.customerName} — ${p.address}</h2><div class="sec"><h3>${p.activityLog.length} entries</h3>`;
-        p.activityLog.slice(0,100).forEach(l => { logBody += `<div class="row"><span class="lbl">${new Date(l.ts).toLocaleString()} — ${l.by}</span><span class="val">${l.txt}</span></div>`; });
-        logBody += `</div>`;
-        zip.file(`${name}_activity_log.pdf`, await toPDF(logBody));
+        let lb = hdr("Activity Log");
+        lb += '<div class="sec"><h3>'+p.activityLog.length+' Entries</h3>';
+        p.activityLog.slice(0,100).forEach(l=>{lb+='<div class="row"><span class="lbl">'+new Date(l.ts).toLocaleString()+" — "+l.by+'</span><span class="val">'+l.txt+'</span></div>';});
+        lb += '</div>';
+        zip.file(nm+"_activity_log.pdf", await toPDF(lb));
       }
 
-      status.textContent = "Compressing ZIP…";
+      stepEl.textContent = "Compressing ZIP…";
       const blob = await zip.generateAsync({type:"blob"});
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `${name}_forms.zip`;
-      a.click(); URL.revokeObjectURL(url);
-    } catch(err) { alert("Error generating PDFs: " + err.message); }
-    document.body.removeChild(status);
+      const dl = document.createElement("a");
+      dl.href = url; dl.download = nm+"_forms.zip";
+      dl.click(); URL.revokeObjectURL(url);
+    } catch(err) { alert("Error: "+err.message); console.error(err); }
+    document.body.removeChild(overlay);
   };
 
-  if (!curUser) return (
+      if (!curUser) return (
     <div style={S.app}>{globalCSS}
       <div style={S.rpWrap}>
         <div style={{textAlign:"center",marginBottom:24}}>
