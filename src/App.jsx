@@ -302,7 +302,7 @@ function savePrint(html) {
   overlay.appendChild(iframe);
   document.body.appendChild(overlay);
 
-  iframe.contentDocument.write(html);
+  iframe.contentDocument.write(`<html><head><style>@media print{@page{margin:0}html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;margin:0;padding:0.4in}}</style></head><body style="margin:0">${html}</body></html>`);
   iframe.contentDocument.close();
 
   printBtn.addEventListener("click", () => {
