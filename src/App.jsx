@@ -1017,6 +1017,56 @@ function AuditTab({p,u,onLog,user}) {
 
   return (
     <div>
+      {/* ── CUSTOMER AUTHORIZATION FORM ── */}
+      <Sec title={<span>Customer Authorization Form {a.customerAuthSig ? <span style={{color:"#22c55e",fontSize:11}}>✓ Signed</span> : <span style={{color:"#f59e0b",fontSize:11}}>⚠ Required</span>}</span>}>
+        {/* Page 1 with signature fields overlaid on the form */}
+        <div style={{position:"relative",background:"#fff",borderRadius:6,overflow:"hidden"}}>
+          <img src="/auth-form-page1.jpg" alt="Page 1" style={{width:"100%",display:"block"}}/>
+          {/* Overlay: Customer representative signature — row at 43.3%-44.9% */}
+          <div style={{position:"absolute",top:"43.4%",left:"41.5%",width:"52%",height:"1.4%",cursor:"pointer",display:"flex",alignItems:"center"}} onClick={()=>{if(!a.customerAuthSig){const el=document.getElementById("authSigTrigger");if(el)el.click();}}}>
+            {a.customerAuthSig && <img src={a.customerAuthSig} style={{height:"100%",objectFit:"contain"}}/>}
+          </div>
+          {/* Overlay: Customer representative printed name — row at 44.9%-46.5% */}
+          <div style={{position:"absolute",top:"45%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
+            <input style={{width:"100%",height:"100%",border:"none",background:"transparent",fontSize:"1.2vw",fontWeight:600,color:"#000",outline:"none",fontFamily:"Arial,sans-serif",padding:0}} value={a.customerAuthName||p.customerName||""} onChange={e=>sa("customerAuthName",e.target.value)} placeholder=""/>
+          </div>
+          {/* Overlay: Date — row at 46.5%-48.1% */}
+          <div style={{position:"absolute",top:"46.6%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
+            <span style={{fontSize:"1.2vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : ""}</span>
+          </div>
+          {/* Overlay: Property address — row at 48.1%-49.6% */}
+          <div style={{position:"absolute",top:"48.2%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
+            <span style={{fontSize:"1.2vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{p.address||""}</span>
+          </div>
+        </div>
+        {/* Page 2 */}
+        <div style={{background:"#fff",borderRadius:6,overflow:"hidden",marginTop:4}}>
+          <img src="/auth-form-page2.jpg" alt="Page 2" style={{width:"100%",display:"block"}}/>
+        </div>
+        {/* Sign / Re-sign after both pages */}
+        {!a.customerAuthSig && <div style={{marginTop:8}}>
+          <SigPad label="Customer Signature" value={a.customerAuthSig||""} onChange={v=>{u({audit:{...a,customerAuthSig:v,...(v&&!a.authDate?{authDate:new Date().toISOString()}:{})}});}}/>
+        </div>}
+        {a.customerAuthSig && <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button style={{...S.btn,padding:"8px 16px",fontSize:12}} onClick={()=>{
+            const sigImg = a.customerAuthSig ? `<img src="${a.customerAuthSig}" style="height:100%;object-fit:contain"/>` : "";
+            const authDate = a.authDate ? new Date(a.authDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) : "";
+            savePrint(`<div style="max-width:720px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#000;padding:20px">
+<div style="position:relative">
+<img src="/auth-form-page1.jpg" style="width:100%;display:block"/>
+<div style="position:absolute;top:43.4%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center;overflow:hidden">${sigImg}</div>
+<div style="position:absolute;top:45%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;font-weight:bold;color:#000">${a.customerAuthName||p.customerName||""}</span></div>
+<div style="position:absolute;top:46.6%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;color:#000">${authDate}</span></div>
+<div style="position:absolute;top:48.2%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;color:#000">${p.address||""}</span></div>
+</div>
+<div style="page-break-before:always"></div>
+<img src="/auth-form-page2.jpg" style="width:100%;display:block"/>
+</div>`);
+          }}>🖨️ Print Signed Form</button>
+          <button style={{...S.ghost,padding:"8px 16px",fontSize:12,color:"#ef4444",borderColor:"rgba(239,68,68,.3)"}} onClick={()=>{u({audit:{...a,customerAuthSig:"",authDate:"",customerAuthName:""}});}}>✕ Clear & Re-sign</button>
+        </div>}
+      </Sec>
+
       <Sec title="📋 Data Collection Tool">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>For use with BLK2GO</p>
@@ -1102,56 +1152,6 @@ function AuditTab({p,u,onLog,user}) {
             </div>
           );
         })}
-      </Sec>
-
-      {/* ── CUSTOMER AUTHORIZATION FORM ── */}
-      <Sec title={<span>Customer Authorization Form {a.customerAuthSig ? <span style={{color:"#22c55e",fontSize:11}}>✓ Signed</span> : <span style={{color:"#f59e0b",fontSize:11}}>⚠ Required</span>}</span>}>
-        {/* Page 1 with signature fields overlaid on the form */}
-        <div style={{position:"relative",background:"#fff",borderRadius:6,overflow:"hidden"}}>
-          <img src="/auth-form-page1.jpg" alt="Page 1" style={{width:"100%",display:"block"}}/>
-          {/* Overlay: Customer representative signature — row at 43.3%-44.9% */}
-          <div style={{position:"absolute",top:"43.4%",left:"41.5%",width:"52%",height:"1.4%",cursor:"pointer",display:"flex",alignItems:"center"}} onClick={()=>{if(!a.customerAuthSig){const el=document.getElementById("authSigTrigger");if(el)el.click();}}}>
-            {a.customerAuthSig && <img src={a.customerAuthSig} style={{height:"100%",objectFit:"contain"}}/>}
-          </div>
-          {/* Overlay: Customer representative printed name — row at 44.9%-46.5% */}
-          <div style={{position:"absolute",top:"45%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
-            <input style={{width:"100%",height:"100%",border:"none",background:"transparent",fontSize:"1.2vw",fontWeight:600,color:"#000",outline:"none",fontFamily:"Arial,sans-serif",padding:0}} value={a.customerAuthName||p.customerName||""} onChange={e=>sa("customerAuthName",e.target.value)} placeholder=""/>
-          </div>
-          {/* Overlay: Date — row at 46.5%-48.1% */}
-          <div style={{position:"absolute",top:"46.6%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
-            <span style={{fontSize:"1.2vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : ""}</span>
-          </div>
-          {/* Overlay: Property address — row at 48.1%-49.6% */}
-          <div style={{position:"absolute",top:"48.2%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
-            <span style={{fontSize:"1.2vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{p.address||""}</span>
-          </div>
-        </div>
-        {/* Page 2 */}
-        <div style={{background:"#fff",borderRadius:6,overflow:"hidden",marginTop:4}}>
-          <img src="/auth-form-page2.jpg" alt="Page 2" style={{width:"100%",display:"block"}}/>
-        </div>
-        {/* Sign / Re-sign after both pages */}
-        {!a.customerAuthSig && <div style={{marginTop:8}}>
-          <SigPad label="Customer Signature" value={a.customerAuthSig||""} onChange={v=>{u({audit:{...a,customerAuthSig:v,...(v&&!a.authDate?{authDate:new Date().toISOString()}:{})}});}}/>
-        </div>}
-        {a.customerAuthSig && <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
-          <button style={{...S.btn,padding:"8px 16px",fontSize:12}} onClick={()=>{
-            const sigImg = a.customerAuthSig ? `<img src="${a.customerAuthSig}" style="height:100%;object-fit:contain"/>` : "";
-            const authDate = a.authDate ? new Date(a.authDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) : "";
-            savePrint(`<div style="max-width:720px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#000;padding:20px">
-<div style="position:relative">
-<img src="/auth-form-page1.jpg" style="width:100%;display:block"/>
-<div style="position:absolute;top:43.4%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center;overflow:hidden">${sigImg}</div>
-<div style="position:absolute;top:45%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;font-weight:bold;color:#000">${a.customerAuthName||p.customerName||""}</span></div>
-<div style="position:absolute;top:46.6%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;color:#000">${authDate}</span></div>
-<div style="position:absolute;top:48.2%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;color:#000">${p.address||""}</span></div>
-</div>
-<div style="page-break-before:always"></div>
-<img src="/auth-form-page2.jpg" style="width:100%;display:block"/>
-</div>`);
-          }}>🖨️ Print Signed Form</button>
-          <button style={{...S.ghost,padding:"8px 16px",fontSize:12,color:"#ef4444",borderColor:"rgba(239,68,68,.3)"}} onClick={()=>{u({audit:{...a,customerAuthSig:"",authDate:"",customerAuthName:""}});}}>✕ Clear & Re-sign</button>
-        </div>}
       </Sec>
 
 
