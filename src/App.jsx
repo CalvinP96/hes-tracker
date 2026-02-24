@@ -1150,7 +1150,7 @@ function AuditTab({p,u,onLog,user}) {
 <img src="/auth-form-page2.jpg" style="width:100%;display:block"/>
 </div>`);
           }}>🖨️ Print Signed Form</button>
-          <button style={{...S.ghost,padding:"8px 16px",fontSize:12,color:"#ef4444",borderColor:"rgba(239,68,68,.3)"}} onClick={()=>{sa("customerAuthSig","");sa("authDate","");sa("customerAuthName","");}}>✕ Clear & Re-sign</button>
+          <button style={{...S.ghost,padding:"8px 16px",fontSize:12,color:"#ef4444",borderColor:"rgba(239,68,68,.3)"}} onClick={()=>{u({audit:{...a,customerAuthSig:"",authDate:"",customerAuthName:""}});}}>✕ Clear & Re-sign</button>
         </div>}
       </Sec>
 
@@ -3197,7 +3197,7 @@ function SigPad({value, onChange, label}) {
         <div style={S.camH}>
           <button style={{...S.back,fontSize:18}} onClick={()=>setSigning(false)}>✕ Cancel</button>
           <div style={{flex:1,textAlign:"center",fontWeight:600,fontSize:14}}>{label || "Sign"}</div>
-          <button style={{...S.btn,padding:"6px 14px"}} onClick={save}>Done</button>
+          <button style={{...S.btn,padding:"6px 14px",minHeight:40}} onClick={save}>Done</button>
         </div>
         <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:16,background:"#0b0e18"}}>
           <p style={{fontSize:12,color:"#94a3b8",marginBottom:8}}>Sign below with finger or stylus</p>
@@ -3219,11 +3219,11 @@ function SigPad({value, onChange, label}) {
           <div style={{background:"#fff",borderRadius:6,padding:4,border:"1px solid rgba(255,255,255,.1)"}}>
             <img src={value} style={{height:50,objectFit:"contain"}} alt="sig"/>
           </div>
-          <button style={{...S.ghost,fontSize:10,padding:"4px 10px"}} onClick={clear}>Clear</button>
-          <button style={{...S.ghost,fontSize:10,padding:"4px 10px"}} onClick={()=>setSigning(true)}>Re-sign</button>
+          <button style={{...S.ghost,fontSize:10,padding:"4px 10px",minHeight:36}} onClick={clear}>Clear</button>
+          <button style={{...S.ghost,fontSize:10,padding:"4px 10px",minHeight:36}} onClick={()=>setSigning(true)}>Re-sign</button>
         </div>
       ) : (
-        <button style={{...S.btn,padding:"8px 16px"}} onClick={()=>setSigning(true)}>✍️ Tap to Sign</button>
+        <button style={{...S.btn,padding:"8px 16px",minHeight:44,WebkitTapHighlightColor:"transparent"}} onClick={()=>setSigning(true)}>✍️ Tap to Sign</button>
       )}
     </div>
   );
