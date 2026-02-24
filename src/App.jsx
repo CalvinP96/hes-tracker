@@ -1137,15 +1137,15 @@ function AuditTab({p,u,onLog,user}) {
         </div>
         {a.customerAuthSig && <div style={{marginTop:8}}>
           <button style={{...S.btn,padding:"8px 16px",fontSize:12}} onClick={()=>{
-            const sigImg = a.customerAuthSig ? `<img src="${a.customerAuthSig}" style="max-width:280px;height:55px;object-fit:contain"/>` : "";
+            const sigImg = a.customerAuthSig ? `<img src="${a.customerAuthSig}" style="height:100%;object-fit:contain"/>` : "";
             const authDate = a.authDate ? new Date(a.authDate).toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) : "";
             savePrint(`<div style="max-width:720px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#000;padding:20px">
 <div style="position:relative">
 <img src="/auth-form-page1.jpg" style="width:100%;display:block"/>
-<div style="position:absolute;top:43.4%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center">${sigImg}</div>
-<div style="position:absolute;top:45%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:11px;font-weight:bold">${a.customerAuthName||""}</span></div>
-<div style="position:absolute;top:46.6%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:11px">${authDate}</span></div>
-<div style="position:absolute;top:48.2%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:11px">${p.address||""}</span></div>
+<div style="position:absolute;top:43.4%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center;overflow:hidden">${sigImg}</div>
+<div style="position:absolute;top:45%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;font-weight:bold;color:#000">${a.customerAuthName||""}</span></div>
+<div style="position:absolute;top:46.6%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;color:#000">${authDate}</span></div>
+<div style="position:absolute;top:48.2%;left:41.5%;width:52%;height:1.4%;display:flex;align-items:center"><span style="font-size:9px;color:#000">${p.address||""}</span></div>
 </div>
 <div style="page-break-before:always"></div>
 <img src="/auth-form-page2.jpg" style="width:100%;display:block"/>
