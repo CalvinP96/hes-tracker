@@ -2067,7 +2067,7 @@ function ScopeTab({p,u,onLog}) {
   };
 
   return (
-    <div>
+    <div id="scope-print-content">
       <Sec title="📋 2026 HEA/IE Retrofit Form">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Scope of Work — submit to RISE for approval</p>
@@ -2076,7 +2076,65 @@ function ScopeTab({p,u,onLog}) {
               const conf = confirm("Re-fill empty scope fields from assessment data?");
               if(conf){setFilled(false);}
             }}>↻ Sync from Assessment</button>
-            <PrintBtn onClick={()=>savePrint(getScopeHTML())}/>
+            <PrintBtn onClick={()=>{
+              const el = document.getElementById("scope-print-content");
+              if(!el) return alert("Cannot find scope content");
+              const clone = el.cloneNode(true);
+              // Bake current values into the clone's HTML attributes
+              const origInputs = el.querySelectorAll("input,select,textarea");
+              const cloneInputs = clone.querySelectorAll("input,select,textarea");
+              origInputs.forEach((orig,i) => {
+                const cl = cloneInputs[i];
+                if(!cl) return;
+                if(orig.tagName==="SELECT") {
+                  // Replace select with its display value
+                  const span = document.createElement("span");
+                  span.textContent = orig.options[orig.selectedIndex]?.text || orig.value || "—";
+                  span.style.cssText = "font-weight:600;color:#000";
+                  cl.replaceWith(span);
+                } else if(orig.tagName==="TEXTAREA") {
+                  const span = document.createElement("span");
+                  span.textContent = orig.value || "—";
+                  span.style.cssText = "white-space:pre-wrap;color:#333";
+                  cl.replaceWith(span);
+                } else if(orig.type==="checkbox") {
+                  const span = document.createElement("span");
+                  span.textContent = orig.checked ? "☑" : "☐";
+                  span.style.cssText = "font-size:14px";
+                  cl.replaceWith(span);
+                } else {
+                  // text/number input — replace with value text
+                  const span = document.createElement("span");
+                  span.textContent = orig.value || "—";
+                  span.style.cssText = "font-weight:600;color:#000";
+                  cl.replaceWith(span);
+                }
+              });
+              // Remove buttons
+              clone.querySelectorAll("button").forEach(n=>n.remove());
+              const html = `<!DOCTYPE html><html><head><title>HEA/IE Retrofit Form — ${p.customerName}</title>
+<style>
+@page{margin:.3in}
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:12px;font-size:11px;color:#000!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff!important}
+div,span,p,label,h3,h4{color:#000!important}
+div[style*="background"]{background:#fff!important;border:1px solid #ddd!important}
+div[style*="rgb(15"]{background:#fff!important}
+div[style*="rgb(30"]{background:#f9f9f9!important}
+div[style*="rgb(51"]{background:#f5f5f5!important}
+span[style*="color: rgb(148"]{color:#666!important}
+span[style*="color: rgb(129"]{color:#555!important}
+span[style*="color: rgb(226"]{color:#333!important}
+span[style*="color: rgb(165"]{color:#333!important}
+div[style*="border-color"]{border-color:#ddd!important}
+svg{display:none!important}
+</style></head><body>
+<div style="font-size:16px;font-weight:bold;border-bottom:2px solid #333;padding-bottom:6px;margin-bottom:4px">2026 HEA / IE Retrofit Form</div>
+<div style="font-size:11px;color:#666;margin-bottom:12px">${p.customerName} · ${p.address} · RISE: ${p.riseId||"—"} · ${new Date().toLocaleDateString()}</div>
+${clone.innerHTML}
+</body></html>`;
+              savePrint(html);
+            }}/>
           </div>
         </div>
         {!filled && <div style={{fontSize:10,color:"#22c55e",marginTop:4}}>✓ Auto-filled empty fields from assessment data</div>}
