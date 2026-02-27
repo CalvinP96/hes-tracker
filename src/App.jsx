@@ -136,7 +136,7 @@ function Rec({type,children}) {
   const colors = {
     rec: {bg:"rgba(34,197,94,.1)",border:"rgba(34,197,94,.3)",color:"#22c55e",icon:"✓"},
     warn: {bg:"rgba(245,158,11,.1)",border:"rgba(245,158,11,.3)",color:"#f59e0b",icon:"⚠"},
-    info: {bg:"rgba(220,38,38,.1)",border:"rgba(220,38,38,.3)",color:"#F87171",icon:"ℹ"},
+    info: {bg:"rgba(37,99,235,.1)",border:"rgba(37,99,235,.3)",color:"#60A5FA",icon:"ℹ"},
     flag: {bg:"rgba(239,68,68,.1)",border:"rgba(239,68,68,.3)",color:"#ef4444",icon:"⛔"},
   };
   const c = colors[type] || colors.info;
@@ -308,7 +308,7 @@ function savePrint(html) {
 
   const printBtn = document.createElement("button");
   printBtn.textContent = "💾 Save as PDF / Print";
-  printBtn.style.cssText = "padding:8px 16px;background:#991B1B;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif";
+  printBtn.style.cssText = "padding:8px 16px;background:#1E3A8A;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif";
 
   const closeBtn = document.createElement("button");
   closeBtn.textContent = "✕ Close";
@@ -524,14 +524,14 @@ function printScope(p, s) {
   row("Bath #2", b2CFM > 0 ? b2CFM + " CFM" + (b2Win ? " (window)" : "") : null);
   row("Bath #3", b3CFM > 0 ? b3CFM + " CFM" + (b3Win ? " (window)" : "") : null);
   row("Total Deficit (intermittent)", Math.round(totalDef) + " CFM");
-  h += "<div style='margin:6px 0;padding:6px;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;font-size:11px'>";
-  h += "<div style='font-weight:700;color:#991B1B;margin-bottom:4px'>Ventilation Results</div>";
+  h += "<div style='margin:6px 0;padding:6px;background:#EFF6FF;border:1px solid #DBEAFE;border-radius:4px;font-size:11px'>";
+  h += "<div style='font-weight:700;color:#1E3A8A;margin-bottom:4px'>Ventilation Results</div>";
   row("Infiltration Credit (Qinf)", RND(qi2) + " CFM");
   row("Qtot (0.03\u00d7" + sq + " + 7.5\u00d7(" + Nbr + "+1))", RND(qt2) + " CFM");
   row("Supplement (" + Math.round(totalDef) + "\u00d70.25)", RND(supp) + " CFM");
-  h += "<div style='border-top:2px solid #991B1B;padding-top:4px;margin-top:4px;display:flex;justify-content:space-between'>";
+  h += "<div style='border-top:2px solid #1E3A8A;padding-top:4px;margin-top:4px;display:flex;justify-content:space-between'>";
   h += "<span style='font-weight:700'>Qfan = " + RND(qt2) + " + " + RND(supp) + " \u2212 " + RND(qi2) + "</span>";
-  h += "<span style='font-weight:700;color:#991B1B;font-size:14px'>" + RND(qf) + " CFM</span></div>";
+  h += "<span style='font-weight:700;color:#1E3A8A;font-size:14px'>" + RND(qf) + " CFM</span></div>";
   if (fanSet > 0) row("Fan: " + fanSet + " CFM", "Run-time: " + minHr + " min/hr");
   h += "</div>";
 
@@ -598,7 +598,7 @@ function sideBySideHTML(photos, allItems, p) {
     return `<div style="break-inside:avoid;margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden">
       <div style="padding:6px 10px;background:#f5f5f5;font-size:12px;font-weight:600">${label} — ${pre?.l||""} / ${post?.l||""}</div>
       <table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>
-        <td style="width:50%;vertical-align:top;border-right:1px solid #eee;padding:4px;text-align:center"><div style="font-size:10px;font-weight:700;padding:2px;background:#FEE2E2;color:#991B1B">PRE</div>${preImg}</td>
+        <td style="width:50%;vertical-align:top;border-right:1px solid #eee;padding:4px;text-align:center"><div style="font-size:10px;font-weight:700;padding:2px;background:#DBEAFE;color:#1E3A8A">PRE</div>${preImg}</td>
         <td style="width:50%;vertical-align:top;padding:4px;text-align:center"><div style="font-size:10px;font-weight:700;padding:2px;background:#dcfce7;color:#166534">POST</div>${postImg}</td>
       </tr></table></div>`;
   }).join("");
@@ -758,7 +758,7 @@ input,select,textarea,button{font-size:inherit}
 
 /* ── Hover effects (desktop) ── */
 @media(hover:hover){
-.proj-card:hover{background:rgba(255,255,255,.06)!important;border-color:rgba(220,38,38,.25)!important;transform:translateY(-1px);transition:all .15s ease}
+.proj-card:hover{background:rgba(255,255,255,.06)!important;border-color:rgba(37,99,235,.25)!important;transform:translateY(-1px);transition:all .15s ease}
 .proj-card{transition:all .15s ease}
 .tab-btn:hover{color:#e2e8f0!important;background:rgba(255,255,255,.04)}
 .tab-btn{transition:color .15s ease}
@@ -1274,7 +1274,7 @@ const exportProjectForms = async (proj) => {
             onKeyDown={e=>{if(e.key==="Enter")doLogin();}}/>
         </div>
         {loginErr && <div style={{color:"#ef4444",fontSize:12,marginBottom:10,textAlign:"center"}}>{loginErr}</div>}
-        <button type="button" onClick={doLogin} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:"linear-gradient(135deg,#DC2626,#B91C1C)",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
+        <button type="button" onClick={doLogin} style={{width:"100%",padding:"12px",borderRadius:8,border:"none",background:"linear-gradient(135deg,#2563EB,#1D4ED8)",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}}>
           Sign In
         </button>
         <div style={{marginTop:20,padding:12,background:"rgba(255,255,255,.03)",borderRadius:8,border:"1px solid rgba(255,255,255,.06)"}}>
@@ -1503,7 +1503,7 @@ const exportProjectForms = async (proj) => {
           {/* KPI Row */}
           <div className="ops-kpis" style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:6,marginBottom:8}}>
             <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:"#e2e8f0"}}>{projects.length}</div><div style={kpiL}>Total Projects</div></div>
-            <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:"#F87171"}}>{active.length}</div><div style={kpiL}>Active</div></div>
+            <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:"#60A5FA"}}>{active.length}</div><div style={kpiL}>Active</div></div>
             <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:"#22c55e"}}>{completed.length}</div><div style={kpiL}>Completed</div></div>
             <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:stuck.length>0?"#ef4444":"#22c55e"}}>{stuck.length}</div><div style={kpiL}>Stuck (7d+)</div></div>
             <div style={{...card,...kpi,marginBottom:0}}><div style={{...kpiN,color:"#f59e0b"}}>{avgDays||"—"}</div><div style={kpiL}>Avg Days</div></div>
@@ -1533,7 +1533,7 @@ const exportProjectForms = async (proj) => {
             {/* Weekly Throughput */}
             <div style={card}>
               <div style={hdr}>This Week</div>
-              <div style={row}><span style={{color:"#94a3b8"}}>Assessments</span><b style={{color:"#F87171"}}>{assessThisWeek}</b></div>
+              <div style={row}><span style={{color:"#94a3b8"}}>Assessments</span><b style={{color:"#60A5FA"}}>{assessThisWeek}</b></div>
               <div style={row}><span style={{color:"#94a3b8"}}>Installs</span><b style={{color:"#f59e0b"}}>{installsThisWeek}</b></div>
               <div style={row}><span style={{color:"#94a3b8"}}>Completed</span><b style={{color:"#22c55e"}}>{completedThisWeek}</b></div>
               <div style={{...hdr,marginTop:8}}>This Month</div>
@@ -1559,7 +1559,7 @@ const exportProjectForms = async (proj) => {
               {topCrew.map(([name,count])=><div key={name} style={row}>
                 <span style={{color:"#94a3b8"}}>{name}</span>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <div style={{width:Math.min(count/Math.max(...topCrew.map(x=>x[1]))*50,50),height:5,borderRadius:3,background:"#F87171",minWidth:4}}/>
+                  <div style={{width:Math.min(count/Math.max(...topCrew.map(x=>x[1]))*50,50),height:5,borderRadius:3,background:"#60A5FA",minWidth:4}}/>
                   <span style={{fontWeight:600,color:"#e2e8f0",minWidth:20,textAlign:"right"}}>{count}</span>
                 </div>
               </div>)}
@@ -1937,10 +1937,10 @@ function AuditTab({p,u,onLog,user}) {
 
       {/* ── PRE-INSTALL PHOTOS ── */}
       <Sec title={<span>Pre-Install Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{preTaken}/{preItems.length}</span></span>}>
-        <div style={S.prog}><div style={{...S.progF,width:`${preItems.length?(preTaken/preItems.length)*100:0}%`,background:"linear-gradient(90deg,#DC2626,#EF4444)"}}/></div>
+        <div style={S.prog}><div style={{...S.progF,width:`${preItems.length?(preTaken/preItems.length)*100:0}%`,background:"linear-gradient(90deg,#2563EB,#3B82F6)"}}/></div>
         {preSections.map(([cat,items]) => (
           <div key={cat} style={{marginTop:10}}>
-            <div style={{fontSize:11,fontWeight:700,color:"#DC2626",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>{cat}</div>
+            <div style={{fontSize:11,fontWeight:700,color:"#60A5FA",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>{cat}</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(120px,1fr))",gap:6}}>
               {items.map(item => {
                 const arr = getPhotos(p.photos, item.id);
@@ -1954,7 +1954,7 @@ function AuditTab({p,u,onLog,user}) {
                   </div>}
                   <div style={{padding:"4px 6px",fontSize:9,color:"#94a3b8",borderTop:"1px solid rgba(255,255,255,.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span>{item.l}{has&&" ✓"}</span>
-                    {has && <label style={{fontSize:10,color:"#F87171",cursor:"pointer"}}>＋<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>}
+                    {has && <label style={{fontSize:10,color:"#60A5FA",cursor:"pointer"}}>＋<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>}
                   </div>
                 </div>;
               })}
@@ -2047,7 +2047,7 @@ function PhotoTab({p,u,onLog,user,role}) {
     return (
       <div style={S.phRow}>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,color:has?"#22c55e":"#cbd5e1"}}>{has?"✓":"○"} {it.l} {arr.length>1?<span style={{fontSize:10,color:"#F87171"}}>({arr.length})</span>:""}</div>
+          <div style={{fontSize:13,color:has?"#22c55e":"#cbd5e1"}}>{has?"✓":"○"} {it.l} {arr.length>1?<span style={{fontSize:10,color:"#60A5FA"}}>({arr.length})</span>:""}</div>
           <div style={{fontSize:10,color:"#64748b"}}>{it.p==="pre"?"📋 Pre":"🏗️ Post"}{has&&arr[0].by?` · ${arr[0].by}`:""}</div>
         </div>
         <div style={{display:"flex",gap:4,alignItems:"center"}}>
@@ -2097,8 +2097,8 @@ function PhotoTab({p,u,onLog,user,role}) {
 
   // ── Tab button style ──
   const tabBtn = (mode, label, icon) => ({
-    flex:1,padding:"8px 4px",borderRadius:6,border:`1px solid ${viewMode===mode?"rgba(220,38,38,.5)":"rgba(255,255,255,.1)"}`,
-    background:viewMode===mode?"rgba(220,38,38,.15)":"transparent",color:viewMode===mode?"#FCA5A5":"#64748b",
+    flex:1,padding:"8px 4px",borderRadius:6,border:`1px solid ${viewMode===mode?"rgba(37,99,235,.5)":"rgba(255,255,255,.1)"}`,
+    background:viewMode===mode?"rgba(37,99,235,.15)":"transparent",color:viewMode===mode?"#93C5FD":"#64748b",
     fontSize:11,fontWeight:viewMode===mode?700:500,cursor:"pointer",textAlign:"center",fontFamily:"'DM Sans',sans-serif"
   });
 
@@ -2106,7 +2106,7 @@ function PhotoTab({p,u,onLog,user,role}) {
     <div>
       {/* ── HEADER ── */}
       <Sec title={<span>Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{totalTaken}/{allItems.length}</span></span>}>
-        <div style={S.prog}><div style={{...S.progF,width:`${allItems.length?(totalTaken/allItems.length)*100:0}%`,background:"linear-gradient(90deg,#DC2626,#EF4444)"}}/></div>
+        <div style={S.prog}><div style={{...S.progF,width:`${allItems.length?(totalTaken/allItems.length)*100:0}%`,background:"linear-gradient(90deg,#2563EB,#3B82F6)"}}/></div>
 
         {/* View mode toggle */}
         <div style={{display:"flex",gap:4,marginTop:10}}>
@@ -2127,13 +2127,13 @@ function PhotoTab({p,u,onLog,user,role}) {
       {/* ═══ VIEW: BY ROLE ═══ */}
       {viewMode === "role" && <>
         {/* ASSESSOR — Pre Photos */}
-        <Sec title={<span style={{color:"#DC2626"}}>📋 Assessor — Pre-Install <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{preTaken}/{preItems.length}</span></span>}>
-          <div style={S.prog}><div style={{...S.progF,width:`${preItems.length?(preTaken/preItems.length)*100:0}%`,background:"linear-gradient(90deg,#DC2626,#EF4444)"}}/></div>
+        <Sec title={<span style={{color:"#2563EB"}}>📋 Assessor — Pre-Install <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{preTaken}/{preItems.length}</span></span>}>
+          <div style={S.prog}><div style={{...S.progF,width:`${preItems.length?(preTaken/preItems.length)*100:0}%`,background:"linear-gradient(90deg,#2563EB,#3B82F6)"}}/></div>
           {preSections.map(([cat,items]) => {
             const cd = items.filter(i=>hasPhoto(p.photos,i.id)).length;
             return (
               <div key={cat} style={{marginTop:10}}>
-                <div style={{fontSize:11,fontWeight:700,color:"#DC2626",marginBottom:4,display:"flex",justifyContent:"space-between"}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#60A5FA",marginBottom:4,display:"flex",justifyContent:"space-between"}}>
                   <span>{cat}</span><span style={{color:cd===items.length?"#22c55e":"#64748b"}}>{cd}/{items.length}</span>
                 </div>
                 {items.map(it => <PhotoRow key={it.id} it={it}/>)}
@@ -2182,7 +2182,7 @@ function PhotoTab({p,u,onLog,user,role}) {
               <div key={pi} style={{marginBottom:12,border:"1px solid rgba(255,255,255,.08)",borderRadius:8,overflow:"hidden"}}>
                 {/* Labels */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
-                  <div style={{padding:"6px 8px",background:"rgba(220,38,38,.08)",fontSize:10,fontWeight:700,color:"#F87171",textAlign:"center"}}>
+                  <div style={{padding:"6px 8px",background:"rgba(37,99,235,.08)",fontSize:10,fontWeight:700,color:"#60A5FA",textAlign:"center"}}>
                     📋 PRE — {pr.preIt?.l || "—"}
                   </div>
                   <div style={{padding:"6px 8px",background:"rgba(249,115,22,.08)",fontSize:10,fontWeight:700,color:"#f97316",textAlign:"center"}}>
@@ -2319,13 +2319,13 @@ function ScopeTab({p,u,onLog}) {
       h += '<div class="row"><span class="lbl">Bath #3'+(b3P?"":" (none)")+'</span><span class="val">'+(b3P?b3c+" CFM":"\u2014")+' '+(b3W?"(window)":"")+" "+(b3P?"(req 50)":"")+'</span></div>';
       h += '<div class="row"><span class="lbl">Total deficit (intermittent)</span><span class="val">'+Math.round(td)+' CFM</span></div>';
       h += '</div>';
-      h += '<div style="margin-top:8px;padding:8px;background:#FEF2F2;border-radius:4px">';
-      h += '<div style="font-weight:700;font-size:11px;color:#991B1B;margin-bottom:4px">Dwelling-Unit Ventilation Results</div>';
+      h += '<div style="margin-top:8px;padding:8px;background:#EFF6FF;border-radius:4px">';
+      h += '<div style="font-weight:700;font-size:11px;color:#1E3A8A;margin-bottom:4px">Dwelling-Unit Ventilation Results</div>';
       h += '<div class="row"><span class="lbl">Eff. annual avg infiltration</span><span class="val">'+R2(qi)+' CFM</span></div>';
       h += '<div class="row"><span class="lbl">Qtot = 0.03\u00d7'+sq+' + 7.5\u00d7('+oc2+'+1)</span><span class="val">'+R2(qt)+' CFM</span></div>';
       h += '<div class="row"><span class="lbl">Alt. compliance supplement = '+Math.round(td)+'\u00d70.25</span><span class="val">'+R2(supp)+' CFM</span></div>';
       h += '<div class="row"><span class="lbl">Infiltration credit (full, existing)</span><span class="val">'+R2(qi)+' CFM</span></div>';
-      h += '<div class="row" style="border-top:2px solid #991B1B;padding-top:4px;margin-top:4px"><span style="font-weight:700">Qfan = '+R2(qt)+' + '+R2(supp)+' \u2212 '+R2(qi)+'</span><span style="font-weight:700;color:#991B1B;font-size:14px">'+R2(qf)+' CFM</span></div>';
+      h += '<div class="row" style="border-top:2px solid #1E3A8A;padding-top:4px;margin-top:4px"><span style="font-weight:700">Qfan = '+R2(qt)+' + '+R2(supp)+' \u2212 '+R2(qi)+'</span><span style="font-weight:700;color:#1E3A8A;font-size:14px">'+R2(qf)+' CFM</span></div>';
       if(fan>0) h += '<div class="row"><span class="lbl">Fan setting: '+fan+' CFM \u00b7 Run-time: '+minHr+' min/hr (continuous = 60)</span></div>';
       h += '</div>';
       return h;
@@ -2490,7 +2490,7 @@ function ScopeTab({p,u,onLog}) {
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Scope of Work — submit to RISE for approval</p>
           <div style={{display:"flex",gap:6}}>
-            <button type="button" style={{...S.ghost,padding:"4px 10px",fontSize:10,color:"#F87171",borderColor:"rgba(220,38,38,.3)"}} onClick={()=>{
+            <button type="button" style={{...S.ghost,padding:"4px 10px",fontSize:10,color:"#60A5FA",borderColor:"rgba(37,99,235,.3)"}} onClick={()=>{
               const conf = confirm("Re-fill empty scope fields from assessment data?");
               if(conf){setFilled(false);}
             }}>↻ Sync from Assessment</button>
@@ -2509,17 +2509,17 @@ function ScopeTab({p,u,onLog}) {
           <F label="Bedrooms" value={s.bedrooms||""} onChange={v=>ss("bedrooms",v)} num/>
           <F label="Occupants" value={p.occupants} onChange={v=>u({occupants:v})} num/>
           <F label="Sq Footage" value={p.sqft} onChange={v=>u({sqft:v})} num/>
-          <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>Volume</label><div style={{...S.inp,background:"rgba(220,38,38,.08)",color:"#FCA5A5",display:"flex",alignItems:"center",marginTop:"auto"}}>{Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() : "—"}<span style={{fontSize:10,color:"#64748b",marginLeft:6}}>ft³ (sqft × 8)</span></div></div>
+          <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>Volume</label><div style={{...S.inp,background:"rgba(37,99,235,.08)",color:"#93C5FD",display:"flex",alignItems:"center",marginTop:"auto"}}>{Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() : "—"}<span style={{fontSize:10,color:"#64748b",marginLeft:6}}>ft³ (sqft × 8)</span></div></div>
           <F label="Home Age" computed={p.yearBuilt ? (new Date().getFullYear() - Number(p.yearBuilt)) + " yrs" : "—"} suffix="auto"/>
           <Sel label="Tenant Type" value={s.tenantType||""} onChange={v=>ss("tenantType",v)} opts={["Own","Rent"]}/>
         </Gr>
-        <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#F87171",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Gutters</div>
+        <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#60A5FA",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Gutters</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.gutterExist} onChange={v=>ss("gutterExist",v)} label="Gutters Exist"/>
           <CK checked={s.downspouts} onChange={v=>ss("downspouts",v)} label="Downspouts"/>
           <CK checked={s.gutterRepair} onChange={v=>ss("gutterRepair",v)} label="Repairs Needed"/>
         </div>
-        <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#F87171",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Roof</div>
+        <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#60A5FA",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Roof</div>
         <Gr>
           <Sel label="Condition" value={s.roofCondition||""} onChange={v=>ss("roofCondition",v)} opts={["Good","Average","Poor"]}/>
           <Sel label="Type" value={s.roofType||""} onChange={v=>ss("roofType",v)} opts={["Architecture","3-Tab","Flat"]}/>
@@ -2534,7 +2534,7 @@ function ScopeTab({p,u,onLog}) {
       </Sec>
 
       {/* ══ INTERIOR CONDITIONS (from assessment) ══ */}
-      <Sec title={<span>Interior Conditions {a.ceilingCond && <span style={{fontSize:9,color:"#F87171",fontWeight:400}}> · assessment values auto-filled</span>}</span>}>
+      <Sec title={<span>Interior Conditions {a.ceilingCond && <span style={{fontSize:9,color:"#60A5FA",fontWeight:400}}> · assessment values auto-filled</span>}</span>}>
         <Gr>
           <Sel label="Ceiling Conditions" value={s.ceilingCond||""} onChange={v=>ss("ceilingCond",v)} opts={["Good","Poor"]}/>
           <Sel label="Wall Conditions" value={s.wallCond||""} onChange={v=>ss("wallCond",v)} opts={["Good","Fair","Poor"]}/>
@@ -2589,8 +2589,8 @@ function ScopeTab({p,u,onLog}) {
             const val = s.htg?.cleanTuneOverride !== undefined ? s.htg.cleanTuneOverride : (autoOn || !!s.htg?.cleanTune);
             return <div style={{display:"flex",alignItems:"center",gap:4}}>
               <CK checked={val} onChange={v=>{sn("htg","cleanTune",v);sn("htg","cleanTuneOverride",v);}} label="Clean & Tune"/>
-              {autoOn && s.htg?.cleanTuneOverride===undefined && <span style={{fontSize:8,color:"#F87171"}}>auto</span>}
-              {s.htg?.cleanTuneOverride!==undefined && autoOn && <span style={{fontSize:8,color:"#F87171",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{sn("htg","cleanTuneOverride",undefined);sn("htg","cleanTune",true);}}>↻ auto</span>}
+              {autoOn && s.htg?.cleanTuneOverride===undefined && <span style={{fontSize:8,color:"#60A5FA"}}>auto</span>}
+              {s.htg?.cleanTuneOverride!==undefined && autoOn && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{sn("htg","cleanTuneOverride",undefined);sn("htg","cleanTune",true);}}>↻ auto</span>}
             </div>;
           })()}
         </div>
@@ -2706,14 +2706,14 @@ function ScopeTab({p,u,onLog}) {
 
       {/* ══ PAGE 3: DOOR TYPES / EXHAUST VENTING ══ */}
       <Sec title="Door Types / Exhaust Venting">
-        <div style={{fontSize:11,fontWeight:600,color:"#F87171",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Weather Strips / Door Sweeps</div>
+        <div style={{fontSize:11,fontWeight:600,color:"#60A5FA",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Weather Strips / Door Sweeps</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:"0px 8px"}}>
           {["Front","Back","Basement","Attic"].map(d=>(
             <CK key={d} checked={s.doors?.[d]} onChange={v=>sn("doors",d,v)} label={`${d} — Existing`}/>
           ))}
         </div>
         <div style={{maxWidth:200}}><F label="Total Strips/Sweeps Needed" value={s.totalSweeps||""} onChange={v=>ss("totalSweeps",v)}/></div>
-        <div style={{marginTop:10,fontSize:11,fontWeight:600,color:"#F87171",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Exhaust</div>
+        <div style={{marginTop:10,fontSize:11,fontWeight:600,color:"#60A5FA",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Exhaust</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.exh?.fanReplace} onChange={v=>sn("exh","fanReplace",v)} label="Exhaust Fan Replacement"/>
           <CK checked={s.exh?.bathFanLight} onChange={v=>sn("exh","bathFanLight",v)} label="Bath Fan w/ Light"/>
@@ -2842,11 +2842,11 @@ function ScopeTab({p,u,onLog}) {
         <div style={{marginBottom:8}}><Sel label="Type" value={s.fnd?.type||""} onChange={v=>sn("fnd","type",v)} opts={["No Basement/Slab","Finished","Unfinished","w/ Framing"]}/></div>
         <Gr><F label="Above Grade SqFt" value={s.fnd?.aboveSqft||""} onChange={v=>sn("fnd","aboveSqft",v)} num/><F label="Below Grade SqFt" value={s.fnd?.belowSqft||""} onChange={v=>sn("fnd","belowSqft",v)} num/><F label="Pre-Existing R" value={s.fnd?.preR||""} onChange={v=>sn("fnd","preR",v)} num/></Gr>
         <div style={{marginTop:8}}><Sel label="Insulation Type" value={s.fnd?.insulType||""} onChange={v=>sn("fnd","insulType",v)} opts={["Fiberglass","Rigid Foam Board","None"]}/></div>
-        <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#F87171",textTransform:"uppercase",letterSpacing:".05em"}}>Band Joists</div>
+        <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#60A5FA",textTransform:"uppercase",letterSpacing:".05em"}}>Band Joists</div>
         <div style={{marginTop:4}}><CK checked={s.fnd?.bandAccess} onChange={v=>sn("fnd","bandAccess",v)} label="Access to Band Joists"/></div>
         {s.fnd?.bandAccess && <div style={{marginTop:4}}><Gr><F label="Linear Ft" value={s.fnd?.bandLnft||""} onChange={v=>sn("fnd","bandLnft",v)}/><F label="Pre-Existing R" value={s.fnd?.bandR||""} onChange={v=>sn("fnd","bandR",v)}/><Sel label="Insulation" value={s.fnd?.bandInsul||""} onChange={v=>sn("fnd","bandInsul",v)} opts={["Fiberglass","Rigid Foam Board","None"]}/></Gr></div>}
 
-        <div style={{marginTop:10,fontSize:11,fontWeight:600,color:"#F87171",textTransform:"uppercase",letterSpacing:".05em"}}>Crawlspace</div>
+        <div style={{marginTop:10,fontSize:11,fontWeight:600,color:"#60A5FA",textTransform:"uppercase",letterSpacing:".05em"}}>Crawlspace</div>
         <div style={{marginTop:4,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.fnd?.vented} onChange={v=>sn("fnd","vented",v)} label="Vented"/>
           <CK checked={s.fnd?.vaporBarrier} onChange={v=>sn("fnd","vaporBarrier",v)} label="Vapor Barrier Needed"/>
@@ -2983,14 +2983,14 @@ function ScopeTab({p,u,onLog}) {
           const Ri = v => Math.round(v);
 
           // Styles
-          const hdr = {fontSize:13,fontWeight:700,color:"#F87171",margin:"14px 0 6px",borderBottom:"1px solid rgba(220,38,38,.25)",paddingBottom:4};
+          const hdr = {fontSize:13,fontWeight:700,color:"#60A5FA",margin:"14px 0 6px",borderBottom:"1px solid rgba(37,99,235,.25)",paddingBottom:4};
           const row = {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontSize:12,borderBottom:"1px solid rgba(255,255,255,.04)"};
           const lbl = {color:"#94a3b8",flex:1};
           const val = {fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:"#e2e8f0",textAlign:"right"};
-          const eq = {fontSize:10,color:"#475569",padding:"1px 0 5px 12px",fontFamily:"'JetBrains Mono',monospace",borderLeft:"2px solid rgba(220,38,38,.15)"};
-          const autoBox = {background:"rgba(220,38,38,.06)",borderRadius:6,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontWeight:600,fontSize:13,color:"#e2e8f0",textAlign:"center"};
+          const eq = {fontSize:10,color:"#475569",padding:"1px 0 5px 12px",fontFamily:"'JetBrains Mono',monospace",borderLeft:"2px solid rgba(37,99,235,.15)"};
+          const autoBox = {background:"rgba(37,99,235,.06)",borderRadius:6,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontWeight:600,fontSize:13,color:"#e2e8f0",textAlign:"center"};
           const autoSub = {fontSize:9,color:"#64748b",textAlign:"center",marginTop:2};
-          const resultBox = {background:"rgba(220,38,38,.08)",border:"2px solid rgba(220,38,38,.3)",borderRadius:8,padding:12,marginTop:8};
+          const resultBox = {background:"rgba(37,99,235,.08)",border:"2px solid rgba(37,99,235,.3)",borderRadius:8,padding:12,marginTop:8};
           const solverBox = (c) => ({background:`rgba(${c},.04)`,border:`1px solid rgba(${c},.2)`,borderRadius:8,padding:10,marginTop:10});
 
           return (
@@ -3003,7 +3003,7 @@ function ScopeTab({p,u,onLog}) {
                 <div style={row}><span style={lbl}>Infiltration credit</span><span style={val}>Yes</span></div>
                 <div style={row}><span style={lbl}>Alt. compliance</span><span style={val}>Yes</span></div>
                 <div style={row}><span style={lbl}>Weather station</span><span style={val}>Chicago Midway AP</span></div>
-                <div style={row}><span style={lbl}>wsf [1/hr]</span><span style={{...val,color:"#F87171"}}>{wsf}</span></div>
+                <div style={row}><span style={lbl}>wsf [1/hr]</span><span style={{...val,color:"#60A5FA"}}>{wsf}</span></div>
               </div>
 
               {/* ══ BUILDING INPUTS ══ */}
@@ -3035,7 +3035,7 @@ function ScopeTab({p,u,onLog}) {
                 <div key={f.n} style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",alignItems:"center",marginBottom:2}}>
                   <span style={{fontSize:12,color:"#cbd5e1"}}>{f.n}</span>
                   <input style={{...S.inp,textAlign:"center",fontSize:12}} value={s.ashrae?.[f.k]??a[f.ak]??""} onChange={e=>sn("ashrae",f.k,e.target.value)} placeholder="blank = none"/>
-                  <div style={{textAlign:"center"}}><input type="checkbox" checked={f.w} onChange={e=>sn("ashrae",f.wk,e.target.checked)} style={{accentColor:"#F87171"}}/></div>
+                  <div style={{textAlign:"center"}}><input type="checkbox" checked={f.w} onChange={e=>sn("ashrae",f.wk,e.target.checked)} style={{accentColor:"#60A5FA"}}/></div>
                   <div style={{textAlign:"center",fontSize:11,color:f.present?"#64748b":"#475569"}}>{f.present?f.r:"—"}</div>
                   <div style={{textAlign:"center",fontSize:13,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:!f.present?"#475569":f.d>0?"#f59e0b":"#22c55e"}}>{f.present?f.d:"—"}</div>
                 </div>
@@ -3048,7 +3048,7 @@ function ScopeTab({p,u,onLog}) {
 
               {/* ══ RESULTS ══ */}
               <div style={resultBox}>
-                <div style={{fontSize:13,fontWeight:700,color:"#EF4444",marginBottom:10}}>Dwelling-Unit Ventilation Results</div>
+                <div style={{fontSize:13,fontWeight:700,color:"#3B82F6",marginBottom:10}}>Dwelling-Unit Ventilation Results</div>
 
                 <div style={row}><span style={lbl}>Infiltration credit, Qinf [CFM]</span><span style={val}>{R(Qinf_eff)}</span></div>
                 <div style={eq}>= 0.052 × Q50 × wsf × (H / 8.2)^0.4<br/>= 0.052 × {Q50} × {wsf} × ({H} / 8.2)^0.4</div>
@@ -3062,16 +3062,16 @@ function ScopeTab({p,u,onLog}) {
                 <div style={row}><span style={lbl}>Alternative compliance supplement [CFM]</span><span style={val}>{R(supplement)}</span></div>
                 <div style={eq}>= totalDeficit × 0.25 (intermittent → continuous)<br/>= {Ri(totalDef)} × 0.25</div>
 
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid rgba(220,38,38,.4)",marginTop:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid rgba(37,99,235,.4)",marginTop:8}}>
                   <span style={{fontWeight:700,color:"#e2e8f0",fontSize:13}}>Required mech. ventilation, Qfan [CFM]</span>
-                  <span style={{fontWeight:800,color:"#EF4444",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
+                  <span style={{fontWeight:800,color:"#3B82F6",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
                 </div>
                 <div style={eq}>= Qtot + supplement − Qinf<br/>= {R(Qtot)} + {R(supplement)} − {R(Qinf_credit)}</div>
               </div>
 
               {/* ══ DWELLING-UNIT VENTILATION RUN-TIME SOLVER ══ */}
-              <div style={solverBox("99,102,241")}>
-                <div style={{fontSize:12,fontWeight:700,color:"#F87171",marginBottom:6}}>Dwelling-Unit Ventilation Run-Time Solver</div>
+              <div style={solverBox("37,99,235")}>
+                <div style={{fontSize:12,fontWeight:700,color:"#60A5FA",marginBottom:6}}>Dwelling-Unit Ventilation Run-Time Solver</div>
                 <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Select fan setting. Recommended = lowest setting ≥ Qfan ({R(Qfan)} CFM). All fans run continuous.</div>
                 <div style={{display:"flex",gap:8,marginBottom:10}}>
                   {FAN_SETTINGS.map(cfm => {
@@ -3080,9 +3080,9 @@ function ScopeTab({p,u,onLog}) {
                     const sel = Number(s.ashrae?.fanSetting) === cfm;
                     return <button key={cfm} type="button" onClick={()=>sn("ashrae","fanSetting",cfm)} style={{
                       flex:1,padding:"10px 8px",borderRadius:8,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
-                      border:sel?`2px solid ${isRec?"#22c55e":"#F87171"}`:`1px solid ${meets?"rgba(34,197,94,.3)":"rgba(255,255,255,.1)"}`,
-                      background:sel?(isRec?"rgba(34,197,94,.15)":"rgba(220,38,38,.15)"):"rgba(255,255,255,.03)",
-                      color:sel?(isRec?"#22c55e":"#FCA5A5"):meets?"#86efac":"#64748b",textAlign:"center"
+                      border:sel?`2px solid ${isRec?"#22c55e":"#60A5FA"}`:`1px solid ${meets?"rgba(34,197,94,.3)":"rgba(255,255,255,.1)"}`,
+                      background:sel?(isRec?"rgba(34,197,94,.15)":"rgba(37,99,235,.15)"):"rgba(255,255,255,.03)",
+                      color:sel?(isRec?"#22c55e":"#93C5FD"):meets?"#86efac":"#64748b",textAlign:"center"
                     }}>
                       <div style={{fontSize:18,fontWeight:700}}>{cfm}</div>
                       <div style={{fontSize:10}}>CFM</div>
@@ -3094,14 +3094,14 @@ function ScopeTab({p,u,onLog}) {
                 {Number(s.ashrae?.fanSetting) > 0 && Qfan > 0 && (() => {
                   const fan = Number(s.ashrae.fanSetting);
                   const minPerHr = R(Qfan / fan * 60);
-                  return <div style={{background:"rgba(220,38,38,.08)",borderRadius:8,padding:10}}>
+                  return <div style={{background:"rgba(37,99,235,.08)",borderRadius:8,padding:10}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                       <span style={{fontSize:12,color:"#cbd5e1"}}>Fan capacity</span>
-                      <span style={{fontSize:14,fontWeight:700,color:"#FCA5A5",fontFamily:"'JetBrains Mono',monospace"}}>{fan} CFM</span>
+                      <span style={{fontSize:14,fontWeight:700,color:"#93C5FD",fontFamily:"'JetBrains Mono',monospace"}}>{fan} CFM</span>
                     </div>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                       <span style={{fontSize:12,color:"#cbd5e1"}}>Min. run-time per hour</span>
-                      <span style={{fontSize:14,fontWeight:700,color:"#F87171",fontFamily:"'JetBrains Mono',monospace"}}>{minPerHr} min/hr</span>
+                      <span style={{fontSize:14,fontWeight:700,color:"#60A5FA",fontFamily:"'JetBrains Mono',monospace"}}>{minPerHr} min/hr</span>
                     </div>
                     <div style={eq}>= Qfan ÷ fan capacity × 60<br/>= {R(Qfan)} ÷ {fan} × 60 = {minPerHr} min/hr</div>
                     <div style={{marginTop:6,fontSize:10,color:fan >= Qfan ? "#22c55e" : "#f59e0b",fontWeight:600}}>
@@ -3180,12 +3180,12 @@ function ScopeTab({p,u,onLog}) {
               };
               return <div key={m} style={{display:"flex",alignItems:"center",gap:6}}>
                 <CK checked={checked} onChange={togM} label={m} color={checked?"#22c55e":null}/>
-                {checked && !inList && autoOn && <span style={{fontSize:8,color:"#F87171"}}>auto</span>}
+                {checked && !inList && autoOn && <span style={{fontSize:8,color:"#60A5FA"}}>auto</span>}
                 {checked && <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}>
-                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:autoQty?"rgba(220,38,38,.08)":"",color:autoQty?"#FCA5A5":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
+                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:autoQty?"rgba(37,99,235,.08)":"",color:autoQty?"#93C5FD":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
                   <span style={{fontSize:9,color:"#64748b",minWidth:28}}>{unit(m)}</span>
-                  {autoQty && <span style={{fontSize:8,color:"#F87171"}}>auto</span>}
-                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#F87171",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
+                  {autoQty && <span style={{fontSize:8,color:"#60A5FA"}}>auto</span>}
+                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
                 </div>}
               </div>;
             })}
@@ -3222,12 +3222,12 @@ function ScopeTab({p,u,onLog}) {
               };
               return <div key={m} style={{display:"flex",alignItems:"center",gap:6}}>
                 <CK checked={checked} onChange={togM} label={m} color={checked?"#f59e0b":null}/>
-                {checked && !inList && autoOn && <span style={{fontSize:8,color:"#F87171"}}>auto</span>}
+                {checked && !inList && autoOn && <span style={{fontSize:8,color:"#60A5FA"}}>auto</span>}
                 {checked && <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}>
-                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:autoQty?"rgba(220,38,38,.08)":"",color:autoQty?"#FCA5A5":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
+                  <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:autoQty?"rgba(37,99,235,.08)":"",color:autoQty?"#93C5FD":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
                   <span style={{fontSize:9,color:"#64748b",minWidth:20}}>ea</span>
-                  {autoQty && <span style={{fontSize:8,color:"#F87171"}}>auto</span>}
-                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#F87171",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
+                  {autoQty && <span style={{fontSize:8,color:"#60A5FA"}}>auto</span>}
+                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
                 </div>}
               </div>;
             })}
@@ -3412,7 +3412,7 @@ function InstallTab({p,u,onLog,user,role}) {
         <div class="row"><span class="lbl">Qinf</span><span class="val">${R(rc.Qinf)} CFM</span></div>
         <div class="row"><span class="lbl">Qtot</span><span class="val">${R(rc.Qtot)} CFM</span></div>
         <div class="row"><span class="lbl">Supplement</span><span class="val">${R(rc.supplement)} CFM</span></div>
-        <div class="row" style="border-top:2px solid #991B1B;padding-top:4px;margin-top:4px"><span style="font-weight:700">Qfan (post)</span><span style="font-weight:700;color:#991B1B;font-size:14px">${R(rc.Qfan)} CFM</span></div>
+        <div class="row" style="border-top:2px solid #1E3A8A;padding-top:4px;margin-top:4px"><span style="font-weight:700">Qfan (post)</span><span style="font-weight:700;color:#1E3A8A;font-size:14px">${R(rc.Qfan)} CFM</span></div>
         ${fan?`<div class="row"><span class="lbl">Fan: ${fan} CFM · Run-time: ${R(rc.Qfan/fan*60)} min/hr</span></div>`:""}
       </div></div>
       <div class="sec"><h3>Health & Safety Checks</h3>${safetyRows}</div>
@@ -3476,7 +3476,7 @@ function InstallTab({p,u,onLog,user,role}) {
         </>}
         {p.measureNotes && <div style={{fontSize:11,color:"#94a3b8",padding:8,background:"rgba(255,255,255,.03)",borderRadius:6,marginBottom:6}}><span style={{color:"#64748b",fontWeight:600}}>Notes:</span> {p.measureNotes}</div>}
         {s.insulQty && Object.entries(s.insulQty).some(([,v])=>v) && <>
-          <div style={{fontSize:11,fontWeight:700,color:"#F87171",marginBottom:4,marginTop:6}}>Insulation Quantities</div>
+          <div style={{fontSize:11,fontWeight:700,color:"#60A5FA",marginBottom:4,marginTop:6}}>Insulation Quantities</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 12px",fontSize:11}}>
             {Object.entries(s.insulQty).filter(([,v])=>v).map(([m,v])=><div key={m} style={{display:"flex",justifyContent:"space-between",padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
               <span style={{color:"#94a3b8"}}>{m}</span><span style={{fontWeight:600,color:"#e2e8f0"}}>{v} {m.includes("Rim Joist")?"LnFt":"SqFt"}</span>
@@ -3544,7 +3544,7 @@ function InstallTab({p,u,onLog,user,role}) {
                   </div>}
                   <div style={{padding:"4px 6px",fontSize:9,color:"#94a3b8",borderTop:"1px solid rgba(255,255,255,.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span>{item.l}{has&&" ✓"}</span>
-                    {has && <label style={{fontSize:10,color:"#F87171",cursor:"pointer"}}>＋<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>}
+                    {has && <label style={{fontSize:10,color:"#60A5FA",cursor:"pointer"}}>＋<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>}
                   </div>
                 </div>;
               })}
@@ -3569,14 +3569,14 @@ function InstallTab({p,u,onLog,user,role}) {
       <Sec title="Post-Work ASHRAE 62.2-2016 — RED Calc">
         {!rcPost.Q50 ? <p style={{color:"#64748b",fontSize:12,textAlign:"center",padding:12}}>Enter Post CFM50 above to calculate.</p> : (() => {
           const {Afl,Nbr,Q50,H,Hr,wsf,st,Qinf,Qtot,totalDef,supplement,Qfan,FAN_SETTINGS,recFan,baseSqft,finBasement,kCFM,b1,b2,b3,kPresent,b1Present,b2Present,b3Present,kWin,b1Win,b2Win,b3Win,kReq,b1Req,b2Req,b3Req,kDef,b1Def,b2Def,b3Def} = rcPost;
-          const hdr = {fontSize:13,fontWeight:700,color:"#F87171",margin:"14px 0 6px",borderBottom:"1px solid rgba(220,38,38,.25)",paddingBottom:4};
+          const hdr = {fontSize:13,fontWeight:700,color:"#60A5FA",margin:"14px 0 6px",borderBottom:"1px solid rgba(37,99,235,.25)",paddingBottom:4};
           const row = {display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",fontSize:12,borderBottom:"1px solid rgba(255,255,255,.04)"};
           const lbl = {color:"#94a3b8",flex:1};
           const val = {fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:"#e2e8f0",textAlign:"right"};
-          const eq = {fontSize:10,color:"#475569",padding:"1px 0 5px 12px",fontFamily:"'JetBrains Mono',monospace",borderLeft:"2px solid rgba(220,38,38,.15)"};
-          const autoBox = {background:"rgba(220,38,38,.06)",borderRadius:6,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontWeight:600,fontSize:13,color:"#e2e8f0",textAlign:"center"};
+          const eq = {fontSize:10,color:"#475569",padding:"1px 0 5px 12px",fontFamily:"'JetBrains Mono',monospace",borderLeft:"2px solid rgba(37,99,235,.15)"};
+          const autoBox = {background:"rgba(37,99,235,.06)",borderRadius:6,padding:"6px 10px",fontFamily:"'JetBrains Mono',monospace",fontWeight:600,fontSize:13,color:"#e2e8f0",textAlign:"center"};
           const autoSub = {fontSize:9,color:"#64748b",textAlign:"center",marginTop:2};
-          const resultBox = {background:"rgba(220,38,38,.08)",border:"2px solid rgba(220,38,38,.3)",borderRadius:8,padding:12,marginTop:8};
+          const resultBox = {background:"rgba(37,99,235,.08)",border:"2px solid rgba(37,99,235,.3)",borderRadius:8,padding:12,marginTop:8};
 
           return <div>
             {/* Configuration */}
@@ -3587,7 +3587,7 @@ function InstallTab({p,u,onLog,user,role}) {
               <div style={row}><span style={lbl}>Infiltration credit</span><span style={val}>Yes</span></div>
               <div style={row}><span style={lbl}>Alt. compliance</span><span style={val}>Yes</span></div>
               <div style={row}><span style={lbl}>Weather station</span><span style={val}>Chicago Midway AP</span></div>
-              <div style={row}><span style={lbl}>wsf [1/hr]</span><span style={{...val,color:"#F87171"}}>{wsf}</span></div>
+              <div style={row}><span style={lbl}>wsf [1/hr]</span><span style={{...val,color:"#60A5FA"}}>{wsf}</span></div>
             </div>
 
             {/* Building Inputs */}
@@ -3618,7 +3618,7 @@ function InstallTab({p,u,onLog,user,role}) {
               <div key={f.n} style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",alignItems:"center",marginBottom:2}}>
                 <span style={{fontSize:12,color:"#cbd5e1"}}>{f.n}</span>
                 <div style={{textAlign:"center",fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:f.present?"#e2e8f0":"#475569",background:"rgba(255,255,255,.03)",borderRadius:4,padding:"4px 6px"}}>{f.present?f.v:"—"}</div>
-                <div style={{textAlign:"center",fontSize:11,color:f.w?"#F87171":"#475569"}}>{f.w?"✓":"—"}</div>
+                <div style={{textAlign:"center",fontSize:11,color:f.w?"#60A5FA":"#475569"}}>{f.w?"✓":"—"}</div>
                 <div style={{textAlign:"center",fontSize:11,color:f.present?"#64748b":"#475569"}}>{f.present?f.r:"—"}</div>
                 <div style={{textAlign:"center",fontSize:13,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:!f.present?"#475569":f.d>0?"#f59e0b":"#22c55e"}}>{f.present?f.d:"—"}</div>
               </div>
@@ -3631,7 +3631,7 @@ function InstallTab({p,u,onLog,user,role}) {
 
             {/* Results with full equations */}
             <div style={resultBox}>
-              <div style={{fontSize:13,fontWeight:700,color:"#EF4444",marginBottom:10}}>Post-Work Ventilation Results</div>
+              <div style={{fontSize:13,fontWeight:700,color:"#3B82F6",marginBottom:10}}>Post-Work Ventilation Results</div>
 
               <div style={row}><span style={lbl}>Infiltration credit, Qinf [CFM]</span><span style={val}>{R(Qinf)}</span></div>
               <div style={eq}>= 0.052 × Q50 × wsf × (H / 8.2)^0.4<br/>= 0.052 × {Q50} × {wsf} × ({H} / 8.2)^0.4</div>
@@ -3645,17 +3645,17 @@ function InstallTab({p,u,onLog,user,role}) {
               <div style={row}><span style={lbl}>Alternative compliance supplement [CFM]</span><span style={val}>{R(supplement)}</span></div>
               <div style={eq}>= totalDeficit × 0.25 (intermittent → continuous)<br/>= {Ri(totalDef)} × 0.25</div>
 
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid rgba(220,38,38,.4)",marginTop:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid rgba(37,99,235,.4)",marginTop:8}}>
                 <span style={{fontWeight:700,color:"#e2e8f0",fontSize:13}}>Required mech. ventilation, Qfan [CFM]</span>
-                <span style={{fontWeight:800,color:"#EF4444",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
+                <span style={{fontWeight:800,color:"#3B82F6",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
               </div>
               <div style={eq}>= Qtot + supplement − Qinf<br/>= {R(Qtot)} + {R(supplement)} − {R(Qinf)}</div>
               {rcPre.Qfan > 0 && <div style={{fontSize:10,color:"#64748b",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>Pre-work Qfan was {R(rcPre.Qfan)} CFM · Δ {R(Qfan-rcPre.Qfan)} CFM</div>}
             </div>
 
             {/* Fan Setting + Run-Time Solver */}
-            <div style={{background:"rgba(220,38,38,.04)",border:"1px solid rgba(220,38,38,.2)",borderRadius:8,padding:10,marginTop:10}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#F87171",marginBottom:6}}>Dwelling-Unit Ventilation Run-Time Solver</div>
+            <div style={{background:"rgba(37,99,235,.04)",border:"1px solid rgba(37,99,235,.2)",borderRadius:8,padding:10,marginTop:10}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#60A5FA",marginBottom:6}}>Dwelling-Unit Ventilation Run-Time Solver</div>
               <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Select fan setting. Recommended = lowest setting ≥ Qfan ({R(Qfan)} CFM). All fans run continuous.</div>
               <div style={{display:"flex",gap:8,marginBottom:10}}>
                 {FAN_SETTINGS.map(cfm => {
@@ -3664,9 +3664,9 @@ function InstallTab({p,u,onLog,user,role}) {
                   const sel = Number(fi.postFanSetting) === cfm;
                   return <button key={cfm} type="button" onClick={()=>uf("postFanSetting",cfm)} style={{
                     flex:1,padding:"10px 8px",borderRadius:8,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
-                    border:sel?`2px solid ${isRec?"#22c55e":"#F87171"}`:`1px solid ${meets?"rgba(34,197,94,.3)":"rgba(255,255,255,.1)"}`,
-                    background:sel?(isRec?"rgba(34,197,94,.15)":"rgba(220,38,38,.15)"):"rgba(255,255,255,.03)",
-                    color:sel?(isRec?"#22c55e":"#FCA5A5"):meets?"#86efac":"#64748b",textAlign:"center"
+                    border:sel?`2px solid ${isRec?"#22c55e":"#60A5FA"}`:`1px solid ${meets?"rgba(34,197,94,.3)":"rgba(255,255,255,.1)"}`,
+                    background:sel?(isRec?"rgba(34,197,94,.15)":"rgba(37,99,235,.15)"):"rgba(255,255,255,.03)",
+                    color:sel?(isRec?"#22c55e":"#93C5FD"):meets?"#86efac":"#64748b",textAlign:"center"
                   }}>
                     <div style={{fontSize:18,fontWeight:700}}>{cfm}</div>
                     <div style={{fontSize:10}}>CFM</div>
@@ -3678,14 +3678,14 @@ function InstallTab({p,u,onLog,user,role}) {
               {Number(fi.postFanSetting) > 0 && Qfan > 0 && (() => {
                 const fan = Number(fi.postFanSetting);
                 const minPerHr = R(Qfan / fan * 60);
-                return <div style={{background:"rgba(220,38,38,.08)",borderRadius:8,padding:10}}>
+                return <div style={{background:"rgba(37,99,235,.08)",borderRadius:8,padding:10}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                     <span style={{fontSize:12,color:"#cbd5e1"}}>Fan capacity</span>
-                    <span style={{fontSize:14,fontWeight:700,color:"#FCA5A5",fontFamily:"'JetBrains Mono',monospace"}}>{fan} CFM</span>
+                    <span style={{fontSize:14,fontWeight:700,color:"#93C5FD",fontFamily:"'JetBrains Mono',monospace"}}>{fan} CFM</span>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                     <span style={{fontSize:12,color:"#cbd5e1"}}>Min. run-time per hour</span>
-                    <span style={{fontSize:14,fontWeight:700,color:"#F87171",fontFamily:"'JetBrains Mono',monospace"}}>{minPerHr} min/hr</span>
+                    <span style={{fontSize:14,fontWeight:700,color:"#60A5FA",fontFamily:"'JetBrains Mono',monospace"}}>{minPerHr} min/hr</span>
                   </div>
                   <div style={eq}>= Qfan ÷ fan capacity × 60<br/>= {R(Qfan)} ÷ {fan} × 60 = {minPerHr} min/hr</div>
                   <div style={{marginTop:6,fontSize:10,color:fan >= Qfan?"#22c55e":"#f59e0b",fontWeight:600}}>
@@ -4067,7 +4067,7 @@ function UserMgmt({users, onSave, onDelete, onClose}) {
   const doDelete = (id) => { if(onDelete) onDelete(id); setConfirmDel(null); };
 
   const row = {display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderBottom:"1px solid rgba(255,255,255,.06)"};
-  const badge = (r) => {const m=ROLES.find(x=>x.key===r); return <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(220,38,38,.15)",color:"#FCA5A5"}}>{m?.icon} {m?.label||r}</span>;};
+  const badge = (r) => {const m=ROLES.find(x=>x.key===r); return <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(37,99,235,.15)",color:"#93C5FD"}}>{m?.icon} {m?.label||r}</span>;};
 
   return (
     <Sec title={<span>👥 User Management <button type="button" onClick={onClose} style={{float:"right",background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:14}}>✕</button></span>}>
@@ -4086,7 +4086,7 @@ function UserMgmt({users, onSave, onDelete, onClose}) {
                 <div style={{fontSize:10,color:"#64748b",fontFamily:"'JetBrains Mono',monospace"}}>{u.username} · PIN: {u.pin}</div>
               </div>
               {badge(u.role)}
-              <button type="button" onClick={()=>startEdit(u)} style={{background:"none",border:"none",color:"#F87171",cursor:"pointer",fontSize:12}}>✏️</button>
+              <button type="button" onClick={()=>startEdit(u)} style={{background:"none",border:"none",color:"#60A5FA",cursor:"pointer",fontSize:12}}>✏️</button>
               <button type="button" onClick={()=>setConfirmDel(u.id)} style={{background:"none",border:"none",color:"#64748b",cursor:"pointer",fontSize:12}}>🗑️</button>
             </>}
           </div>
@@ -4145,7 +4145,7 @@ function F({label,value,onChange,type="text",placeholder,num,computed,suffix}) {
   return <div style={{display:"flex",flexDirection:"column"}}>
     <label style={S.fl}>{label}</label>
     {computed !== undefined ? (
-      <div style={{...S.inp,marginTop:"auto",background:"rgba(220,38,38,.08)",color:"#FCA5A5"}}>{computed}{suffix && <span style={{fontSize:10,color:"#64748b",marginLeft:4}}>{suffix}</span>}</div>
+      <div style={{...S.inp,marginTop:"auto",background:"rgba(37,99,235,.08)",color:"#93C5FD"}}>{computed}{suffix && <span style={{fontSize:10,color:"#64748b",marginLeft:4}}>{suffix}</span>}</div>
     ) : (
       <input style={{...S.inp,marginTop:"auto"}} type={type} inputMode={num?"decimal":undefined} value={value||""} onChange={e=>{
         if(num){const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))onChange(v);}
@@ -4165,7 +4165,7 @@ function Sel({label,value,onChange,opts}) {
     </div>
   );
 }
-function CK({checked,onChange,label,color,strike,small}) { return <label style={{...S.ck,fontSize:small?10:12,...(color?{color}:{}),cursor:"pointer",...(strike?{textDecoration:"line-through"}:{})}}><input type="checkbox" checked={!!checked} onChange={e=>onChange(e.target.checked)} style={{marginRight:6,accentColor:"#DC2626",width:small?14:16,height:small?14:16,flexShrink:0}}/><span style={{lineHeight:1.3}}>{label}</span></label>; }
+function CK({checked,onChange,label,color,strike,small}) { return <label style={{...S.ck,fontSize:small?10:12,...(color?{color}:{}),cursor:"pointer",...(strike?{textDecoration:"line-through"}:{})}}><input type="checkbox" checked={!!checked} onChange={e=>onChange(e.target.checked)} style={{marginRight:6,accentColor:"#2563EB",width:small?14:16,height:small?14:16,flexShrink:0}}/><span style={{lineHeight:1.3}}>{label}</span></label>; }
 function BtnGrp({value,onChange,opts}) { return <div style={{display:"flex",gap:2}}>{opts.map(o=><button key={o.v} type="button" onClick={()=>onChange(value===o.v?"":o.v)} style={{padding:"5px 8px",borderRadius:5,border:value===o.v?`2px solid ${o.c}`:"1px solid rgba(255,255,255,.1)",background:value===o.v?`${o.c}22`:"rgba(255,255,255,.03)",color:value===o.v?o.c:"#64748b",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",minWidth:36,minHeight:32}}>{o.l}</button>)}</div>; }
 
 function SigPad({value, onChange, label}) {
@@ -4255,7 +4255,7 @@ function SI({l,v,c}) { return <div style={S.si}><span style={{fontSize:9,color:"
 const S = {
   app: { fontFamily:"'DM Sans',sans-serif", background:"#0b0e18", minHeight:"100vh", color:"#e2e8f0", paddingBottom:60 },
   center: { display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", background:"#0b0e18" },
-  spin: { width:24, height:24, border:"3px solid #1e293b", borderTopColor:"#DC2626", borderRadius:"50%", animation:"spin .7s linear infinite" },
+  spin: { width:24, height:24, border:"3px solid #1e293b", borderTopColor:"#2563EB", borderRadius:"50%", animation:"spin .7s linear infinite" },
 
   // Role picker
   rpWrap: { maxWidth:440, margin:"0 auto", padding:"48px 20px" },
@@ -4271,7 +4271,7 @@ const S = {
   bdg: { padding:"3px 10px", borderRadius:6, fontSize:11, fontWeight:600, whiteSpace:"nowrap", color:"#fff" },
 
   // Buttons
-  btn: { background:"linear-gradient(135deg,#DC2626,#B91C1C)", color:"#fff", border:"none", padding:"8px 16px", borderRadius:8, fontWeight:600, cursor:"pointer", fontSize:13, fontFamily:"'DM Sans',sans-serif", minHeight:36 },
+  btn: { background:"linear-gradient(135deg,#2563EB,#1D4ED8)", color:"#fff", border:"none", padding:"8px 16px", borderRadius:8, fontWeight:600, cursor:"pointer", fontSize:13, fontFamily:"'DM Sans',sans-serif", minHeight:36 },
   ghost: { background:"none", border:"1px solid rgba(255,255,255,.12)", color:"#94a3b8", padding:"8px 14px", borderRadius:8, cursor:"pointer", fontSize:12, fontFamily:"'DM Sans',sans-serif", minHeight:36 },
 
   // Dashboard
@@ -4298,7 +4298,7 @@ const S = {
   // Tabs
   tabR: { display:"flex", gap:0, padding:"0 16px", borderBottom:"1px solid rgba(255,255,255,.06)", overflowX:"auto", WebkitOverflowScrolling:"touch", position:"sticky", top:52, zIndex:99, background:"rgba(11,14,24,.95)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)" },
   tabB: { padding:"10px 12px", background:"none", border:"none", borderBottom:"2px solid transparent", color:"#64748b", cursor:"pointer", fontSize:12, fontFamily:"'DM Sans',sans-serif", fontWeight:500, whiteSpace:"nowrap", minHeight:40 },
-  tabA: { color:"#e2e8f0", borderBottomColor:"#DC2626" },
+  tabA: { color:"#e2e8f0", borderBottomColor:"#2563EB" },
   cnt: { padding:"12px 16px" },
 
   // Sections
@@ -4320,7 +4320,7 @@ const S = {
 
   // Photos
   phRow: { display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:"1px solid rgba(255,255,255,.04)" },
-  cBtn: { width:40, height:40, borderRadius:8, border:"1px dashed rgba(220,38,38,.4)", background:"rgba(220,38,38,.08)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18 },
+  cBtn: { width:40, height:40, borderRadius:8, border:"1px dashed rgba(37,99,235,.4)", background:"rgba(37,99,235,.08)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18 },
   uBtn: { width:40, height:40, borderRadius:8, border:"1px dashed rgba(255,255,255,.15)", background:"rgba(255,255,255,.04)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18 },
   thBtn: { width:44, height:44, borderRadius:8, border:"2px solid #22c55e", padding:0, cursor:"pointer", overflow:"hidden", background:"#000" },
   th: { width:"100%", height:"100%", objectFit:"cover" },
@@ -4343,5 +4343,5 @@ const S = {
   // Log
   logR: { display:"flex", gap:6, padding:"6px 0", borderBottom:"1px solid rgba(255,255,255,.04)", alignItems:"baseline", flexWrap:"wrap" },
   logT: { fontSize:10, color:"#64748b", fontFamily:"'JetBrains Mono',monospace", minWidth:80 },
-  logB: { fontSize:10, color:"#DC2626", fontStyle:"italic" },
+  logB: { fontSize:10, color:"#60A5FA", fontStyle:"italic" },
 };
