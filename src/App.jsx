@@ -16,18 +16,19 @@ const STAGES = [
 ];
 
 const ROLES = [
-  { key:"admin", label:"Admin/Ops", icon:"👑", tabs:["info","scheduling","assessment","photos","scope","install","qaqc","closeout","log"] },
+  { key:"admin", label:"Admin/Ops", icon:"👑", tabs:["info","scheduling","assessment","photos","scope","install","hvac","qaqc","closeout","log"] },
   { key:"scheduler", label:"Scheduler", icon:"📅", tabs:["info","scheduling","log"] },
   { key:"assessor", label:"Assessor", icon:"🔍", tabs:["info","assessment","photos","log"] },
-  { key:"scope", label:"Scope/Compliance", icon:"📋", tabs:["info","scope","photos","install","qaqc","closeout","log"] },
+  { key:"scope", label:"Scope/Compliance", icon:"📋", tabs:["info","scope","photos","install","hvac","qaqc","closeout","log"] },
   { key:"installer", label:"Install Crew", icon:"🏗️", tabs:["info","install","photos","closeout","log"] },
+  { key:"hvac", label:"HVAC Tech", icon:"🔧", tabs:["info","hvac","photos","log"] },
 ];
 
 const TAB_META = {
   info:{label:"Info",icon:"📋"}, scheduling:{label:"Schedule",icon:"📅"},
   assessment:{label:"Assess",icon:"🔍"},
   photos:{label:"Photos",icon:"📸"}, scope:{label:"Scope",icon:"✅"},
-  install:{label:"Install",icon:"🏗️"}, qaqc:{label:"QAQC",icon:"🔎"},
+  install:{label:"Install",icon:"🏗️"}, hvac:{label:"HVAC",icon:"🔧"}, qaqc:{label:"QAQC",icon:"🔎"},
   closeout:{label:"Close",icon:"📦"}, log:{label:"Log",icon:"📝"},
 };
 
@@ -51,7 +52,11 @@ const PHOTO_SECTIONS = {
   "ASHRAE Fan (Post)":[{id:"fan_box",l:"Specs box w/ model #",p:"post"},{id:"fan_inst",l:"Fan installed",p:"post"},{id:"fan_sw",l:"Switch",p:"post"},{id:"fan_duct",l:"Fan ducting/termination",p:"post"}],
   "New Products (Post)":[{id:"np_hvac",l:"New HVAC w/ tag",p:"post"},{id:"np_furn",l:"New furnace w/ tag",p:"post"},{id:"np_wh",l:"New WH w/ tag",p:"post"},{id:"np_thermo",l:"Smart thermostat",p:"post"},{id:"np_other",l:"Other new product",p:"post"}],
   "Walls (Post)":[{id:"wall_inject",l:"Injection foam holes",p:"post"},{id:"wall_patch",l:"Patched/finished",p:"post"},{id:"wall_knee",l:"Knee wall insulation",p:"post"}],
-  "Misc (Post)":[{id:"misc_post1",l:"Additional photo 1",p:"post"},{id:"misc_post2",l:"Additional photo 2",p:"post"},{id:"misc_post3",l:"Additional photo 3",p:"post"}]
+  "Misc (Post)":[{id:"misc_post1",l:"Additional photo 1",p:"post"},{id:"misc_post2",l:"Additional photo 2",p:"post"},{id:"misc_post3",l:"Additional photo 3",p:"post"}],
+  "HVAC — Furnace":[{id:"hvac_furn_tag",l:"Furnace nameplate/tag",p:"hvac"},{id:"hvac_furn_hx",l:"Heat exchanger",p:"hvac"},{id:"hvac_furn_burner",l:"Burners/flame",p:"hvac"},{id:"hvac_furn_board",l:"Control board",p:"hvac"},{id:"hvac_furn_filter",l:"Filter",p:"hvac"},{id:"hvac_furn_issue",l:"Any issues found",p:"hvac"}],
+  "HVAC — Water Heater":[{id:"hvac_wh_tag",l:"WH nameplate/tag",p:"hvac"},{id:"hvac_wh_cond",l:"WH overall condition",p:"hvac"},{id:"hvac_wh_vent",l:"WH venting",p:"hvac"},{id:"hvac_wh_burner",l:"WH burners",p:"hvac"},{id:"hvac_wh_issue",l:"WH any issues",p:"hvac"}],
+  "HVAC — A/C":[{id:"hvac_ac_tag",l:"Condenser nameplate/tag",p:"hvac"},{id:"hvac_ac_cond",l:"Condenser condition",p:"hvac"},{id:"hvac_ac_elec",l:"Electrical/disconnect",p:"hvac"},{id:"hvac_ac_line",l:"Line set",p:"hvac"},{id:"hvac_ac_evap",l:"Evaporator coil",p:"hvac"},{id:"hvac_ac_issue",l:"A/C any issues",p:"hvac"}],
+  "HVAC — Thermostat":[{id:"hvac_thermo",l:"Thermostat",p:"hvac"}]
 };
 
 const CAZ_ITEMS = [{k:"ambient_co",l:"Ambient CO",r:true,u:"PPM"},{k:"gas_sniff",l:"Gas Sniffing",r:false},{k:"spillage",l:"Spillage Test",r:false},{k:"worst_case",l:"Worst Case Depress.",r:true,u:"PA"},{k:"oven_co",l:"Gas Oven CO",r:true,u:"PPM"},{k:"heat_co",l:"Heating System CO",r:true,u:"PPM"},{k:"wh_co",l:"Water Heater CO",r:true,u:"PPM"},{k:"dryer",l:"Dryer Vented",r:false}];
@@ -117,6 +122,7 @@ const PROGRAM = {
   dhwRepairCap: 650,
   airSealGoal: 25, // % reduction
   airSealMinCFM50pct: 1.1, // ≥110% of sqft
+  fanMinCFM: 15, // Qfan below this = no fan needed
   // DHW efficiency by type (fuel + system → avg efficiency %)
   dhwEff: {
     "Natural Gas|Storage Tank": 60,
@@ -252,6 +258,7 @@ function blank() {
     fi: { safety:{}, blowerPre:"", blowerPost:"", ductPre:"", ductPost:"", thermoInstalled:"", followupNeeded:"", followupNotes:"" },
     qaqc: { scheduled:false, date:"", inspector:"", results:{}, notes:"", passed:null },
     scope2026: {},
+    hvac: { furnace:{}, waterHeater:{}, condenser:{}, systemNotes:"", techName:"", completed:false, completedDate:"" },
     finalPassed: false, customerSignoff: false, installNotes: "",
     invoiceAmt: "", paymentSubmitted: false, paymentDate: "",
     docsChecklist: {}, photos: {}, activityLog: [], internalNotes: "",
@@ -1392,6 +1399,7 @@ const exportProjectForms = async (proj) => {
           {tab==="photos" && <PhotoTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
           {tab==="scope" && <ScopeTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
           {tab==="install" && <InstallTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
+          {tab==="hvac" && <HVACTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName}/>}
           {tab==="qaqc" && <QAQCTab p={proj} u={c=>upC(proj.id,c)}/>}
           {tab==="closeout" && <CloseoutTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
           {tab==="log" && <LogTab p={proj} onLog={t=>addLog(proj.id,t)}/>}
@@ -3082,13 +3090,14 @@ function ScopeTab({p,u,onLog}) {
 
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid rgba(37,99,235,.4)",marginTop:8}}>
                   <span style={{fontWeight:700,color:"#e2e8f0",fontSize:13}}>Required mech. ventilation, Qfan [CFM]</span>
-                  <span style={{fontWeight:800,color:"#3B82F6",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
+                  <span style={{fontWeight:800,color:Qfan < PROGRAM.fanMinCFM ? "#22c55e" : "#3B82F6",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
                 </div>
                 <div style={eq}>= Qtot + supplement − Qinf<br/>= {R(Qtot)} + {R(supplement)} − {R(Qinf_credit)}</div>
+                {Qfan < PROGRAM.fanMinCFM && <div style={{marginTop:6,padding:"8px 12px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.3)",borderRadius:6,fontSize:12,color:"#22c55e",fontWeight:600}}>✓ Qfan below {PROGRAM.fanMinCFM} CFM — no mechanical ventilation fan required</div>}
               </div>
 
               {/* ══ DWELLING-UNIT VENTILATION RUN-TIME SOLVER ══ */}
-              <div style={solverBox("37,99,235")}>
+              {Qfan >= PROGRAM.fanMinCFM && <div style={solverBox("37,99,235")}>
                 <div style={{fontSize:12,fontWeight:700,color:"#60A5FA",marginBottom:6}}>Dwelling-Unit Ventilation Run-Time Solver</div>
                 <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Select fan setting. Recommended = lowest setting ≥ Qfan ({R(Qfan)} CFM). All fans run continuous.</div>
                 <div style={{display:"flex",gap:8,marginBottom:10}}>
@@ -3127,7 +3136,7 @@ function ScopeTab({p,u,onLog}) {
                     </div>
                   </div>;
                 })()}
-              </div>
+              </div>}
 
               <p style={{fontSize:9,color:"#475569",marginTop:10,textAlign:"right"}}>ASHRAE 62.2-2016 · Local Ventilation Alternative Compliance · basc.pnnl.gov/redcalc</p>
             </div>
@@ -3665,14 +3674,15 @@ function InstallTab({p,u,onLog,user,role}) {
 
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid rgba(37,99,235,.4)",marginTop:8}}>
                 <span style={{fontWeight:700,color:"#e2e8f0",fontSize:13}}>Required mech. ventilation, Qfan [CFM]</span>
-                <span style={{fontWeight:800,color:"#3B82F6",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
+                <span style={{fontWeight:800,color:Qfan < PROGRAM.fanMinCFM ? "#22c55e" : "#3B82F6",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
               </div>
               <div style={eq}>= Qtot + supplement − Qinf<br/>= {R(Qtot)} + {R(supplement)} − {R(Qinf)}</div>
+              {Qfan < PROGRAM.fanMinCFM && <div style={{marginTop:6,padding:"8px 12px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.3)",borderRadius:6,fontSize:12,color:"#22c55e",fontWeight:600}}>✓ Qfan below {PROGRAM.fanMinCFM} CFM — no mechanical ventilation fan required</div>}
               {rcPre.Qfan > 0 && <div style={{fontSize:10,color:"#64748b",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>Pre-work Qfan was {R(rcPre.Qfan)} CFM · Δ {R(Qfan-rcPre.Qfan)} CFM</div>}
             </div>
 
             {/* Fan Setting + Run-Time Solver */}
-            <div style={{background:"rgba(37,99,235,.04)",border:"1px solid rgba(37,99,235,.2)",borderRadius:8,padding:10,marginTop:10}}>
+            {Qfan >= PROGRAM.fanMinCFM && <div style={{background:"rgba(37,99,235,.04)",border:"1px solid rgba(37,99,235,.2)",borderRadius:8,padding:10,marginTop:10}}>
               <div style={{fontSize:12,fontWeight:700,color:"#60A5FA",marginBottom:6}}>Dwelling-Unit Ventilation Run-Time Solver</div>
               <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Select fan setting. Recommended = lowest setting ≥ Qfan ({R(Qfan)} CFM). All fans run continuous.</div>
               <div style={{display:"flex",gap:8,marginBottom:10}}>
@@ -3711,7 +3721,7 @@ function InstallTab({p,u,onLog,user,role}) {
                   </div>
                 </div>;
               })()}
-            </div>
+            </div>}
             <p style={{fontSize:9,color:"#475569",marginTop:10,textAlign:"right"}}>ASHRAE 62.2-2016 · Local Ventilation Alternative Compliance · basc.pnnl.gov/redcalc</p>
           </div>;
         })()}
@@ -3744,6 +3754,279 @@ function InstallTab({p,u,onLog,user,role}) {
         <div style={{marginTop:6}}><CK checked={p.customerSignoff} onChange={v=>u({customerSignoff:v})} label="✅ Customer Signature Collected"/></div>
         <SigPad label="Installer / Inspector Signature" value={fi.inspectorSig||""} onChange={v=>uf("inspectorSig",v)}/>
         <SigPad label="Customer Signature — Work Completion" value={fi.customerSig||""} onChange={v=>uf("customerSig",v)}/>
+      </Sec>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HVAC TAB — Tune & Clean / Replacement Checklist
+// ═══════════════════════════════════════════════════════════════
+const HVAC_BRANDS = ["","Carrier","Lennox","Trane","Goodman","Rheem","Bryant","York","Amana","Coleman","Ruud","Daikin","Heil","Payne","Tempstar","Comfortmaker","American Standard","Other"];
+const COND_OPTS = ["","Good — no issues","Fair — minor wear","Poor — significant wear","Needs repair","Needs replacement","N/A"];
+const YN = ["","Yes","No","N/A"];
+
+const HVAC_GUIDES = {
+  furnace: {
+    title:"🔥 Furnace Tune-Up Guide",
+    tips:[
+      "Check heat exchanger for cracks — shine flashlight through burner ports and look for light on the other side",
+      "Listen to inducer motor for 10+ seconds — any grinding, rattling, or vibration = flag it",
+      "OHM reading on ignitor: silicon nitride 10-200Ω is normal, silicon carbide 40-90Ω is normal. Outside range = failing",
+      "Blue/even flame = good. Yellow/orange/lifting/rolling = bad burners or cracked HX",
+      "Flame sensor: clean with fine steel wool or emery cloth. Microamp reading should be 2-6μA",
+      "ALWAYS check for CO at register with combustion analyzer after tune-up"
+    ]
+  },
+  waterHeater: {
+    title:"🚿 Water Heater Check-Up Guide",
+    tips:[
+      "Check for rust/water stains at base — indicates tank leaking internally",
+      "Venting: look for corrosion, disconnected joints, proper pitch (¼\" per foot upward)",
+      "Look for white residue around T&P valve — indicates relief valve has been releasing",
+      "Check flue draft with match/lighter near draft hood after 5 min of operation",
+      "Sediment: flush a few gallons from drain valve into bucket — if heavy sediment, flag it",
+      "Water heater age over 12 years = flag for replacement consideration"
+    ]
+  },
+  condenser: {
+    title:"❄️ A/C Tune-Up Guide",
+    tips:[
+      "Clean condenser coils with garden hose from INSIDE out — never pressure wash",
+      "Check disconnect for burn marks, corrosion, or loose connections",
+      "Contactor: check for pitting on contact points. Chattering = replace",
+      "Check capacitor for bulging top — bulged = failing",
+      "Refrigerant: check pressures against manufacturer specs for current outdoor temp",
+      "Line set: check insulation on suction line (larger line). Missing insulation = efficiency loss",
+      "Listen for compressor noise — grinding/knocking = compressor failing"
+    ]
+  },
+  replacement: {
+    title:"🔄 When to Recommend Replacement",
+    tips:[
+      "Furnace: age 15+ years, cracked heat exchanger, AFUE < 80%, repeated repairs",
+      "A/C: age 12+ years, R-22 refrigerant, compressor failure, SEER < 13",
+      "Water heater: age 12+ years, tank leaking, heavy sediment, repeated pilot issues",
+      "ALWAYS document current condition with photos BEFORE recommending replacement",
+      "If recommending replacement, note the existing equipment info (make/model/serial) for scope team",
+      "Flag for replacement in the Findings section — Scope team handles the rest"
+    ]
+  }
+};
+
+function HVACTab({p,u,onLog,user}) {
+  const h = p.hvac || {};
+  const uh = (section,key,val) => u({hvac:{...h,[section]:{...(h[section]||{}),[key]:val}}});
+  const uhTop = (key,val) => u({hvac:{...h,[key]:val}});
+  const f = h.furnace || {};
+  const w = h.waterHeater || {};
+  const c = h.condenser || {};
+  const [guide,setGuide] = useState(null);
+
+  // Dropdown field with optional "Other" override
+  const DDField = ({label,section,field,opts,tip}) => {
+    const val = (section?h[section]?.[field]:h[field]) || "";
+    const set = (v) => section ? uh(section,field,v) : uhTop(field,v);
+    const isOther = val && !opts.includes(val) && val !== "";
+    return <div style={{marginBottom:4}}>
+      <label style={S.fl}>{label}</label>
+      <select style={S.inp} value={isOther?"__other__":val} onChange={e=>{
+        if(e.target.value==="__other__") set("Other: ");
+        else set(e.target.value);
+      }}>
+        {opts.map(o=><option key={o} value={o}>{o||"— Select —"}</option>)}
+        <option value="__other__">Other (type below)</option>
+      </select>
+      {isOther && <input style={{...S.inp,marginTop:3,borderColor:"rgba(245,158,11,.4)"}} value={val} onChange={e=>set(e.target.value)} placeholder="Describe condition…"/>}
+      {tip && <div style={{fontSize:9,color:"#64748b",marginTop:2}}>💡 {tip}</div>}
+    </div>;
+  };
+
+  const guidePanel = (key) => {
+    const g = HVAC_GUIDES[key];
+    if (!g) return null;
+    const open = guide === key;
+    return <div style={{marginBottom:8}}>
+      <button type="button" onClick={()=>setGuide(open?null:key)} style={{...S.ghost,width:"100%",textAlign:"left",padding:"8px 12px",fontSize:12,color:"#f59e0b",borderColor:"rgba(245,158,11,.2)",background:open?"rgba(245,158,11,.06)":"transparent"}}>
+        {open?"▾":"▸"} {g.title}
+      </button>
+      {open && <div style={{padding:"8px 12px",background:"rgba(245,158,11,.04)",border:"1px solid rgba(245,158,11,.1)",borderTop:"none",borderRadius:"0 0 8px 8px",fontSize:11}}>
+        {g.tips.map((t,i)=><div key={i} style={{padding:"4px 0",borderBottom:"1px solid rgba(255,255,255,.04)",color:"#cbd5e1"}}>
+          <span style={{color:"#f59e0b",marginRight:6}}>•</span>{t}
+        </div>)}
+      </div>}
+    </div>;
+  };
+
+  return (
+    <div>
+      <Sec title="HVAC Tune & Clean">
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Complete all sections that apply. Use dropdowns — only use "Other" if none fit.</p>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <F label="Technician" value={h.techName||""} onChange={v=>uhTop("techName",v)}/>
+          </div>
+        </div>
+        {!h.completed ? (
+          <button type="button" style={{...S.btn,width:"100%",padding:"10px",fontSize:13,opacity:h.techName?.trim()?.length>0?1:.4}} disabled={!h.techName?.trim()} onClick={()=>{uhTop("completed",true);uhTop("completedDate",new Date().toISOString());onLog("HVAC tune & clean completed by "+h.techName);}}>
+            ✓ Mark Tune & Clean Complete
+          </button>
+        ) : (
+          <div style={{padding:"8px 12px",background:"rgba(34,197,94,.08)",border:"1px solid rgba(34,197,94,.3)",borderRadius:8,fontSize:12,color:"#22c55e",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span>✓ Completed{h.completedDate ? " — "+new Date(h.completedDate).toLocaleDateString() : ""}{h.techName ? " by "+h.techName : ""}</span>
+            <button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:10,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>uhTop("completed",false)}>Undo</button>
+          </div>
+        )}
+      </Sec>
+
+      {/* ══════ FURNACE TUNE-UP ══════ */}
+      <Sec title="🔥 Furnace Tune-Up">
+        {guidePanel("furnace")}
+        <div style={{fontSize:10,color:"#64748b",marginBottom:8,padding:"6px 10px",background:"rgba(255,255,255,.02)",borderRadius:6,border:"1px solid rgba(255,255,255,.04)"}}>
+          📸 <b>Photo required:</b> Furnace nameplate/tag, heat exchanger, any damage or issues found
+        </div>
+        <Gr>
+          <Sel label="1. Furnace Make" value={f.make||""} onChange={v=>uh("furnace","make",v)} opts={HVAC_BRANDS}/>
+          <F label="2. Model #" value={f.model||""} onChange={v=>uh("furnace","model",v)}/>
+          <F label="3. Serial #" value={f.serial||""} onChange={v=>uh("furnace","serial",v)}/>
+          <F label="4. Furnace Age (years)" value={f.age||""} onChange={v=>uh("furnace","age",v)} num/>
+        </Gr>
+        {Number(f.age) >= 15 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginTop:4,marginBottom:4}}>⚠ Furnace is {f.age}+ years old — document thoroughly and consider replacement recommendation</div>}
+        <DDField label="5. Condition of Heat Exchanger" section="furnace" field="heatExchanger" tip="Shine flashlight through burner ports. Any visible cracks = recommend replacement." opts={["","Good — no cracks or corrosion","Fair — minor surface rust, no cracks","Rust/corrosion present — monitor","Cracked — STOP, flag for replacement","Compromised — visible holes or separation","Could not inspect"]}/>
+        <DDField label="6. Inducer Motor Operations & Condition" section="furnace" field="inducerMotor" opts={["","Operating normally — quiet","Noisy — grinding or rattling","Vibrating excessively","Weak/slow operation","Not operating","N/A — not equipped"]}/>
+        <Gr>
+          <DDField label="7. Ignitor Condition" section="furnace" field="ignitorCond" tip="Silicon nitride: 10-200Ω normal. Silicon carbide: 40-90Ω normal." opts={["","Good — clean, no cracks","Cracked — needs replacement","Weak glow — near end of life","Corroded","N/A — standing pilot"]}/>
+          <F label="7b. Ignitor OHM Reading" value={f.ignitorOhm||""} onChange={v=>uh("furnace","ignitorOhm",v)} num/>
+        </Gr>
+        <DDField label="8. Burner Condition & Operations" section="furnace" field="burnerCond" tip="Blue/even flame = good. Yellow/orange/lifting = problem." opts={["","Clean — blue even flame","Dirty — needs cleaning","Corroded burners","Misaligned — flame rollout risk","Cracked burner tubes","Sooting/carbon buildup"]}/>
+        <DDField label="9. Flame Sensor Condition" section="furnace" field="flameSensor" tip="Clean with fine steel wool. Should read 2-6 microamps." opts={["","Clean — good signal","Dirty — cleaned during service","Corroded — cleaned, monitor","Weak signal — may need replacement soon","Replaced","N/A — standing pilot"]}/>
+        <Gr>
+          <F label="10. Filter Size" value={f.filterSize||""} onChange={v=>uh("furnace","filterSize",v)}/>
+          <Sel label="11. Filter Changed?" value={f.filterChanged||""} onChange={v=>uh("furnace","filterChanged",v)} opts={YN}/>
+        </Gr>
+        <DDField label="12. Blower Motor Operations & Condition" section="furnace" field="blowerMotor" opts={["","Operating normally — quiet","Noisy — bearing wear","Vibrating","Overheating — hot to touch","Weak airflow","Not operating","ECM motor — operating normally","ECM motor — error codes"]}/>
+        <DDField label="13. Control Board Operations & Condition" section="furnace" field="controlBoard" tip="Check for error/fault codes. Note any blinking LED patterns." opts={["","Operating normally — no fault codes","Error codes present (note in findings)","Burn marks or discoloration","Intermittent operation","Corroded connections","Needs replacement"]}/>
+        <DDField label="14. Thermostat Location & Condition" section="furnace" field="thermostat" tip="📸 Take photo — offer smart thermostat upgrade." opts={["","Digital programmable — working","Manual/dial — recommend upgrade","Smart thermostat — working","Inaccurate readings","Poor location (drafty/direct sun)","Not communicating with system"]}/>
+        <Gr>
+          <F label="AFUE Pre-Tune Up" value={f.afuePre||""} onChange={v=>uh("furnace","afuePre",v)} num/>
+          <F label="AFUE Post-Tune Up" value={f.afuePost||""} onChange={v=>uh("furnace","afuePost",v)} num/>
+        </Gr>
+        {f.afuePre && f.afuePost && Number(f.afuePost) > Number(f.afuePre) && <div style={{fontSize:11,color:"#22c55e",marginTop:4}}>↑ Improved {(Number(f.afuePost)-Number(f.afuePre)).toFixed(1)}% AFUE after tune-up</div>}
+        <div style={{marginTop:6}}>
+          <label style={S.fl}>15. Furnace Findings & Recommendations</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:4}}>
+            {["System operating normally","Needs minor repair","Needs major repair","Recommend replacement — age","Recommend replacement — cracked HX","Recommend replacement — safety concern","Cleaned and serviced — good condition","Parts ordered — follow-up needed"].map(tag=>{
+              const tags = f.findings?.split("; ").filter(Boolean) || [];
+              const has = tags.includes(tag);
+              return <button key={tag} type="button" onClick={()=>{
+                const next = has ? tags.filter(t=>t!==tag) : [...tags,tag];
+                uh("furnace","findings",next.join("; "));
+              }} style={{padding:"4px 10px",borderRadius:5,fontSize:10,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+                border:has?"1px solid rgba(37,99,235,.5)":"1px solid rgba(255,255,255,.1)",
+                background:has?"rgba(37,99,235,.15)":"rgba(255,255,255,.03)",
+                color:has?"#93C5FD":"#94a3b8"
+              }}>{has?"✓ ":""}{tag}</button>;
+            })}
+          </div>
+          <textarea style={S.ta} rows={2} value={f.findingsNotes||""} onChange={e=>uh("furnace","findingsNotes",e.target.value)} placeholder="Additional notes (only if needed)…"/>
+        </div>
+      </Sec>
+
+      {/* ══════ WATER HEATER CHECK-UP ══════ */}
+      <Sec title="🚿 Water Heater Check-Up">
+        {guidePanel("waterHeater")}
+        <div style={{fontSize:10,color:"#64748b",marginBottom:8,padding:"6px 10px",background:"rgba(255,255,255,.02)",borderRadius:6,border:"1px solid rgba(255,255,255,.04)"}}>
+          📸 <b>Photos required:</b> Nameplate/tag, overall condition, venting, burners, any issues
+        </div>
+        <Gr>
+          <Sel label="16. Water Heater Make" value={w.make||""} onChange={v=>uh("waterHeater","make",v)} opts={[...HVAC_BRANDS.slice(0,1),"A.O. Smith","Bradford White","Rheem","State","Kenmore","Rinnai","Navien","Noritz",...HVAC_BRANDS.slice(1)]}/>
+          <F label="17. Model #" value={w.model||""} onChange={v=>uh("waterHeater","model",v)}/>
+          <F label="18. Serial #" value={w.serial||""} onChange={v=>uh("waterHeater","serial",v)}/>
+          <F label="19. Age (years)" value={w.age||""} onChange={v=>uh("waterHeater","age",v)} num/>
+        </Gr>
+        {Number(w.age) >= 12 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginTop:4,marginBottom:4}}>⚠ Water heater is {w.age}+ years old — document thoroughly and consider replacement</div>}
+        <DDField label="20. Water Heater Condition" section="waterHeater" field="condition" tip="📸 Take photos of overall condition, any rust/leaks." opts={["","Good — no issues","Fair — minor surface rust","Corroded — moderate to heavy","Leaking from tank","Sediment buildup (heavy drain)","T&P valve releasing/weeping","Pilot issues","Needs replacement"]}/>
+        <DDField label="21. Water Heater Venting" section="waterHeater" field="venting" tip="📸 Check pitch (¼\" per foot up), connections, corrosion. Draft test after 5 min operation." opts={["","Proper pitch and connections — good","Minor corrosion — serviceable","Corroded/deteriorating — needs repair","Disconnected joint(s)","Improper pitch — condensation risk","Single-wall in attic — code issue","Backdrafting — SAFETY CONCERN","Orphaned (no longer connected)","Power vent — operating normally"]}/>
+        <DDField label="22. Water Heater Burners" section="waterHeater" field="burners" tip="📸 Take photo of burner assembly. Blue flame = good." opts={["","Clean — operating normally","Dirty — needs cleaning","Corroded","Flame irregular/yellow","Sooting present","Cleaned during service"]}/>
+        <div style={{marginTop:6}}>
+          <label style={S.fl}>23. Water Heater Recommendations</label>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:4}}>
+            {["Good condition — no action","Cleaned and serviced","Needs minor repair","Needs T&P valve replacement","Venting needs repair","Recommend replacement — age","Recommend replacement — leaking","Recommend replacement — safety","Sediment flush recommended","Follow-up needed"].map(tag=>{
+              const tags = w.findings?.split("; ").filter(Boolean) || [];
+              const has = tags.includes(tag);
+              return <button key={tag} type="button" onClick={()=>{
+                const next = has ? tags.filter(t=>t!==tag) : [...tags,tag];
+                uh("waterHeater","findings",next.join("; "));
+              }} style={{padding:"4px 10px",borderRadius:5,fontSize:10,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+                border:has?"1px solid rgba(37,99,235,.5)":"1px solid rgba(255,255,255,.1)",
+                background:has?"rgba(37,99,235,.15)":"rgba(255,255,255,.03)",
+                color:has?"#93C5FD":"#94a3b8"
+              }}>{has?"✓ ":""}{tag}</button>;
+            })}
+          </div>
+          <textarea style={S.ta} rows={2} value={w.findingsNotes||""} onChange={e=>uh("waterHeater","findingsNotes",e.target.value)} placeholder="Additional notes (only if needed)…"/>
+        </div>
+      </Sec>
+
+      {/* ══════ A/C TUNE-UP ══════ */}
+      <Sec title="❄️ A/C Condenser Tune-Up">
+        {guidePanel("condenser")}
+        <div style={{fontSize:10,color:"#64748b",marginBottom:8,padding:"6px 10px",background:"rgba(255,255,255,.02)",borderRadius:6,border:"1px solid rgba(255,255,255,.04)"}}>
+          📸 <b>Photos required:</b> Condenser nameplate/tag, overall condition, any damage, electrical components
+        </div>
+        <Gr>
+          <Sel label="24. Condenser Make" value={c.make||""} onChange={v=>uh("condenser","make",v)} opts={HVAC_BRANDS}/>
+          <F label="25. Model #" value={c.model||""} onChange={v=>uh("condenser","model",v)}/>
+          <F label="26. Serial #" value={c.serial||""} onChange={v=>uh("condenser","serial",v)}/>
+          <F label="27. Age (years)" value={c.age||""} onChange={v=>uh("condenser","age",v)} num/>
+        </Gr>
+        {Number(c.age) >= 12 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginTop:4,marginBottom:4}}>⚠ A/C is {c.age}+ years old — check for R-22 refrigerant and consider replacement</div>}
+        <DDField label="28. Condenser Condition" section="condenser" field="condition" tip="📸 Take photos of any damage, bent fins, corrosion." opts={["","Good — clean and operational","Fair — minor fin damage","Dirty — needs cleaning","Damaged fins — moderate","Rust/corrosion present","Refrigerant leak suspected","Compressor noisy","Not operating","Recommend replacement"]}/>
+        <Sel label="29. Condenser Coils Cleaned?" value={c.coilsCleaned||""} onChange={v=>uh("condenser","coilsCleaned",v)} opts={YN}/>
+        <DDField label="30. Electrical Components, Whip & Disconnect" section="condenser" field="electrical" tip="Check disconnect for burn marks. Check contactor for pitting. Check capacitor for bulging." opts={["","All components good condition","Whip damaged/deteriorating","Disconnect corroded","Contactor pitted — needs replacement","Capacitor bulging — needs replacement","Wiring issues found","Loose connections — tightened","Needs electrical repair"]}/>
+        <div>
+          <label style={S.fl}>31. Refrigerant Pressures</label>
+          <Gr>
+            <F label="Suction (low side) PSI" value={c.suctionPSI||""} onChange={v=>uh("condenser","suctionPSI",v)} num/>
+            <F label="Discharge (high side) PSI" value={c.dischargePSI||""} onChange={v=>uh("condenser","dischargePSI",v)} num/>
+            <Sel label="Refrigerant Type" value={c.refrigerant||""} onChange={v=>uh("condenser","refrigerant",v)} opts={["","R-410A","R-22","R-407C","R-134a","Unknown"]}/>
+          </Gr>
+          {c.refrigerant === "R-22" && <div style={{padding:"6px 10px",background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.3)",borderRadius:6,fontSize:11,color:"#ef4444",marginTop:4}}>⚠ R-22 is phased out — if system needs charge, recommend replacement to R-410A system</div>}
+        </div>
+        <DDField label="32. Exposed Line Set Condition" section="condenser" field="lineSet" tip="📸 Check suction line insulation (larger line). Missing = efficiency loss." opts={["","Good condition — insulation intact","Insulation damaged/missing","Kinked line","Exposed/unsecured sections","Corroded fittings","Oil stains — possible leak"]}/>
+        <DDField label="33. Other Issues (piping, venting, drainage)" section="condenser" field="otherIssues" opts={["","No other issues","Condensate drain clogged","Condensate drain missing trap","Drain line damaged","Piping needs support/securing","Venting issue found (note below)"]}/>
+        <DDField label="34. Evaporator Coil Condition" section="condenser" field="evapCoil" opts={["","Clean — good condition","Dirty — needs cleaning","Corroded","Leaking — refrigerant","Frozen/icing — airflow issue","Could not access for inspection"]}/>
+      </Sec>
+
+      {/* ══════ WHOLE SYSTEM ASSESSMENT ══════ */}
+      <Sec title="📝 Whole System Assessment & Notes">
+        {guidePanel("replacement")}
+        <label style={S.fl}>35. Overall Details, Notes & Recommendations</label>
+        <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>
+          {["All systems operating — good condition","Furnace needs replacement","A/C needs replacement","Water heater needs replacement","Minor repairs needed — see notes","Safety concern identified","Follow-up visit required","Customer declined recommended repairs","Parts on order"].map(tag=>{
+            const tags = h.systemNotes?.split("; ").filter(Boolean) || [];
+            const has = tags.includes(tag);
+            return <button key={tag} type="button" onClick={()=>{
+              const next = has ? tags.filter(t=>t!==tag) : [...tags,tag];
+              uhTop("systemNotes",next.join("; "));
+            }} style={{padding:"5px 12px",borderRadius:5,fontSize:11,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",
+              border:has?"1px solid rgba(37,99,235,.5)":"1px solid rgba(255,255,255,.1)",
+              background:has?"rgba(37,99,235,.15)":"rgba(255,255,255,.03)",
+              color:has?"#93C5FD":"#94a3b8"
+            }}>{has?"✓ ":""}{tag}</button>;
+          })}
+        </div>
+        <textarea style={S.ta} rows={3} value={h.detailNotes||""} onChange={e=>uhTop("detailNotes",e.target.value)} placeholder="Any additional details, observations, or special circumstances…"/>
+
+        {/* Replacement flag for scope team */}
+        {(h.systemNotes||"").includes("replacement") && <div style={{marginTop:10,padding:"10px 12px",background:"rgba(245,158,11,.06)",border:"1px solid rgba(245,158,11,.2)",borderRadius:8}}>
+          <div style={{fontSize:12,fontWeight:700,color:"#f59e0b",marginBottom:4}}>🔄 Replacement Flagged</div>
+          <div style={{fontSize:11,color:"#94a3b8",marginBottom:6}}>Scope team will use this info to build the replacement scope. Make sure all equipment info and photos are complete above.</div>
+          <Gr>
+            <Sel label="Replacement Priority" value={h.replacePriority||""} onChange={v=>uhTop("replacePriority",v)} opts={["","Urgent — safety issue","Soon — failing equipment","Planned — end of life","Customer request"]}/>
+            <Sel label="Replacement Type" value={h.replaceType||""} onChange={v=>uhTop("replaceType",v)} opts={["","Furnace only","A/C only","Furnace + A/C","Water heater only","Full system"]}/>
+          </Gr>
+        </div>}
       </Sec>
     </div>
   );
