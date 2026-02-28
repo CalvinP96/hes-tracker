@@ -3782,7 +3782,7 @@ const HVAC_GUIDES = {
     title:"🚿 Water Heater Check-Up Guide",
     tips:[
       "Check for rust/water stains at base — indicates tank leaking internally",
-      "Venting: look for corrosion, disconnected joints, proper pitch (¼\" per foot upward)",
+      "Venting: look for corrosion, disconnected joints, proper pitch (¼″ per foot upward)",
       "Look for white residue around T&P valve — indicates relief valve has been releasing",
       "Check flue draft with match/lighter near draft hood after 5 min of operation",
       "Sediment: flush a few gallons from drain valve into bucket — if heavy sediment, flag it",
@@ -3946,7 +3946,7 @@ function HVACTab({p,u,onLog,user}) {
         </Gr>
         {Number(w.age) >= 12 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginTop:4,marginBottom:4}}>⚠ Water heater is {w.age}+ years old — document thoroughly and consider replacement</div>}
         <DDField label="20. Water Heater Condition" section="waterHeater" field="condition" tip="📸 Take photos of overall condition, any rust/leaks." opts={["","Good — no issues","Fair — minor surface rust","Corroded — moderate to heavy","Leaking from tank","Sediment buildup (heavy drain)","T&P valve releasing/weeping","Pilot issues","Needs replacement"]}/>
-        <DDField label="21. Water Heater Venting" section="waterHeater" field="venting" tip="📸 Check pitch (¼\" per foot up), connections, corrosion. Draft test after 5 min operation." opts={["","Proper pitch and connections — good","Minor corrosion — serviceable","Corroded/deteriorating — needs repair","Disconnected joint(s)","Improper pitch — condensation risk","Single-wall in attic — code issue","Backdrafting — SAFETY CONCERN","Orphaned (no longer connected)","Power vent — operating normally"]}/>
+        <DDField label="21. Water Heater Venting" section="waterHeater" field="venting" tip="📸 Check pitch (¼″ per foot up), connections, corrosion. Draft test after 5 min operation." opts={["","Proper pitch and connections — good","Minor corrosion — serviceable","Corroded/deteriorating — needs repair","Disconnected joint(s)","Improper pitch — condensation risk","Single-wall in attic — code issue","Backdrafting — SAFETY CONCERN","Orphaned (no longer connected)","Power vent — operating normally"]}/>
         <DDField label="22. Water Heater Burners" section="waterHeater" field="burners" tip="📸 Take photo of burner assembly. Blue flame = good." opts={["","Clean — operating normally","Dirty — needs cleaning","Corroded","Flame irregular/yellow","Sooting present","Cleaned during service"]}/>
         <div style={{marginTop:6}}>
           <label style={S.fl}>23. Water Heater Recommendations</label>
