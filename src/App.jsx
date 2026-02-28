@@ -4263,7 +4263,7 @@ const S = {
   rCard: { display:"flex", alignItems:"center", gap:12, padding:"14px 16px", background:"rgba(255,255,255,.03)", border:"1px solid rgba(255,255,255,.08)", borderRadius:10, cursor:"pointer", color:"#e2e8f0", fontFamily:"'DM Sans',sans-serif", width:"100%" },
 
   // Header
-  hdr: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 16px", borderBottom:"1px solid rgba(255,255,255,.06)", background:"rgba(11,14,24,.95)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", flexWrap:"wrap", gap:6, position:"sticky", top:0, zIndex:100 },
+  hdr: { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 16px", borderBottom:"1px solid rgba(255,255,255,.06)", background:"rgba(11,14,24,.95)", flexWrap:"wrap", gap:6 },
   hT: { fontSize:16, fontWeight:700, margin:0, color:"#f1f5f9" },
   hS: { fontSize:11, color:"#64748b", margin:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" },
   back: { background:"none", border:"none", color:"#94a3b8", cursor:"pointer", fontSize:18, fontFamily:"'DM Sans',sans-serif", padding:"4px 6px", minWidth:44, minHeight:44, display:"flex", alignItems:"center", justifyContent:"center" },
@@ -4296,9 +4296,9 @@ const S = {
   stStep: { display:"flex", flexDirection:"column", alignItems:"center", gap:2, padding:"4px 3px", borderRadius:5, flex:1, minWidth:36 },
 
   // Tabs
-  tabR: { display:"flex", gap:0, padding:"0 16px", borderBottom:"1px solid rgba(255,255,255,.06)", overflowX:"auto", WebkitOverflowScrolling:"touch", position:"sticky", top:52, zIndex:99, background:"rgba(11,14,24,.95)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)" },
-  tabB: { padding:"10px 12px", background:"none", border:"none", borderBottom:"2px solid transparent", color:"#64748b", cursor:"pointer", fontSize:12, fontFamily:"'DM Sans',sans-serif", fontWeight:500, whiteSpace:"nowrap", minHeight:40 },
-  tabA: { color:"#e2e8f0", borderBottomColor:"#2563EB" },
+  tabR: { display:"flex", gap:0, padding:"0 16px", borderBottom:"2px solid rgba(255,255,255,.08)", overflowX:"auto", WebkitOverflowScrolling:"touch", position:"sticky", top:0, zIndex:99, background:"rgba(11,14,24,.98)", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)" },
+  tabB: { padding:"12px 16px", background:"none", border:"none", borderBottom:"3px solid transparent", color:"#64748b", cursor:"pointer", fontSize:14, fontFamily:"'DM Sans',sans-serif", fontWeight:500, whiteSpace:"nowrap", minHeight:46 },
+  tabA: { color:"#e2e8f0", borderBottomColor:"#2563EB", fontWeight:600 },
   cnt: { padding:"12px 16px" },
 
   // Sections
