@@ -492,7 +492,10 @@ function printScope(p, s) {
   var finBsmt = (fnd.type === "Finished") ? (Number(fnd.aboveSqft)||0) + (Number(fnd.belowSqft)||0) : 0;
   var sq = baseSq + finBsmt;
   var Nbr = Number(s.bedrooms) || 0;
-  var Q50 = Number(p.preCFM50) || 0;
+  var preQ50 = Number(p.preCFM50) || 0;
+  var sqft2 = Number(p.sqft) || 0;
+  var canAS = s.ashrae?.canAirSeal !== undefined ? s.ashrae.canAirSeal : (preQ50 > 0 && sqft2 > 0 && preQ50 >= sqft2 * 1.1);
+  var Q50 = canAS ? Math.round(preQ50 * 0.75) : preQ50;
   var st = Number(p.stories) || 1;
   var H2 = st >= 2 ? 16 : st >= 1.5 ? 14 : 8;
   var wsf = 0.56;
@@ -518,7 +521,7 @@ function printScope(p, s) {
   row("Floor Area", sq + " ft\u00b2" + (finBsmt > 0 ? " (incl fin bsmt)" : ""));
   row("Nbr (bedrooms)", Nbr);
   row("Occupants (Nbr + 1)", Nbr + 1);
-  row("Height", H2 + " ft"); row("Leakage @50Pa", Q50 + " CFM");
+  row("Height", H2 + " ft"); row("Q50 (est. post)", Q50 + " CFM" + (canAS ? " (" + preQ50 + "\u00d70.75)" : " (no air seal)"));
   row("Kitchen Fan", kCFM > 0 ? kCFM + " CFM" + (kWin ? " (window)" : "") : null);
   row("Bath #1", b1CFM > 0 ? b1CFM + " CFM" + (b1Win ? " (window)" : "") : null);
   row("Bath #2", b2CFM > 0 ? b2CFM + " CFM" + (b2Win ? " (window)" : "") : null);
@@ -1130,7 +1133,10 @@ const exportProjectForms = async (proj) => {
         // ASHRAE
         var baseSq2 = Number(p.sqft)||0;
         var finB = fnd.type==="Finished"?(Number(fnd.aboveSqft)||0)+(Number(fnd.belowSqft)||0):0;
-        var sqA = baseSq2+finB; var NbrA = Number(s2.bedrooms)||0; var Q50A = Number(p.preCFM50)||0;
+        var sqA = baseSq2+finB; var NbrA = Number(s2.bedrooms)||0;
+        var preQ50A = Number(p.preCFM50)||0;
+        var canASA = s2.ashrae?.canAirSeal !== undefined ? s2.ashrae.canAirSeal : (preQ50A > 0 && baseSq2 > 0 && preQ50A >= baseSq2 * 1.1);
+        var Q50A = canASA ? Math.round(preQ50A * 0.75) : preQ50A;
         var stA = Number(p.stories)||1; var HA = stA>=2?16:stA>=1.5?14:8;
         var qiA = Q50A>0?0.052*Q50A*0.56*Math.pow(HA/8.2,0.4):0;
         var qtA = sqA>0?0.03*sqA+7.5*(NbrA+1):0;
@@ -1148,7 +1154,7 @@ const exportProjectForms = async (proj) => {
 
         secs.push({ title: "ASHRAE 62.2-2016 Ventilation", rows: [
           ["Floor Area", sqA+" ft\u00b2"], ["Nbr (bedrooms)", NbrA], ["Occupants (Nbr+1)", NbrA+1], ["Height", HA+" ft"],
-          ["Leakage @50Pa", Q50A+" CFM"],
+          ["Q50 (est. post)", Q50A+" CFM"+(canASA?" ("+preQ50A+"\u00d70.75)":" (no air seal)")],
           ["Kitchen Fan", kC2>0?kC2+" CFM":null], ["Bath #1", b1C>0?b1C+" CFM":null],
           ["Bath #2", b2C>0?b2C+" CFM":null], ["Bath #3", b3C>0?b3C+" CFM":null],
           ["Total Deficit", Math.round(tdA)+" CFM"],
@@ -2229,42 +2235,44 @@ function ScopeTab({p,u,onLog}) {
   const sn = (sec,k,v) => u({scope2026:{...s,[sec]:{...(s[sec]||{}),[k]:v}}});
   const tog = (list,m) => { const l = p[list].includes(m) ? p[list].filter(x=>x!==m) : [...p[list],m]; u({[list]:l}); };
 
-  // Auto-fill scope from assessment (only empty fields)
+  // Auto-fill scope from assessment (always overwrites)
   const [filled, setFilled] = useState(false);
   useEffect(() => {
     if (filled || !a) return;
     const updates = {};
     const nested = {};
     // Roof age
-    if (!s.roofAge && a.roofAge) updates.roofAge = a.roofAge;
+    if (a.roofAge) updates.roofAge = a.roofAge;
     // Tenant type (map: Owned→Own, Rented→Rent)
-    if (!s.tenantType && a.tenantType) updates.tenantType = a.tenantType === "Owned" ? "Own" : a.tenantType === "Rented" ? "Rent" : a.tenantType;
+    if (a.tenantType) updates.tenantType = a.tenantType === "Owned" ? "Own" : a.tenantType === "Rented" ? "Rent" : a.tenantType;
     // Thermostat (map: Non-programmable→Manual)
-    if (!s.htg?.thermostat && a.thermostatType) {
+    if (a.thermostatType) {
       nested.htg = {...(s.htg||{}), thermostat: a.thermostatType === "Non-programmable" ? "Manual" : a.thermostatType};
     }
     // Ceiling / wall conditions
-    if (!s.ceilingCond && a.ceilingCond) updates.ceilingCond = a.ceilingCond;
-    if (!s.wallCond && a.wallCond) updates.wallCond = a.wallCond;
-    if (!s.wallsNeedInsul && a.wallsNeedInsul) updates.wallsNeedInsul = a.wallsNeedInsul;
+    if (a.ceilingCond) updates.ceilingCond = a.ceilingCond;
+    if (a.wallCond) updates.wallCond = a.wallCond;
+    if (a.wallsNeedInsul) updates.wallsNeedInsul = a.wallsNeedInsul;
+    // Bedrooms
+    if (a.bedrooms) updates.bedrooms = a.bedrooms;
     // Fan flows → ASHRAE
     const ash = s.ashrae || {};
     const ashUp = {};
-    if (!ash.bath1CFM && a.bathFan1) ashUp.bath1CFM = a.bathFan1;
-    if (!ash.bath2CFM && a.bathFan2) ashUp.bath2CFM = a.bathFan2;
-    if (!ash.bath3CFM && a.bathFan3) ashUp.bath3CFM = a.bathFan3;
-    if (!ash.kitchenCFM && a.kitchenFan) ashUp.kitchenCFM = a.kitchenFan;
+    if (a.bathFan1) ashUp.bath1CFM = a.bathFan1;
+    if (a.bathFan2) ashUp.bath2CFM = a.bathFan2;
+    if (a.bathFan3) ashUp.bath3CFM = a.bathFan3;
+    if (a.kitchenFan) ashUp.kitchenCFM = a.kitchenFan;
     if (Object.keys(ashUp).length) nested.ashrae = {...ash, ...ashUp};
     // Smoke / CO
-    if (!s.smokePresent && a.smokePresent) updates.smokePresent = a.smokePresent;
-    if (!s.smokeNeeded && a.smokeNeeded) updates.smokeNeeded = a.smokeNeeded;
-    if (!s.coPresent && a.coPresent) updates.coPresent = a.coPresent;
-    if (!s.coNeeded && a.coNeeded) updates.coNeeded = a.coNeeded;
+    if (a.smokePresent) updates.smokePresent = a.smokePresent;
+    if (a.smokeNeeded) updates.smokeNeeded = a.smokeNeeded;
+    if (a.coPresent) updates.coPresent = a.coPresent;
+    if (a.coNeeded) updates.coNeeded = a.coNeeded;
     // Weatherization
-    if (!s.tenmats && a.tenmats) updates.tenmats = a.tenmats;
-    if (!s.doorSweeps && a.doorSweeps) updates.doorSweeps = a.doorSweeps;
+    if (a.tenmats) updates.tenmats = a.tenmats;
+    if (a.doorSweeps) updates.doorSweeps = a.doorSweeps;
     // Occupants (shared on p)
-    if (!p.occupants && a.occupants) u({occupants: a.occupants});
+    if (a.occupants) u({occupants: a.occupants});
 
     if (Object.keys(updates).length || Object.keys(nested).length) {
       u({scope2026:{...s, ...updates, ...nested}});
@@ -2291,7 +2299,8 @@ function ScopeTab({p,u,onLog}) {
 
     // Build ASHRAE HTML first (avoid nested template literals)
     const ashraeHTML = (() => {
-      const a2=p.audit||{};const baseSq=Number(p.sqft)||0;const finBsmt=s.fnd?.type==="Finished"?(Number(s.fnd?.aboveSqft)||0)+(Number(s.fnd?.belowSqft)||0):0;const sq=baseSq+finBsmt;const oc2=Number(s.bedrooms)||0;const c50=Number(p.preCFM50)||0;
+      const a2=p.audit||{};const baseSq=Number(p.sqft)||0;const finBsmt=s.fnd?.type==="Finished"?(Number(s.fnd?.aboveSqft)||0)+(Number(s.fnd?.belowSqft)||0):0;const sq=baseSq+finBsmt;const oc2=Number(s.bedrooms)||0;
+      const preC50=Number(p.preCFM50)||0;const canAS3=s.ashrae?.canAirSeal!==undefined?s.ashrae.canAirSeal:(preC50>0&&baseSq>0&&preC50>=baseSq*1.1);const c50=canAS3?Math.round(preC50*0.75):preC50;
       const st2=Number(p.stories)||1;const hh=st2>=2?16:st2>=1.5?14:8;const wsf2=0.56;
       const kRw=String(s.ashrae?.kitchenCFM??a2.kitchenFan??"");const b1Rw=String(s.ashrae?.bath1CFM??a2.bathFan1??"");
       const b2Rw=String(s.ashrae?.bath2CFM??a2.bathFan2??"");const b3Rw=String(s.ashrae?.bath3CFM??a2.bathFan3??"");
@@ -2312,7 +2321,7 @@ function ScopeTab({p,u,onLog}) {
       h += '<div class="row"><span class="lbl">Nbr (bedrooms)</span><span class="val">'+oc2+'</span></div>';
       h += '<div class="row"><span class="lbl">Occupants (Nbr + 1)</span><span class="val">'+(oc2+1)+'</span></div>';
       h += '<div class="row"><span class="lbl">Dwelling height</span><span class="val">'+hh+' ft ('+(st2>=2?"2":st2>=1.5?"1.5":"1")+'-story)</span></div>';
-      h += '<div class="row"><span class="lbl">Leakage @ 50Pa</span><span class="val">'+c50+' CFM</span></div>';
+      h += '<div class="row"><span class="lbl">Q50 (est. post)</span><span class="val">'+c50+' CFM'+(canAS3?' ('+preC50+'\u00d70.75)':' (no air seal)')+'</span></div>';
       h += '<div class="row"><span class="lbl">Kitchen fan'+(kP?"":" (none)")+'</span><span class="val">'+(kP?kC+" CFM":"\u2014")+' '+(kW?"(window)":"")+" "+(kP?"(req 100)":"")+'</span></div>';
       h += '<div class="row"><span class="lbl">Bath #1'+(b1P?"":" (none)")+'</span><span class="val">'+(b1P?b1c+" CFM":"\u2014")+' '+(b1W?"(window)":"")+" "+(b1P?"(req 50)":"")+'</span></div>';
       h += '<div class="row"><span class="lbl">Bath #2'+(b2P?"":" (none)")+'</span><span class="val">'+(b2P?b2c+" CFM":"\u2014")+' '+(b2W?"(window)":"")+" "+(b2P?"(req 50)":"")+'</span></div>';
@@ -2491,7 +2500,7 @@ function ScopeTab({p,u,onLog}) {
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Scope of Work — submit to RISE for approval</p>
           <div style={{display:"flex",gap:6}}>
             <button type="button" style={{...S.ghost,padding:"4px 10px",fontSize:10,color:"#60A5FA",borderColor:"rgba(37,99,235,.3)"}} onClick={()=>{
-              const conf = confirm("Re-fill empty scope fields from assessment data?");
+              const conf = confirm("Re-fill scope fields from assessment data? This will overwrite current values.");
               if(conf){setFilled(false);}
             }}>↻ Sync from Assessment</button>
             <PrintBtn onClick={()=>printScope(p,s)}/>
@@ -2904,7 +2913,10 @@ function ScopeTab({p,u,onLog}) {
           const finBasement = s.fnd?.type === "Finished" ? (Number(s.fnd?.aboveSqft)||0) + (Number(s.fnd?.belowSqft)||0) : 0;
           const Afl = baseSqft + finBasement;
           const Nbr = Number(s.bedrooms) || 0;
-          const Q50 = Number(p.preCFM50) || 0;
+          const preQ50 = Number(p.preCFM50) || 0;
+          const sqft = Number(p.sqft) || 0;
+          const canAirSeal = s.ashrae?.canAirSeal !== undefined ? s.ashrae.canAirSeal : (preQ50 > 0 && sqft > 0 && preQ50 >= sqft * PROGRAM.airSealMinCFM50pct);
+          const Q50 = canAirSeal ? Math.round(preQ50 * (1 - PROGRAM.airSealGoal / 100)) : preQ50;
           const st = Number(p.stories) || 1;
           const H = st >= 2 ? 16 : st >= 1.5 ? 14 : 8;
           const Hr = 8.202;
@@ -3012,7 +3024,12 @@ function ScopeTab({p,u,onLog}) {
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ft²]</div><div style={autoBox}>{Afl||"—"}</div><div style={autoSub}>{finBasement > 0 ? `${baseSqft} + ${finBasement} fin. bsmt` : "← Sq Footage"}</div></div>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Nocc (occupants)</div><div style={autoBox}>{Nbr + 1}</div><div style={autoSub}>{Nbr} bedrooms + 1 = {Nbr + 1}</div></div>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Height [ft]</div><div style={autoBox}>{H}</div><div style={autoSub}>{st>=2?"2-story":"1"+(st>=1.5?".5":"")+"-story"}</div></div>
-                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Q50 [CFM]</div><div style={autoBox}>{Q50||"—"}</div><div style={autoSub}>← Diagnostics</div></div>
+                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Q50 [CFM] — est. post</div><div style={{...autoBox,color:canAirSeal?"#f59e0b":"#e2e8f0"}}>{Q50||"—"}</div><div style={autoSub}>{canAirSeal ? `${preQ50} × 0.75 (25% reduction)` : `${preQ50} (no air seal)`}</div>
+                  <label style={{display:"flex",alignItems:"center",gap:4,marginTop:4,fontSize:10,color:canAirSeal?"#f59e0b":"#64748b",cursor:"pointer",justifyContent:"center"}}>
+                    <input type="checkbox" checked={!!canAirSeal} onChange={e=>sn("ashrae","canAirSeal",e.target.checked)} style={{accentColor:"#2563EB",width:13,height:13}}/>
+                    Air seal eligible
+                  </label>
+                </div>
               </div>
 
               {/* ══ LOCAL VENTILATION ══ */}
@@ -3048,7 +3065,8 @@ function ScopeTab({p,u,onLog}) {
 
               {/* ══ RESULTS ══ */}
               <div style={resultBox}>
-                <div style={{fontSize:13,fontWeight:700,color:"#3B82F6",marginBottom:10}}>Dwelling-Unit Ventilation Results</div>
+                <div style={{fontSize:13,fontWeight:700,color:"#3B82F6",marginBottom:4}}>Dwelling-Unit Ventilation Results</div>
+                <div style={{fontSize:9,color:canAirSeal?"#f59e0b":"#64748b",marginBottom:8}}>Using {canAirSeal ? `estimated post Q50: ${preQ50} × 0.75 = ${Q50} CFM` : `pre-work Q50: ${preQ50} CFM (no air seal)`}</div>
 
                 <div style={row}><span style={lbl}>Infiltration credit, Qinf [CFM]</span><span style={val}>{R(Qinf_eff)}</span></div>
                 <div style={eq}>= 0.052 × Q50 × wsf × (H / 8.2)^0.4<br/>= 0.052 × {Q50} × {wsf} × ({H} / 8.2)^0.4</div>
