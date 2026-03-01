@@ -1510,10 +1510,124 @@ const exportProjectForms = async (proj) => {
           {tab==="photos" && <PhotoTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
           {tab==="scope" && <ScopeTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
           {tab==="install" && <InstallTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
-          {tab==="hvac" && <HVACTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName}/>}
+          {tab==="hvac" && <HVACTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
           {tab==="qaqc" && <QAQCTab p={proj} u={c=>upC(proj.id,c)}/>}
           {tab==="closeout" && <CloseoutTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
           {tab==="log" && <LogTab p={proj} onLog={t=>addLog(proj.id,t)}/>}
+        </div>
+      </div>
+    );
+  }
+
+  // ── HVAC Tech Dedicated View ──────────────────────────
+  if (role === "hvac" && view !== "proj") {
+    const hvacJobs = projects.filter(p => p.currentStage >= 3 && p.currentStage <= 7);
+    const myNotifications = [];
+    projects.forEach(pr => {
+      const hv = pr.hvac || {};
+      if (hv.replaceRequestBy === userName) {
+        if (hv.replaceRequestStatus === "approved") myNotifications.push({ proj: pr, status: "approved", type: hv.replaceType });
+        if (hv.replaceRequestStatus === "denied") myNotifications.push({ proj: pr, status: "denied", type: hv.replaceType });
+      }
+    });
+    const pendingJobs = hvacJobs.filter(p => !(p.hvac||{}).completed);
+    const completedJobs = hvacJobs.filter(p => (p.hvac||{}).completed);
+
+    // If a project is selected, show HVAC work view
+    if (selId) {
+      const pr = projects.find(p => p.id === selId);
+      if (pr) {
+        return (
+          <div style={S.app}>{globalCSS}
+            <Hdr role={curRole} user={userName} onSw={doLogout}
+              onBack={()=>setSelId(null)}
+              title={pr.customerName||"Unnamed"} sub={pr.address}
+              badge={<span style={{...S.bdg,background:STAGES[pr.currentStage].color}}>{STAGES[pr.currentStage].icon}</span>}
+            />
+            <div className="proj-cnt cnt-wrap" style={S.cnt}>
+              <HVACTab p={pr} u={c=>upC(pr.id,c)} onLog={t=>addLog(pr.id,t)} user={userName} role={role}/>
+              {/* HVAC Photos */}
+              <div style={{marginTop:12}}>
+                <PhotoTab p={pr} u={c=>upC(pr.id,c)} onLog={t=>addLog(pr.id,t)} user={userName} role={role}/>
+              </div>
+            </div>
+          </div>
+        );
+      }
+    }
+
+    // HVAC Job Queue
+    return (
+      <div style={S.app}>{globalCSS}
+        <Hdr role={curRole} user={userName} onSw={doLogout} title="HVAC Work Queue"
+          sub={`${pendingJobs.length} job${pendingJobs.length!==1?"s":""} to do`}
+        />
+
+        {/* Notifications — replacement approvals/denials */}
+        {myNotifications.length > 0 && <div style={{padding:"8px 16px"}}>
+          {myNotifications.map((n,i) => (
+            <div key={i} style={{padding:"8px 12px",marginBottom:6,borderRadius:8,cursor:"pointer",
+              background:n.status==="approved"?"rgba(34,197,94,.06)":"rgba(239,68,68,.06)",
+              border:`1px solid ${n.status==="approved"?"rgba(34,197,94,.3)":"rgba(239,68,68,.3)"}`
+            }} onClick={()=>setSelId(n.proj.id)}>
+              <div style={{fontSize:12,fontWeight:600,color:n.status==="approved"?"#22c55e":"#ef4444"}}>
+                {n.status==="approved"?"✅":"❌"} {n.type} — Replacement {n.status.toUpperCase()}
+              </div>
+              <div style={{fontSize:11,color:"#94a3b8"}}>{n.proj.customerName} — {n.proj.address}</div>
+            </div>
+          ))}
+        </div>}
+
+        <div style={{padding:"0 16px"}}>
+          {/* Pending Jobs */}
+          {pendingJobs.length > 0 && <>
+            <div style={{fontSize:10,fontWeight:600,color:"#f59e0b",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:8}}>🔧 Jobs To Complete ({pendingJobs.length})</div>
+            {pendingJobs.map(p => {
+              const hv = p.hvac||{};
+              const replSt = hv.replaceRequestStatus;
+              return (
+                <button key={p.id} style={{...S.card,width:"100%",textAlign:"left",cursor:"pointer",marginBottom:6}} onClick={()=>setSelId(p.id)}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontSize:14,fontWeight:600,color:"#e2e8f0"}}>{p.customerName||"Unnamed"}</div>
+                      <div style={{fontSize:12,color:"#94a3b8"}}>{p.address}</div>
+                    </div>
+                    <span style={{...S.bdg,background:STAGES[p.currentStage].color,fontSize:10}}>{STAGES[p.currentStage].icon}</span>
+                  </div>
+                  {p.stId && <div style={{fontSize:10,color:"#64748b",marginTop:3}}>ST# {p.stId}</div>}
+                  {replSt==="pending" && <div style={{fontSize:10,color:"#fbbf24",marginTop:3}}>🔄 Replacement request pending…</div>}
+                </button>
+              );
+            })}
+          </>}
+
+          {/* Completed Jobs */}
+          {completedJobs.length > 0 && <>
+            <div style={{fontSize:10,fontWeight:600,color:"#22c55e",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:16}}>✓ Completed ({completedJobs.length})</div>
+            {completedJobs.map(p => {
+              const hv = p.hvac||{};
+              const replSt = hv.replaceRequestStatus;
+              return (
+                <button key={p.id} style={{...S.card,width:"100%",textAlign:"left",cursor:"pointer",marginBottom:6,opacity:.7}} onClick={()=>setSelId(p.id)}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:"#94a3b8"}}>{p.customerName||"Unnamed"}</div>
+                      <div style={{fontSize:11,color:"#64748b"}}>{p.address}</div>
+                    </div>
+                    <span style={{fontSize:10,color:"#22c55e"}}>✓ Done</span>
+                  </div>
+                  {replSt && <div style={{fontSize:10,color:replSt==="approved"?"#22c55e":replSt==="denied"?"#ef4444":"#fbbf24",marginTop:3}}>
+                    {replSt==="approved"?"✅ Replacement approved":replSt==="denied"?"❌ Replacement denied":"🔄 Replacement pending"}
+                  </div>}
+                </button>
+              );
+            })}
+          </>}
+
+          {hvacJobs.length === 0 && <div style={{textAlign:"center",padding:40,color:"#64748b"}}>
+            <div style={{fontSize:32}}>🔧</div>
+            <div style={{fontSize:13,marginTop:8}}>No HVAC jobs available right now.</div>
+          </div>}
         </div>
       </div>
     );
@@ -4283,7 +4397,7 @@ const HVAC_GUIDES = {
   }
 };
 
-function HVACTab({p,u,onLog,user}) {
+function HVACTab({p,u,onLog,user,role}) {
   const h = p.hvac || {};
   const uh = (section,key,val) => u({hvac:{...h,[section]:{...(h[section]||{}),[key]:val}}});
   const uhTop = (key,val) => u({hvac:{...h,[key]:val}});
@@ -4570,9 +4684,7 @@ ${(h.systemNotes||"").includes("replacement")?`<tr><td colspan="2" style="border
           <textarea style={{...S.ta,marginTop:6,minHeight:40}} value={h.replaceJustification||""} onChange={e=>uhTop("replaceJustification",e.target.value)} placeholder="Justification — describe why replacement is needed (condition, safety concerns, age, etc.)..." rows={2}/>
           {/* Submit request */}
           {!h.replaceRequestStatus && <button type="button" style={{...S.ghost,borderColor:"#f59e0b",color:"#f59e0b",padding:"10px 16px",marginTop:6,width:"100%",fontSize:12,fontWeight:600,opacity:(h.replacePriority&&h.replaceType)?1:.4}} disabled={!h.replacePriority||!h.replaceType} onClick={()=>{
-            uhTop("replaceRequestStatus","pending");
-            uhTop("replaceRequestDate",new Date().toISOString());
-            uhTop("replaceRequestBy",user);
+            u({hvac:{...h, replaceRequestStatus:"pending", replaceRequestDate:new Date().toISOString(), replaceRequestBy:user}});
             onLog(`🔄 Replacement request submitted: ${h.replaceType} — ${h.replacePriority}`);
           }}>🔄 Submit Replacement Request</button>}
           {/* Status display */}
@@ -4583,12 +4695,11 @@ ${(h.systemNotes||"").includes("replacement")?`<tr><td colspan="2" style="border
             {(role==="admin"||role==="scope") && <div style={{marginTop:6,display:"flex",gap:6}}>
               <textarea style={{...S.ta,flex:1,minHeight:30}} value={h._replResp||""} onChange={e=>uhTop("_replResp",e.target.value)} placeholder="Response (internal)..." rows={1}/>
               <button type="button" style={{padding:"8px 16px",borderRadius:6,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}} onClick={()=>{
-                uhTop("replaceRequestStatus","approved");uhTop("replaceResponse",h._replResp||"");
-                u({mechNeeded:true,mechStatus:"approved",mechDate:new Date().toISOString().slice(0,10)});
+                u({hvac:{...h, replaceRequestStatus:"approved", replaceResponse:h._replResp||""}, mechNeeded:true, mechStatus:"approved", mechDate:new Date().toISOString().slice(0,10)});
                 onLog(`✅ Replacement APPROVED: ${h.replaceType}`);
               }}>✓ Approve</button>
               <button type="button" style={{padding:"8px 16px",borderRadius:6,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}} onClick={()=>{
-                uhTop("replaceRequestStatus","denied");uhTop("replaceResponse",h._replResp||"");
+                u({hvac:{...h, replaceRequestStatus:"denied", replaceResponse:h._replResp||""}});
                 onLog(`❌ Replacement DENIED: ${h.replaceType}`);
               }}>✕ Deny</button>
             </div>}
