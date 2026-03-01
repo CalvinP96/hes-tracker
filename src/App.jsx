@@ -21,7 +21,7 @@ const ROLES = [
   { key:"assessor", label:"Assessor", icon:"🔍", tabs:["info","assessment","photos","log"] },
   { key:"scope", label:"Scope/Compliance", icon:"📋", tabs:["info","scope","photos","hvac","install","qaqc","closeout","log"] },
   { key:"installer", label:"Install Crew", icon:"🏗️", tabs:["info","install","photos","closeout","log"] },
-  { key:"hvac", label:"HVAC Tech", icon:"🔧", tabs:["info","hvac","photos","log"] },
+  { key:"hvac", label:"HVAC Tech", icon:"🔧", tabs:["hvac"] },
 ];
 
 const TAB_META = {
@@ -1521,7 +1521,7 @@ const exportProjectForms = async (proj) => {
   }
 
   // ── HVAC Tech Dedicated View ──────────────────────────
-  if (role === "hvac" && view !== "proj") {
+  if (role === "hvac") {
     const hvacJobs = projects.filter(p => p.currentStage >= 3 && p.currentStage <= 7);
     const myNotifications = [];
     projects.forEach(pr => {
@@ -1547,10 +1547,60 @@ const exportProjectForms = async (proj) => {
             />
             <div className="proj-cnt cnt-wrap" style={S.cnt}>
               <HVACTab p={pr} u={c=>upC(pr.id,c)} onLog={t=>addLog(pr.id,t)} user={userName} role={role}/>
-              {/* HVAC Photos */}
-              <div style={{marginTop:12}}>
-                <PhotoTab p={pr} u={c=>upC(pr.id,c)} onLog={t=>addLog(pr.id,t)} user={userName} role={role}/>
-              </div>
+              {/* HVAC Photos Only */}
+              {(()=>{
+                const hvacSections = Object.entries(PHOTO_SECTIONS).filter(([cat])=>cat.startsWith("HVAC"));
+                const hvacItems = hvacSections.flatMap(([,items])=>items);
+                const taken = hvacItems.filter(i=>hasPhoto(pr.photos,i.id)).length;
+                const compress = (id,file) => {
+                  if(!file) return;
+                  const reader = new FileReader();
+                  reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                      const maxW=1600; let w=img.width,h2=img.height;
+                      if(w>maxW){h2=Math.round(h2*maxW/w);w=maxW;}
+                      const c=document.createElement("canvas"); c.width=w; c.height=h2;
+                      c.getContext("2d").drawImage(img,0,0,w,h2);
+                      const compressed=c.toDataURL("image/jpeg",0.7);
+                      const existing=getPhotos(pr.photos,id);
+                      upC(pr.id,{photos:{...pr.photos,[id]:[...existing,{d:compressed,at:new Date().toISOString(),by:userName}]}});
+                      addLog(pr.id,`📸 ${hvacItems.find(x=>x.id===id)?.l||id}`);
+                    };
+                    img.src=e.target.result;
+                  };
+                  reader.readAsDataURL(file);
+                };
+                return <div style={{marginTop:12}}>
+                  <Sec title={<span>📷 HVAC Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{taken}/{hvacItems.length}</span></span>}>
+                    <div style={S.prog}><div style={{...S.progF,width:`${hvacItems.length?(taken/hvacItems.length)*100:0}%`,background:"linear-gradient(90deg,#2563EB,#3B82F6)"}}/></div>
+                    {hvacSections.map(([cat,items])=>{
+                      const cd=items.filter(i=>hasPhoto(pr.photos,i.id)).length;
+                      return <div key={cat} style={{marginTop:10}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",marginBottom:4,display:"flex",justifyContent:"space-between"}}>
+                          <span>{cat}</span><span style={{color:cd===items.length?"#22c55e":"#64748b"}}>{cd}/{items.length}</span>
+                        </div>
+                        {items.map(it=>{
+                          const photos=getPhotos(pr.photos,it.id);
+                          const has=photos.length>0;
+                          return <div key={it.id} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                            <div style={{width:48,height:48,borderRadius:6,border:`1px dashed ${has?"rgba(34,197,94,.3)":"rgba(255,255,255,.1)"}`,background:has?"rgba(34,197,94,.04)":"rgba(255,255,255,.02)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+                              {has ? <img src={photos[photos.length-1].d} style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:5}} alt=""/> :
+                                <label style={{fontSize:10,color:"#64748b",cursor:"pointer",textAlign:"center",padding:4}}>📸 Tap<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{compress(it.id,e.target.files?.[0]);e.target.value="";}}/></label>
+                              }
+                            </div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:11,color:has?"#e2e8f0":"#64748b"}}>{has?"✓ ":""}{it.l}</div>
+                              {has && <div style={{fontSize:9,color:"#475569"}}>{photos.length} photo{photos.length>1?"s":""}</div>}
+                            </div>
+                            {has && <label style={{fontSize:10,color:"#60A5FA",cursor:"pointer"}}>＋<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{compress(it.id,e.target.files?.[0]);e.target.value="";}}/></label>}
+                          </div>;
+                        })}
+                      </div>;
+                    })}
+                  </Sec>
+                </div>;
+              })()}
             </div>
           </div>
         );
