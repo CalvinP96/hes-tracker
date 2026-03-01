@@ -722,7 +722,7 @@ export default function App() {
     </div>
   );
 
-  const globalCSS = <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');@keyframes spin{to{transform:rotate(360deg)}}*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}html{color-scheme:dark}body{margin:0}input,select,textarea,button{font-size:16px;color-scheme:dark}select option{background:#1e293b;color:#e2e8f0}
+  const globalCSS = <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');@keyframes spin{to{transform:rotate(360deg)}}@keyframes coSlide{0%{background-position:0% 50%}100%{background-position:200% 50%}}*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}html{color-scheme:dark}body{margin:0}input,select,textarea,button{font-size:16px;color-scheme:dark}select option{background:#1e293b;color:#e2e8f0}
 
 /* ── Mobile-first fixes ── */
 .sec-wrap{padding:10px 10px 8px}
@@ -1014,7 +1014,7 @@ const exportProjectForms = async (proj) => {
       const q = p.qaqc || {};
 
       // 1. Customer Auth — use image overlay approach with jsPDF addImage
-      stepEl.textContent = "1/6 Customer Authorization…";
+      stepEl.textContent = "1/8 Customer Authorization…";
       if (a.customerAuthSig) {
         // For auth form, load the page images and overlay sig
         const loadImg = (src) => new Promise((res, rej) => {
@@ -1043,7 +1043,7 @@ const exportProjectForms = async (proj) => {
       }
 
       // 2. Assessment
-      stepEl.textContent = "2/6 Assessment…";
+      stepEl.textContent = "2/8 Assessment…";
       zip.file(nm+"_assessment.pdf", buildPDF("Data Collection Tool — Assessment", [
         { title: "Project Info", rows: [
           ["RISE ID", p.riseId], ["Stage", STAGES[p.currentStage]?.label],
@@ -1059,7 +1059,7 @@ const exportProjectForms = async (proj) => {
       ]));
 
       // 3. Scope
-      stepEl.textContent = "3/6 Scope…";
+      stepEl.textContent = "3/8 Scope…";
       {
         const s2 = p.scope2026 || {};
         const htg = s2.htg||{}; const clg = s2.clg||{}; const dhw = s2.dhw||{};
@@ -1220,8 +1220,80 @@ const exportProjectForms = async (proj) => {
         zip.file(nm+"_scope.pdf", buildPDF("2026 HEA/IE Retrofit Form \u2014 Scope of Work", secs));
       }
 
-      // 4. Final Inspection
-      stepEl.textContent = "4/6 Final Inspection…";
+      // 4. Pre-Work Scope of Work (customer signed)
+      stepEl.textContent = "4/8 Pre-Work Scope…";
+      {
+        const s2 = p.scope2026 || {};
+        const iq2 = s2.insulQty||{};
+        const secs = [];
+        secs.push({ title: "Property Information", rows: [
+          ["Customer", p.customerName], ["Address", p.address], ["RISE ID", p.riseId],
+          ["Sq Footage", (p.sqft||"")+" ft\u00b2"], ["Year Built", p.yearBuilt], ["Stories", p.stories], ["Pre CFM50", p.preCFM50]
+        ]});
+        if (p.measures.length) secs.push({ title: "Energy Efficiency Measures", table: {
+          cols: [{label:"Measure",w:260},{label:"Qty",w:80},{label:"Unit",w:80}],
+          rows: p.measures.map(function(m) { return [m, getResolvedQty(p,m)||"\u2014", measUnit(m)]; })
+        }});
+        if (p.healthSafety.length) secs.push({ title: "Health & Safety Measures", table: {
+          cols: [{label:"Measure",w:310},{label:"Qty",w:80}],
+          rows: p.healthSafety.map(function(m) { return [m, getResolvedQty(p,m)||"1"]; })
+        }});
+        const iqRows = Object.entries(iq2).filter(([,v])=>v);
+        if (iqRows.length) secs.push({ title: "Insulation Specifications", table: {
+          cols: [{label:"Location",w:260},{label:"Qty",w:80},{label:"Unit",w:80}],
+          rows: iqRows.map(([l,v])=>[l, String(v), l.includes("Rim Joist")?"LnFt":"SqFt"])
+        }});
+        if (p.measureNotes) secs.push({ title: "Scope Notes", text: p.measureNotes });
+        secs.push({ title: "Authorization", text: "By signing below, the customer acknowledges and authorizes the scope of work described above. Work shall not commence until this authorization is obtained." });
+        if (fi.preScopeSig) secs.push({ title: "Customer Pre-Work Authorization", sig: true });
+        zip.file(nm+"_pre_work_scope.pdf", buildPDF("Pre-Work Scope of Work \u2014 Authorization", secs));
+      }
+
+      // 5. Post-Work Scope of Work (customer signed, with approved COs)
+      stepEl.textContent = "5/8 Post-Work Scope…";
+      {
+        const s2 = p.scope2026 || {};
+        const iq2 = s2.insulQty||{};
+        const coAll = p.changeOrders||[];
+        const approved = coAll.filter(c=>c.status==="approved");
+        const addNames = approved.flatMap(c=>(c.adds||[]).map(a=>a.m||a));
+        const remNames = approved.flatMap(c=>(c.removes||[]));
+        const postM = [...p.measures.filter(m=>!remNames.includes(m)),...addNames.filter(m=>!p.measures.includes(m)&&EE_MEASURES.includes(m))];
+        const postH = [...p.healthSafety.filter(m=>!remNames.includes(m)),...addNames.filter(m=>!p.healthSafety.includes(m)&&HS_MEASURES.includes(m))];
+        const coQtyMap3 = {};
+        approved.forEach(c=>(c.adds||[]).forEach(a=>{if(a.qty)coQtyMap3[a.m]=a.qty;}));
+        const getQ3 = (m) => coQtyMap3[m]||getResolvedQty(p,m)||"1";
+        const secs = [];
+        secs.push({ title: "Property Information", rows: [
+          ["Customer", p.customerName], ["Address", p.address], ["RISE ID", p.riseId],
+          ["Sq Footage", (p.sqft||"")+" ft\u00b2"], ["Year Built", p.yearBuilt], ["Stories", p.stories],
+          ["Pre CFM50", p.preCFM50], ["Post CFM50", p.postCFM50]
+        ]});
+        if (postM.length) secs.push({ title: "Energy Efficiency Measures (Final)", table: {
+          cols: [{label:"Measure",w:220},{label:"Qty",w:60},{label:"Unit",w:60},{label:"Status",w:80}],
+          rows: [...postM.map(m => [addNames.includes(m)?"\ud83d\udd36 "+m:m, getQ3(m), measUnit(m), addNames.includes(m)?"CO Added":"Approved"]),
+            ...remNames.filter(m=>EE_MEASURES.includes(m)).map(m=>[{t:m,c:"r"}, "\u2014", "\u2014", {t:"CO Removed",c:"r"}])]
+        }});
+        if (postH.length) secs.push({ title: "Health & Safety Measures (Final)", table: {
+          cols: [{label:"Measure",w:280},{label:"Qty",w:60},{label:"Status",w:80}],
+          rows: [...postH.map(m => [addNames.includes(m)?"\ud83d\udd36 "+m:m, getQ3(m), addNames.includes(m)?"CO Added":"Approved"]),
+            ...remNames.filter(m=>HS_MEASURES.includes(m)).map(m=>[{t:m,c:"r"}, "\u2014", {t:"CO Removed",c:"r"}])]
+        }});
+        const iqRows = Object.entries(iq2).filter(([,v])=>v);
+        if (iqRows.length) secs.push({ title: "Insulation Specifications", table: {
+          cols: [{label:"Location",w:260},{label:"Qty",w:80},{label:"Unit",w:80}],
+          rows: iqRows.map(([l,v])=>[l, String(v), l.includes("Rim Joist")?"LnFt":"SqFt"])
+        }});
+        if (approved.length) secs.push({ title: "Approved Scope Modifications ("+approved.length+")", rows:
+          approved.map(c=>[c.text, (c.adds||[]).map(a=>"+ "+(a.m||a)).concat((c.removes||[]).map(r=>"\u2212 "+r)).join(", ")||"No changes"])
+        });
+        secs.push({ title: "Acceptance", text: "By signing below, the customer acknowledges that the work described above has been completed to their satisfaction and accepts the work as performed." });
+        if (fi.postScopeSig) secs.push({ title: "Customer Post-Work Acceptance", sig: true });
+        zip.file(nm+"_post_work_scope.pdf", buildPDF("Post-Work Scope of Work \u2014 Completion", secs));
+      }
+
+      // 6. Final Inspection
+      stepEl.textContent = "6/8 Final Inspection…";
       {
         const secs = [];
         secs.push({ title: "Inspection Info", rows: [
@@ -1265,8 +1337,8 @@ const exportProjectForms = async (proj) => {
         zip.file(nm+"_final_inspection.pdf", buildPDF("Home Energy Savings – Retrofits Final Inspection Form", secs));
       }
 
-      // 5. QAQC
-      stepEl.textContent = "5/6 QAQC…";
+      // 7. QAQC
+      stepEl.textContent = "7/8 QAQC…";
       {
         const secs = [{ title: "Inspection Info", rows: [["Date", q.date||"—"], ["Inspector", q.inspector||"—"]] }];
         Object.entries(QAQC_SECTIONS).forEach(([cat, items]) => {
@@ -1283,8 +1355,8 @@ const exportProjectForms = async (proj) => {
         zip.file(nm+"_qaqc_observation.pdf", buildPDF("QAQC Observation Form", secs));
       }
 
-      // 6. Activity Log
-      stepEl.textContent = "6/6 Activity Log…";
+      // 8. Activity Log
+      stepEl.textContent = "8/8 Activity Log…";
       if (p.activityLog?.length) {
         zip.file(nm+"_activity_log.pdf", buildPDF("Activity Log", [
           { title: p.activityLog.length + " Entries", rows:
@@ -1563,6 +1635,35 @@ const exportProjectForms = async (proj) => {
             {needsInstallSched>0 && <div style={{...row,color:"#fca5a5"}}><span>Needs install scheduling</span><b>{needsInstallSched}</b></div>}
             {hazards.length>0 && <div style={{...row,color:"#fca5a5"}}><span>⛔ Hazard flags (K&T/asbestos/mold)</span><b>{hazards.length}</b></div>}
           </div>}
+
+          {/* ══ PENDING CHANGE ORDERS — urgent review panel ══ */}
+          {(role==="admin"||role==="scope") && (()=>{
+            const allPendingCOs = [];
+            projects.forEach(pr => (pr.changeOrders||[]).forEach(c => {
+              if (c.status==="pending") allPendingCOs.push({...c, proj: pr});
+            }));
+            if (allPendingCOs.length === 0) return null;
+            return <div style={{...card,background:"rgba(249,115,22,.08)",borderColor:"rgba(249,115,22,.4)",borderWidth:2,position:"relative",overflow:"hidden"}}>
+              <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:"linear-gradient(90deg,#f97316,#fbbf24,#f97316,#fbbf24)",backgroundSize:"200% 100%",animation:"coSlide 2s linear infinite"}}/>
+              <div style={{...hdr,color:"#f97316",fontSize:12}}>🔶 PENDING CHANGE ORDERS — {allPendingCOs.length} AWAITING REVIEW</div>
+              <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Crews are waiting. Review and respond quickly.</div>
+              {allPendingCOs.sort((a,b)=>new Date(a.at)-new Date(b.at)).map(c => {
+                const pr = c.proj;
+                return <div key={c.id} style={{padding:"8px 10px",background:"rgba(0,0,0,.2)",borderRadius:6,marginBottom:6,border:"1px solid rgba(249,115,22,.2)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <div style={{fontSize:12,fontWeight:600,color:"#f97316",cursor:"pointer"}} onClick={()=>{setSelId(pr.id);setView("proj");setTab("install");}}>{pr.customerName||"Unnamed"} — {pr.address||""}</div>
+                    <span style={{fontSize:9,color:"#64748b"}}>{Math.floor((Date.now()-new Date(c.at))/(1000*60))} min ago</span>
+                  </div>
+                  <div style={{fontSize:11,color:"#e2e8f0",lineHeight:1.4,marginBottom:4}}>{c.text}</div>
+                  {c.photo && <img src={c.photo} style={{maxWidth:"100%",maxHeight:120,borderRadius:4,marginBottom:4,border:"1px solid rgba(255,255,255,.1)"}} alt="CO"/>}
+                  <div style={{fontSize:9,color:"#64748b"}}>By {c.by} · {new Date(c.at).toLocaleString()}</div>
+                  <div style={{marginTop:6,display:"flex",gap:6}}>
+                    <button type="button" style={{flex:1,padding:"8px",borderRadius:6,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>{setSelId(pr.id);setView("proj");setTab("install");}}>Open → Review</button>
+                  </div>
+                </div>;
+              })}
+            </div>;
+          })()}
 
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {/* Pipeline Breakdown */}
@@ -3427,12 +3528,31 @@ function InstallTab({p,u,onLog,user,role}) {
   };
 
   // ── Change Orders ──
+  const [coPhoto, setCoPhoto] = React.useState(null);
+  const compressCOPhoto = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1200;
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        setCoPhoto(c.toDataURL("image/jpeg", 0.6));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
   const addCO = () => {
     if (!coText.trim()) return;
-    const newCO = { id: Date.now().toString(36), text: coText.trim(), by: user, at: new Date().toISOString(), status: "pending", response: "" };
+    const newCO = { id: Date.now().toString(36), text: coText.trim(), by: user, at: new Date().toISOString(), status: "pending", response: "", photo: coPhoto||"" };
     u({ changeOrders: [...co, newCO] });
     if (onLog) onLog(`📝 Change order requested: ${coText.trim().slice(0,50)}…`);
-    setCoText("");
+    setCoText(""); setCoPhoto(null);
   };
   const updateCO = (id, fields) => {
     u({ changeOrders: co.map(c => c.id === id ? { ...c, ...fields } : c) });
@@ -3451,7 +3571,7 @@ function InstallTab({p,u,onLog,user,role}) {
     const mq2 = p.measureQty||{};
     const measList = p.measures.length ? `<table style="width:100%;border-collapse:collapse;font-size:9px;margin-top:4px">\n<tr style="background:#f0fdf4;"><th style="text-align:left;padding:2px 5px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:2px 5px;border:1px solid #ccc">Qty</th><th style="padding:2px 5px;border:1px solid #ccc">Unit</th></tr>\n${p.measures.map(m=>`<tr><td style="padding:2px 5px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:2px 5px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:2px 5px;border:1px solid #ddd">${measUnit(m)}</td></tr>`).join("")}\n</table>` : "<em>None</em>";
     const hsList = p.healthSafety.length ? `<table style="width:100%;border-collapse:collapse;font-size:9px;margin-top:4px">\n<tr style="background:#fffbeb;"><th style="text-align:left;padding:2px 5px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:2px 5px;border:1px solid #ccc">Qty</th><th style="padding:2px 5px;border:1px solid #ccc">Unit</th></tr>\n${p.healthSafety.map(m=>`<tr><td style="padding:2px 5px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:2px 5px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:2px 5px;border:1px solid #ddd">ea</td></tr>`).join("")}\n</table>` : "<em>None</em>";
-    const coRows = co.map(c=>`<div class="row"><span class="lbl">${c.text}</span><span class="${c.status==="approved"?"pass":c.status==="denied"?"fail":"na"}">${c.status.toUpperCase()}${c.response?" — "+c.response:""}</span></div>`).join("");
+    const coRows = co.filter(c=>c.status==="approved").map(c=>`<div class="row"><span class="lbl">${c.text}</span><span class="pass">APPROVED${(c.adds||[]).length?" — "+(c.adds||[]).map(a=>"+"+(a.m||a)).join(", "):""}</span></div>`).join("");
     const fan = Number(fi.postFanSetting) || 0;
 
     const body = `
@@ -3460,7 +3580,7 @@ function InstallTab({p,u,onLog,user,role}) {
         <div style="margin-bottom:6px"><strong>Health & Safety:</strong><br/>${hsList}</div>
         ${p.measureNotes?`<div style="margin-bottom:4px"><strong>Notes:</strong> ${p.measureNotes}</div>`:""}
       </div>
-      ${co.length?`<div class="sec"><h3>Change Orders</h3>${coRows}</div>`:""}
+      ${co.filter(c=>c.status==="approved").length?`<div class="sec"><h3>Approved Change Orders</h3>${coRows}</div>`:""}
       <div class="sec"><h3>Post-Work Blower Door</h3><div class="grid">
         <div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"—"}</span></div>
         <div class="row"><span class="lbl">Post CFM50</span><span class="val">${p.postCFM50||"—"}</span></div>
@@ -3537,8 +3657,9 @@ function InstallTab({p,u,onLog,user,role}) {
         const approvedCOs = co.filter(c=>c.status==="approved");
         const coAdds = approvedCOs.flatMap(c=>(c.adds||[]));
         const coRemoves = approvedCOs.flatMap(c=>(c.removes||[]));
-        const postMeasures = [...p.measures.filter(m=>!coRemoves.includes(m)),...coAdds.filter(m=>!p.measures.includes(m))];
-        const postHS = [...p.healthSafety.filter(m=>!coRemoves.includes(m)),...coAdds.filter(m=>!p.healthSafety.includes(m)&&HS_MEASURES.includes(m))];
+        const coAddNames = coAdds.map(a=>a.m||a);
+        const postMeasures = [...p.measures.filter(m=>!coRemoves.includes(m)),...coAddNames.filter(m=>!p.measures.includes(m)&&EE_MEASURES.includes(m))];
+        const postHS = [...p.healthSafety.filter(m=>!coRemoves.includes(m)),...coAddNames.filter(m=>!p.healthSafety.includes(m)&&HS_MEASURES.includes(m))];
 
         // Formal scope detail renderer
         const ScopeBlock = ({measures,hs,label,isPost}) => {
@@ -3548,10 +3669,17 @@ function InstallTab({p,u,onLog,user,role}) {
           const tdR = {...tdStyle,textAlign:"right",fontFamily:"'JetBrains Mono',monospace",fontWeight:600};
           const added = isPost ? coAdds : [];
           const removed = isPost ? coRemoves : [];
+          // Build CO qty lookup: measure → qty from approved COs
+          const coQtyMap = {};
+          approvedCOs.forEach(c=>(c.adds||[]).forEach(a=>{if(a.qty)coQtyMap[a.m]=a.qty;}));
+          const getQty = (m) => {
+            if(coQtyMap[m]) return coQtyMap[m];
+            return getResolvedQty(p,m)||"1";
+          };
           return <>
             {/* Property Summary */}
             <div style={{background:"rgba(255,255,255,.02)",borderRadius:6,padding:"8px 10px",marginBottom:8,fontSize:11}}>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 16px"}}>
+              <div className="hvac-2col" style={{gap:"2px 16px"}}>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Customer</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.customerName||"—"}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Address</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.address||"—"}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Sq Footage</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.sqft||"—"} ft²</span></div>
@@ -3569,11 +3697,10 @@ function InstallTab({p,u,onLog,user,role}) {
               <thead><tr><th style={thStyle}>Measure</th><th style={{...thStyle,textAlign:"right"}}>Qty</th><th style={{...thStyle,width:50}}>Unit</th><th style={{...thStyle,width:60}}>Status</th></tr></thead>
               <tbody>
                 {measures.map(m => {
-                  const isAdded = added.includes(m);
-                  const qty = getResolvedQty(p,m)||"—";
+                  const isAdded = added.map(a=>a.m||a).includes(m);
                   return <tr key={m} style={isAdded?{background:"rgba(249,115,22,.06)"}:{}}>
                     <td style={tdStyle}>{isAdded&&"🔶 "}{m}</td>
-                    <td style={tdR}>{qty}</td>
+                    <td style={tdR}>{getQty(m)}</td>
                     <td style={tdStyle}>{measUnit(m)}</td>
                     <td style={{...tdStyle,color:isAdded?"#f97316":"#22c55e",fontWeight:600,fontSize:10}}>{isAdded?"CO Added":"Approved"}</td>
                   </tr>;
@@ -3594,10 +3721,10 @@ function InstallTab({p,u,onLog,user,role}) {
               <thead><tr><th style={thStyle}>Measure</th><th style={{...thStyle,textAlign:"right"}}>Qty</th><th style={{...thStyle,width:60}}>Status</th></tr></thead>
               <tbody>
                 {(isPost?postHS:p.healthSafety).map(m => {
-                  const isAdded = added.includes(m);
+                  const isAdded = added.map(a=>a.m||a).includes(m);
                   return <tr key={m} style={isAdded?{background:"rgba(249,115,22,.06)"}:{}}>
                     <td style={tdStyle}>{isAdded&&"🔶 "}{m}</td>
-                    <td style={tdR}>{getResolvedQty(p,m)||"1"}</td>
+                    <td style={tdR}>{getQty(m)}</td>
                     <td style={{...tdStyle,color:isAdded?"#f97316":"#22c55e",fontWeight:600,fontSize:10}}>{isAdded?"CO Added":"Approved"}</td>
                   </tr>;
                 })}
@@ -3623,14 +3750,14 @@ function InstallTab({p,u,onLog,user,role}) {
                 </tbody>
               </table>
             </>}
-            {/* Mechanical Info */}
-            {(htg.system||clg.system||dhw.type) && <>
+            {/* Mechanical Info — POST-WORK ONLY */}
+            {isPost && (htg.system||clg.system||dhw.type) && <>
               <div style={{fontSize:12,fontWeight:700,color:"#93C5FD",marginBottom:2,marginTop:12}}>Mechanical Systems</div>
-              <div style={{fontSize:10,color:"#475569",marginBottom:4}}>Existing mechanical equipment documented during assessment. Replacements, if approved, shall meet or exceed minimum program efficiency requirements.</div>
+              <div style={{fontSize:10,color:"#475569",marginBottom:4}}>Existing mechanical equipment documented during assessment.</div>
               <div style={{background:"rgba(255,255,255,.02)",borderRadius:6,padding:"6px 10px",fontSize:11}}>
-                {htg.system && <div style={{padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Heating: {htg.system} {htg.make||""} {htg.modelNum||""}</span><span style={{color:"#93C5FD"}}>{afue!=="—"?"AFUE "+afue:""} {htg.replaceRec?"⚠ Replace Rec":""}</span></div>}
-                {clg.system && <div style={{padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Cooling: {clg.system} {clg.make||""} {clg.modelNum||""}</span><span style={{color:"#93C5FD"}}>{seer!=="—"?"SEER "+seer:""} {clg.replaceRec?"⚠ Replace Rec":""}</span></div>}
-                {dhw.type && <div style={{padding:"3px 0",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>DHW: {dhw.type} {dhw.make||""} {dhw.modelNum||""}</span><span style={{color:"#93C5FD"}}>{dhw.replaceRec?"⚠ Replace Rec":""}</span></div>}
+                {htg.system && <div style={{padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Heating: {htg.system} {htg.make||""} {htg.modelNum||""}</span><span style={{color:"#93C5FD"}}>{afue!=="—"?"AFUE "+afue:""}</span></div>}
+                {clg.system && <div style={{padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Cooling: {clg.system} {clg.make||""} {clg.modelNum||""}</span><span style={{color:"#93C5FD"}}>{seer!=="—"?"SEER "+seer:""}</span></div>}
+                {dhw.type && <div style={{padding:"3px 0",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>DHW: {dhw.type} {dhw.make||""} {dhw.modelNum||""}</span></div>}
               </div>
             </>}
             {/* Notes */}
@@ -3692,15 +3819,23 @@ function InstallTab({p,u,onLog,user,role}) {
                CHANGE ORDERS — structured add/remove
              ══════════════════════════════════════════════════════ */}
           <Sec title={`Change Orders (${co.length})`}>
-            <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Installer describes the change needed in their own words. Scope/Admin reviews and approves with specific service additions or removals.</div>
+            <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Installer describes the change needed. Scope/Admin reviews and formally adjusts the scope.</div>
             {/* Installer request */}
             <div style={{marginBottom:10}}>
               <div style={{fontSize:10,fontWeight:600,color:"#94a3b8",marginBottom:4,textTransform:"uppercase",letterSpacing:".04em"}}>Request a Change</div>
               <textarea style={{...S.ta,minHeight:50}} value={coText} onChange={e=>setCoText(e.target.value)} placeholder="Describe what needs to change and why (e.g., 'Found additional air sealing opportunities in basement that were not visible during assessment. Recommend adding air sealing to scope.')..." rows={2}/>
-              <button type="button" style={{...S.ghost,borderColor:"#f97316",color:"#f97316",padding:"8px 16px",marginTop:6,width:"100%",fontSize:12,fontWeight:600}} onClick={addCO} disabled={!coText.trim()}>📝 Submit Change Order Request</button>
+              <div style={{display:"flex",gap:6,marginTop:6,alignItems:"center"}}>
+                <label style={{...S.ghost,borderColor:"#64748b",color:"#94a3b8",padding:"6px 12px",fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4,flexShrink:0}}>
+                  📷 {coPhoto?"Photo ✓":"Attach Photo"}
+                  <input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{compressCOPhoto(e.target.files?.[0]);e.target.value="";}}/>
+                </label>
+                {coPhoto && <button type="button" style={{...S.ghost,borderColor:"#ef4444",color:"#ef4444",padding:"4px 8px",fontSize:10}} onClick={()=>setCoPhoto(null)}>× Remove</button>}
+                {coPhoto && <img src={coPhoto} style={{height:36,borderRadius:4,border:"1px solid rgba(255,255,255,.1)"}} alt="CO"/>}
+              </div>
+              <button type="button" style={{...S.ghost,borderColor:"#f97316",color:"#f97316",padding:"8px 16px",marginTop:6,width:"100%",fontSize:12,fontWeight:600,opacity:coText.trim()?1:.4}} onClick={addCO} disabled={!coText.trim()}>📝 Submit Change Order Request</button>
             </div>
-            {/* CO List */}
-            {co.map(c => (
+            {/* CO List — denied hidden from non-admin/scope */}
+            {co.filter(c => c.status!=="denied" || role==="admin" || role==="scope").map(c => (
               <div key={c.id} style={{background:c.status==="approved"?"rgba(34,197,94,.04)":c.status==="denied"?"rgba(239,68,68,.04)":"rgba(255,255,255,.02)",border:`1px solid ${c.status==="approved"?"rgba(34,197,94,.2)":c.status==="denied"?"rgba(239,68,68,.2)":"rgba(255,255,255,.06)"}`,borderRadius:8,padding:10,marginBottom:6}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                   <div style={{flex:1}}>
@@ -3712,45 +3847,86 @@ function InstallTab({p,u,onLog,user,role}) {
                     color:c.status==="approved"?"#22c55e":c.status==="denied"?"#ef4444":"#f59e0b"
                   }}>{c.status.toUpperCase()}</span>
                 </div>
-                {/* Show adds/removes on approved */}
-                {c.status==="approved" && (c.adds?.length>0||c.removes?.length>0) && <div style={{marginTop:6,padding:"6px 8px",background:"rgba(255,255,255,.02)",borderRadius:6,fontSize:11}}>
-                  {(c.adds||[]).map(m=><div key={"a"+m} style={{color:"#22c55e",padding:"2px 0"}}>+ Add: {m}</div>)}
-                  {(c.removes||[]).map(m=><div key={"r"+m} style={{color:"#ef4444",padding:"2px 0"}}>− Remove: {m}</div>)}
+                {/* CO Photo */}
+                {c.photo && <div style={{marginTop:4,marginBottom:4}}><img src={c.photo} style={{maxWidth:"100%",maxHeight:200,borderRadius:6,border:"1px solid rgba(255,255,255,.1)"}} alt="CO photo"/></div>}
+                {/* Show adds/removes on approved — visible to everyone */}
+                {c.status==="approved" && ((c.adds||[]).length>0||(c.removes||[]).length>0) && <div style={{marginTop:6,padding:"6px 8px",background:"rgba(255,255,255,.02)",borderRadius:6,fontSize:11}}>
+                  {(c.adds||[]).map((a,i)=><div key={"a"+i} style={{color:"#22c55e",padding:"2px 0"}}>+ Add: {a.m||a}{a.qty?" — Qty: "+a.qty:""}</div>)}
+                  {(c.removes||[]).map((m,i)=><div key={"r"+i} style={{color:"#ef4444",padding:"2px 0"}}>− Remove: {m}</div>)}
                 </div>}
-                {c.response && <div style={{fontSize:11,color:c.status==="denied"?"#fca5a5":"#86efac",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>{c.response}</div>}
-                {/* Admin/Scope approval panel */}
+                {/* Internal response — ONLY visible to admin/scope */}
+                {c.response && (role==="admin"||role==="scope") && <div style={{fontSize:11,color:"#94a3b8",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4,borderLeft:"2px solid rgba(255,255,255,.1)"}}><span style={{fontSize:9,color:"#64748b",fontWeight:600}}>INTERNAL: </span>{c.response}</div>}
+                {/* Admin/Scope approval panel — clean dropdowns */}
                 {c.status==="pending" && role!=="installer" && role!=="hvac" && (role==="admin"||role==="scope") && (
-                  <div style={{marginTop:8,padding:"8px 10px",background:"rgba(255,255,255,.02)",borderRadius:8,border:"1px solid rgba(255,255,255,.06)"}}>
-                    <div style={{fontSize:10,fontWeight:600,color:"#94a3b8",marginBottom:6}}>SCOPE TEAM RESPONSE</div>
-                    <div style={{fontSize:10,color:"#64748b",marginBottom:6}}>Select services to add or remove, then approve or deny.</div>
-                    {/* Add services */}
-                    <div style={{marginBottom:6}}>
-                      <div style={{fontSize:10,color:"#22c55e",fontWeight:600,marginBottom:3}}>+ Add Services</div>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
-                        {[...EE_MEASURES,...HS_MEASURES].filter(m=>!p.measures.includes(m)&&!p.healthSafety.includes(m)&&!(c._adds||[]).includes(m)).slice(0,20).map(m=>
-                          <button key={m} type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_adds:[...(x._adds||[]),m]}:x)})} style={{padding:"3px 8px",borderRadius:4,fontSize:9,cursor:"pointer",border:"1px solid rgba(34,197,94,.2)",background:"rgba(34,197,94,.05)",color:"#86efac",fontFamily:"'DM Sans',sans-serif"}}>+ {m}</button>
-                        )}
+                  <div style={{marginTop:8,padding:"10px 12px",background:"rgba(255,255,255,.02)",borderRadius:8,border:"1px solid rgba(255,255,255,.06)"}}>
+                    <div style={{fontSize:10,fontWeight:600,color:"#94a3b8",marginBottom:8}}>SCOPE TEAM REVIEW</div>
+                    {/* Admin editable version of installer text */}
+                    <div style={{marginBottom:8}}>
+                      <label style={{fontSize:10,color:"#f59e0b",fontWeight:600,display:"block",marginBottom:3}}>✏️ Edit Request Description (visible to customer/program)</label>
+                      <textarea style={{...S.ta,minHeight:40,borderColor:"rgba(245,158,11,.3)"}} value={c._editText!==undefined?c._editText:c.text} onChange={e=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_editText:e.target.value}:x)})} rows={2}/>
+                    </div>
+                    {/* Add service — dropdown + qty */}
+                    <div style={{marginBottom:8}}>
+                      <label style={{fontSize:10,color:"#22c55e",fontWeight:600,display:"block",marginBottom:3}}>+ Add a Service</label>
+                      <div style={{display:"flex",gap:6,alignItems:"flex-end"}}>
+                        <div style={{flex:1}}>
+                          <select style={{...S.inp,fontSize:12}} value={c._addSel||""} onChange={e=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_addSel:e.target.value}:x)})}>
+                            <option value="">— Select measure to add —</option>
+                            <optgroup label="Energy Efficiency">
+                              {[...EE_MEASURES].sort().filter(m=>!p.measures.includes(m)&&!p.healthSafety.includes(m)&&!(c._adds||[]).some(a=>(a.m||a)===m)).map(m=>
+                                <option key={m} value={m}>{m}</option>
+                              )}
+                            </optgroup>
+                            <optgroup label="Health & Safety">
+                              {[...HS_MEASURES].sort().filter(m=>!p.measures.includes(m)&&!p.healthSafety.includes(m)&&!(c._adds||[]).some(a=>(a.m||a)===m)).map(m=>
+                                <option key={m} value={m}>{m}</option>
+                              )}
+                            </optgroup>
+                          </select>
+                        </div>
+                        <div style={{width:70}}>
+                          <label style={{fontSize:9,color:"#64748b"}}>Qty</label>
+                          <input type="number" style={{...S.inp,fontSize:12,textAlign:"center"}} value={c._addQty||"1"} onChange={e=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_addQty:e.target.value}:x)})} min="1"/>
+                        </div>
+                        <button type="button" style={{...S.btn,padding:"8px 12px",fontSize:11,whiteSpace:"nowrap",opacity:c._addSel?1:.4}} disabled={!c._addSel} onClick={()=>{
+                          const newAdd = {m:c._addSel, qty:c._addQty||"1"};
+                          u({changeOrders:co.map(x=>x.id===c.id?{...x,_adds:[...(x._adds||[]),newAdd],_addSel:"",_addQty:"1"}:x)});
+                        }}>+ Add</button>
                       </div>
-                      {(c._adds||[]).length>0 && <div style={{marginTop:4,display:"flex",flexWrap:"wrap",gap:3}}>
-                        {(c._adds||[]).map(m=><span key={m} style={{padding:"3px 8px",borderRadius:4,fontSize:10,background:"rgba(34,197,94,.15)",color:"#22c55e",display:"flex",alignItems:"center",gap:4}}>+ {m} <button type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_adds:(x._adds||[]).filter(a=>a!==m)}:x)})} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:12,padding:0}}>×</button></span>)}
+                      {/* Show queued adds */}
+                      {(c._adds||[]).length>0 && <div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>
+                        {(c._adds||[]).map((a,i)=><span key={i} style={{padding:"4px 10px",borderRadius:5,fontSize:11,background:"rgba(34,197,94,.12)",color:"#22c55e",display:"flex",alignItems:"center",gap:6,border:"1px solid rgba(34,197,94,.2)"}}>
+                          + {a.m||a} ({a.qty||1} {measUnit(a.m||a)})
+                          <button type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_adds:(x._adds||[]).filter((_,j)=>j!==i)}:x)})} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:14,padding:0,lineHeight:1}}>×</button>
+                        </span>)}
                       </div>}
                     </div>
-                    {/* Remove services */}
-                    <div style={{marginBottom:6}}>
-                      <div style={{fontSize:10,color:"#ef4444",fontWeight:600,marginBottom:3}}>− Remove Services</div>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
-                        {[...p.measures,...p.healthSafety].filter(m=>!(c._removes||[]).includes(m)).map(m=>
-                          <button key={m} type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_removes:[...(x._removes||[]),m]}:x)})} style={{padding:"3px 8px",borderRadius:4,fontSize:9,cursor:"pointer",border:"1px solid rgba(239,68,68,.2)",background:"rgba(239,68,68,.05)",color:"#fca5a5",fontFamily:"'DM Sans',sans-serif"}}>− {m}</button>
-                        )}
+                    {/* Remove service — dropdown */}
+                    <div style={{marginBottom:8}}>
+                      <label style={{fontSize:10,color:"#ef4444",fontWeight:600,display:"block",marginBottom:3}}>− Remove a Service</label>
+                      <div style={{display:"flex",gap:6}}>
+                        <select style={{...S.inp,flex:1,fontSize:12}} value="" onChange={e=>{if(e.target.value)u({changeOrders:co.map(x=>x.id===c.id?{...x,_removes:[...(x._removes||[]),e.target.value]}:x)});}}>
+                          <option value="">— Select measure to remove —</option>
+                          {[...p.measures,...p.healthSafety].sort().filter(m=>!(c._removes||[]).includes(m)).map(m=>
+                            <option key={m} value={m}>{m}</option>
+                          )}
+                        </select>
                       </div>
-                      {(c._removes||[]).length>0 && <div style={{marginTop:4,display:"flex",flexWrap:"wrap",gap:3}}>
-                        {(c._removes||[]).map(m=><span key={m} style={{padding:"3px 8px",borderRadius:4,fontSize:10,background:"rgba(239,68,68,.15)",color:"#ef4444",display:"flex",alignItems:"center",gap:4}}>− {m} <button type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_removes:(x._removes||[]).filter(r=>r!==m)}:x)})} style={{background:"none",border:"none",color:"#86efac",cursor:"pointer",fontSize:12,padding:0}}>×</button></span>)}
+                      {(c._removes||[]).length>0 && <div style={{marginTop:6,display:"flex",flexWrap:"wrap",gap:4}}>
+                        {(c._removes||[]).map((m,i)=><span key={i} style={{padding:"4px 10px",borderRadius:5,fontSize:11,background:"rgba(239,68,68,.12)",color:"#ef4444",display:"flex",alignItems:"center",gap:6,border:"1px solid rgba(239,68,68,.2)"}}>
+                          − {m}
+                          <button type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_removes:(x._removes||[]).filter((_,j)=>j!==i)}:x)})} style={{background:"none",border:"none",color:"#86efac",cursor:"pointer",fontSize:14,padding:0,lineHeight:1}}>×</button>
+                        </span>)}
                       </div>}
                     </div>
-                    <textarea style={{...S.ta,marginBottom:6,minHeight:36}} value={c._resp||""} onChange={e=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_resp:e.target.value}:x)})} placeholder="Response / justification…" rows={1}/>
+                    {/* Internal note */}
+                    <div style={{marginBottom:8}}>
+                      <label style={{fontSize:10,color:"#64748b",fontWeight:600,display:"block",marginBottom:3}}>Internal Note (not visible to installer or customer)</label>
+                      <textarea style={{...S.ta,minHeight:36}} value={c._resp||""} onChange={e=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_resp:e.target.value}:x)})} placeholder="Internal justification or notes…" rows={1}/>
+                    </div>
                     <div style={{display:"flex",gap:6}}>
-                      <button type="button" style={{flex:1,padding:"8px",borderRadius:6,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>updateCO(c.id,{status:"approved",response:c._resp||"",adds:c._adds||[],removes:c._removes||[]})}>✓ Approve</button>
-                      <button type="button" style={{flex:1,padding:"8px",borderRadius:6,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>updateCO(c.id,{status:"denied",response:c._resp||""})}>✕ Deny</button>
+                      <button type="button" style={{flex:1,padding:"10px",borderRadius:6,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>updateCO(c.id,{status:"approved",response:c._resp||"",adds:c._adds||[],removes:c._removes||[],text:c._editText!==undefined?c._editText:c.text})}>✓ Approve</button>
+                      <button type="button" style={{flex:1,padding:"10px",borderRadius:6,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>updateCO(c.id,{status:"denied",response:c._resp||"",text:c._editText!==undefined?c._editText:c.text})}>✕ Deny</button>
                     </div>
                   </div>
                 )}
@@ -3767,18 +3943,19 @@ function InstallTab({p,u,onLog,user,role}) {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:4}}>
               <div style={{fontSize:10,color:"#64748b"}}>Final scope of work as performed, including all approved modifications. Customer signs upon completion of all work.</div>
               <PrintBtn label="Print Post" onClick={()=>{
-                const addedM=coAdds.filter(m=>EE_MEASURES.includes(m)); const removedM=coRemoves.filter(m=>EE_MEASURES.includes(m));
-                const addedH=coAdds.filter(m=>HS_MEASURES.includes(m)); const removedH=coRemoves.filter(m=>HS_MEASURES.includes(m));
-                const measRows = postMeasures.map(m=>`<tr style="${coAdds.includes(m)?'background:#fff7ed':''}">`+
-                  `<td style="padding:3px 6px;border:1px solid #ddd">${coAdds.includes(m)?"🔶 ":""}${m}</td>`+
-                  `<td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td>`+
+                const coQtyMap2 = {};
+                approvedCOs.forEach(c=>(c.adds||[]).forEach(a=>{if(a.qty)coQtyMap2[a.m]=a.qty;}));
+                const getQ = (m) => coQtyMap2[m]||getResolvedQty(p,m)||"1";
+                const measRows = postMeasures.map(m=>`<tr style="${coAddNames.includes(m)?'background:#fff7ed':''}">`+
+                  `<td style="padding:3px 6px;border:1px solid #ddd">${coAddNames.includes(m)?"🔶 ":""}${m}</td>`+
+                  `<td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getQ(m)}</td>`+
                   `<td style="padding:3px 6px;border:1px solid #ddd">${measUnit(m)}</td>`+
-                  `<td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:${coAdds.includes(m)?"#c2410c":"#16a34a"}">${coAdds.includes(m)?"CO Added":"Approved"}</td></tr>`).join("");
-                const removedRows = removedM.map(m=>`<tr style="background:#fef2f2"><td style="padding:3px 6px;border:1px solid #ddd;text-decoration:line-through;color:#999">${m}</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:#dc2626">CO Removed</td></tr>`).join("");
+                  `<td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:${coAddNames.includes(m)?"#c2410c":"#16a34a"}">${coAddNames.includes(m)?"CO Added":"Approved"}</td></tr>`).join("");
+                const removedRows = coRemoves.filter(m=>EE_MEASURES.includes(m)).map(m=>`<tr style="background:#fef2f2"><td style="padding:3px 6px;border:1px solid #ddd;text-decoration:line-through;color:#999">${m}</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:#dc2626">CO Removed</td></tr>`).join("");
                 const body = `<div class="sec"><h3>Energy Efficiency Measures (Final)</h3>
                   <p style="font-size:10px;color:#666">The following measures were performed as part of the approved scope including any approved change orders.</p>
                   <table style="width:100%;border-collapse:collapse;font-size:10px"><tr style="background:#f0fdf4"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="padding:3px 6px;border:1px solid #ccc">Unit</th><th style="padding:3px 6px;border:1px solid #ccc">Status</th></tr>${measRows}${removedRows}</table></div>
-                  ${approvedCOs.length?`<div class="sec"><h3>Approved Change Orders (${approvedCOs.length})</h3>${approvedCOs.map(c=>`<div style="padding:4px 0;border-bottom:1px solid #eee"><span style="font-weight:600">${c.text}</span><br/><span style="font-size:10px;color:#666">${(c.adds||[]).map(a=>"+ "+a).concat((c.removes||[]).map(r=>"− "+r)).join(" · ")||"No service changes"}${c.response?" — "+c.response:""}</span></div>`).join("")}</div>`:""}`+
+                  ${approvedCOs.length?`<div class="sec"><h3>Approved Scope Modifications (${approvedCOs.length})</h3>${approvedCOs.map(c=>`<div style="padding:6px 0;border-bottom:1px solid #eee"><div style="font-size:11px;color:#333;margin-bottom:4px">${c.text}</div><span style="font-size:10px;color:#666">${(c.adds||[]).map(a=>"+ Add: "+(a.m||a)+(a.qty?" ("+a.qty+")":"")).concat((c.removes||[]).map(r=>"− Remove: "+r)).join("<br/>")}</span>${c.photo?'<br/><img src="'+c.photo+'" style="max-width:100%;max-height:250px;margin-top:6px;border-radius:4px;border:1px solid #ddd"/>':""}</div>`).join("")}</div>`:""}`+
                   `<p style="font-size:10px;color:#666;margin-top:12px;font-style:italic">By signing below, the customer acknowledges that the work described above has been completed to their satisfaction.</p>`;
                 savePrint(formPrintHTML("Post-Work Scope of Work — Completion", p, body, null, fi.postScopeSig));
               }}/>
@@ -3788,6 +3965,19 @@ function InstallTab({p,u,onLog,user,role}) {
             </div>}
             {co.filter(c=>c.status==="pending").length>0 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginBottom:8}}>⚠ {co.filter(c=>c.status==="pending").length} change order{co.filter(c=>c.status==="pending").length>1?"s":""} pending review — post-work scope may still change</div>}
             <ScopeBlock measures={postMeasures} hs={postHS} label="Final" isPost={true}/>
+            {/* Approved CO details with photos */}
+            {approvedCOs.length>0 && <div style={{marginTop:10}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#f97316",marginBottom:4}}>Approved Change Orders ({approvedCOs.length})</div>
+              {approvedCOs.map(c=><div key={c.id} style={{padding:"8px 10px",background:"rgba(249,115,22,.04)",border:"1px solid rgba(249,115,22,.15)",borderRadius:6,marginBottom:6}}>
+                <div style={{fontSize:11,color:"#e2e8f0",marginBottom:4}}>{c.text}</div>
+                <div style={{fontSize:10,color:"#94a3b8"}}>
+                  {(c.adds||[]).map((a,i)=><span key={"a"+i} style={{color:"#22c55e",marginRight:8}}>+ {a.m||a}{a.qty?" ("+a.qty+")":""}</span>)}
+                  {(c.removes||[]).map((m,i)=><span key={"r"+i} style={{color:"#ef4444",marginRight:8}}>− {m}</span>)}
+                </div>
+                {c.photo && <img src={c.photo} style={{maxWidth:"100%",maxHeight:200,borderRadius:6,marginTop:6,border:"1px solid rgba(255,255,255,.1)"}} alt="CO evidence"/>}
+                <div style={{fontSize:9,color:"#64748b",marginTop:4}}>Approved · {new Date(c.at).toLocaleString()}</div>
+              </div>)}
+            </div>}
             {fi.postScopeSig ? (
               <div style={{marginTop:10,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
