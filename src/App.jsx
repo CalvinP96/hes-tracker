@@ -616,10 +616,11 @@ function sideBySideHTML(photos, allItems, p) {
     <h1>Pre / Post Photo Comparison</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${rows}</body></html>`;
 }
 
-function formPrintHTML(title, p, bodyHTML, sigData) {
-  const sigBlock = sigData ? `<div style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px"><p style="font-size:11px;color:#666;margin:0 0 4px">Signature:</p><img src="${sigData}" style="max-width:280px;height:70px;object-fit:contain"/><p style="font-size:10px;color:#999;margin:4px 0 0">Digitally signed in HES Tracker</p></div>` : `<div style="margin-top:30px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:11px;color:#666">Signature: _______________________________ &nbsp;&nbsp; Date: _______________</p></div>`;
+function formPrintHTML(title, p, bodyHTML, sigData, custSig) {
+  const sigBlock = sigData ? `<div style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px"><p style="font-size:11px;color:#666;margin:0 0 4px">Inspector / Technician Signature:</p><img src="${sigData}" style="max-width:280px;height:70px;object-fit:contain"/><p style="font-size:10px;color:#999;margin:4px 0 0">Digitally signed in HES Tracker</p></div>` : `<div style="margin-top:30px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:11px;color:#666">Inspector Signature: _______________________________ &nbsp;&nbsp; Date: _______________</p></div>`;
+  const custBlock = custSig ? `<div style="margin-top:16px;border-top:1px solid #ccc;padding-top:12px"><p style="font-size:11px;color:#666;margin:0 0 4px">Customer Signature:</p><img src="${custSig}" style="max-width:280px;height:70px;object-fit:contain"/><p style="font-size:10px;color:#999;margin:4px 0 0">Digitally signed in HES Tracker</p></div>` : `<div style="margin-top:16px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:11px;color:#666">Customer Signature: _______________________________ &nbsp;&nbsp; Date: _______________</p></div>`;
   return `<!DOCTYPE html><html><head><title>${title}</title><style>@page{margin:.5in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:12px}h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px}h2{font-size:12px;color:#666;margin-bottom:16px}.sec{margin-bottom:12px;border:1px solid #ddd;border-radius:6px;padding:10px}.sec h3{font-size:13px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:4px}.row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.pass{color:#16a34a;font-weight:600}.fail{color:#dc2626;font-weight:600}.na{color:#999}</style></head><body>
-    <h1>${title}</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${bodyHTML}${sigBlock}</body></html>`;
+    <h1>${title}</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${bodyHTML}${sigBlock}${custBlock}</body></html>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -723,9 +724,41 @@ export default function App() {
 
   const globalCSS = <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');@keyframes spin{to{transform:rotate(360deg)}}*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}html{color-scheme:dark}body{margin:0}input,select,textarea,button{font-size:16px;color-scheme:dark}select option{background:#1e293b;color:#e2e8f0}
 
+/* ── Mobile-first fixes ── */
+.sec-wrap{padding:10px 10px 8px}
+.gr-wrap{display:grid;grid-template-columns:1fr;gap:6px}
+.hvac-2col{display:grid;grid-template-columns:1fr;gap:6px}
+.tags-wrap{display:flex;flex-wrap:wrap;gap:4px}
+.tags-wrap button{min-height:36px}
+
+/* ── Small phones: tighter ── */
+@media(max-width:374px){
+.sec-wrap{padding:8px 8px 6px!important}
+.tab-bar{gap:0!important}
+.tab-bar button{padding:10px 8px!important;font-size:11px!important;min-height:40px!important}
+.hdr-bar{padding:8px 10px!important}
+.pipe-bar{padding:6px 10px!important}
+}
+
+/* ── All phones (under 480px) ── */
+@media(max-width:479px){
+.ashrae-inputs{grid-template-columns:1fr 1fr!important}
+.ashrae-grid{grid-template-columns:80px 1fr 50px 40px 45px!important;gap:2px 4px!important;font-size:10px!important}
+.vent-grid{grid-template-columns:1fr 1fr!important}
+.cnt-wrap{padding:8px 10px!important}
+}
+
+/* ── Phones: 480px+ ── */
+@media(min-width:480px){
+.gr-wrap{grid-template-columns:repeat(2,1fr)}
+.hvac-2col{grid-template-columns:1fr 1fr}
+}
+
 /* ── Desktop: 768px+ ── */
 @media(min-width:768px){
 input,select,textarea,button{font-size:inherit}
+.gr-wrap{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.hvac-2col{grid-template-columns:1fr 1fr}
 .proj-list{display:grid!important;grid-template-columns:repeat(2,1fr)!important;gap:8px!important;padding:8px 32px!important}
 .proj-cnt{max-width:1200px;margin:0 auto;padding:16px 32px!important}
 .ops-dash{padding:0 32px!important}
@@ -1315,7 +1348,7 @@ const exportProjectForms = async (proj) => {
   if (view === "new") return (
     <div style={S.app}>{globalCSS}
       <Hdr role={curRole} user={userName} onSw={doLogout} onBack={()=>{setView("dash");setNewName("");setNewAddr("");}} title="New Lead"/>
-      <div className="proj-cnt" style={S.cnt}>
+      <div className="proj-cnt cnt-wrap" style={S.cnt}>
         <Sec title="RISE Lead → Create Project">
           <p style={{fontSize:12,color:"#94a3b8",marginBottom:12}}>Enter customer name & address from RISE. Add ST ID after creating in ServiceTitan.</p>
           <F label="Customer Name *" value={newName} onChange={setNewName}/>
@@ -1392,7 +1425,7 @@ const exportProjectForms = async (proj) => {
           ))}
         </div>
 
-        <div className="proj-cnt" style={S.cnt}>
+        <div className="proj-cnt cnt-wrap" style={S.cnt}>
           {tab==="info" && <InfoTab p={proj} u={c=>upC(proj.id,c)} role={role} onLog={t=>addLog(proj.id,t)} onDel={()=>{up(p=>p.filter(x=>x.id!==proj.id));setView("dash");}}/>}
           {tab==="scheduling" && <SchedTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
           {tab==="assessment" && <AuditTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName}/>}
@@ -3028,7 +3061,7 @@ function ScopeTab({p,u,onLog}) {
 
               {/* ══ BUILDING INPUTS ══ */}
               <div style={hdr}>Building Inputs</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+              <div className="ashrae-inputs" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ft²]</div><div style={autoBox}>{Afl||"—"}</div><div style={autoSub}>{finBasement > 0 ? `${baseSqft} + ${finBasement} fin. bsmt` : "← Sq Footage"}</div></div>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Nocc (occupants)</div><div style={autoBox}>{Nbr + 1}</div><div style={autoSub}>{Nbr} bedrooms + 1 = {Nbr + 1}</div></div>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Height [ft]</div><div style={autoBox}>{H}</div><div style={autoSub}>{st>=2?"2-story":"1"+(st>=1.5?".5":"")+"-story"}</div></div>
@@ -3044,7 +3077,7 @@ function ScopeTab({p,u,onLog}) {
               <div style={hdr}>Local Ventilation — Alternative Compliance</div>
               <div style={{fontSize:9,color:"#64748b",marginBottom:2}}>Blank = no fan = no requirement. Openable window = 20 CFM credit. Kitchen: 100 CFM · Bath: 50 CFM (intermittent rates)</div>
               <div style={{fontSize:9,color:"#f59e0b",marginBottom:6}}>⚠ If a fan is present but not operational or CFM is unknown, enter 0.</div>
-              <div style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",fontSize:11,alignItems:"center"}}>
+              <div className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",fontSize:11,alignItems:"center"}}>
                 <span style={{fontWeight:600,color:"#64748b"}}></span>
                 <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Fan Flow [CFM]</span>
                 <span style={{fontWeight:600,color:"#64748b",textAlign:"center",fontSize:9}}>Window</span>
@@ -3057,7 +3090,7 @@ function ScopeTab({p,u,onLog}) {
                 {n:"Bath #2",v:b2,k:"bath2CFM",ak:"bathFan2",w:b2Win,wk:"b2Win",r:b2Req,d:b2Def,present:b2Present},
                 {n:"Bath #3",v:b3,k:"bath3CFM",ak:"bathFan3",w:b3Win,wk:"b3Win",r:b3Req,d:b3Def,present:b3Present},
               ].map(f=>(
-                <div key={f.n} style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",alignItems:"center",marginBottom:2}}>
+                <div key={f.n} className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",alignItems:"center",marginBottom:2}}>
                   <span style={{fontSize:12,color:"#cbd5e1"}}>{f.n}</span>
                   <input style={{...S.inp,textAlign:"center",fontSize:12}} value={s.ashrae?.[f.k]??a[f.ak]??""} onChange={e=>sn("ashrae",f.k,e.target.value)} placeholder="blank = none"/>
                   <div style={{textAlign:"center"}}><input type="checkbox" checked={f.w} onChange={e=>sn("ashrae",f.wk,e.target.checked)} style={{accentColor:"#60A5FA"}}/></div>
@@ -3065,7 +3098,7 @@ function ScopeTab({p,u,onLog}) {
                   <div style={{textAlign:"center",fontSize:13,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:!f.present?"#475569":f.d>0?"#f59e0b":"#22c55e"}}>{f.present?f.d:"—"}</div>
                 </div>
               ))}
-              <div style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",borderTop:"1px solid rgba(255,255,255,.1)",paddingTop:4,marginTop:4}}>
+              <div className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",borderTop:"1px solid rgba(255,255,255,.1)",paddingTop:4,marginTop:4}}>
                 <span style={{fontSize:12,fontWeight:700,color:"#e2e8f0"}}>Total</span>
                 <span></span><span></span><span></span>
                 <div style={{textAlign:"center",fontSize:14,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:totalDef>0?"#f59e0b":"#22c55e"}}>{Ri(totalDef)}</div>
@@ -3446,8 +3479,11 @@ function InstallTab({p,u,onLog,user,role}) {
       <div class="sec"><h3>Status</h3>
         <div class="row"><span class="lbl">Final Passed</span><span class="val">${p.finalPassed?"✅ Yes":"No"}</span></div>
         <div class="row"><span class="lbl">Customer Sign-off</span><span class="val">${p.customerSignoff?"✅ Yes":"No"}</span></div>
-      </div>`;
-    return formPrintHTML("Install Completion & Final Inspection", p, body, fi.inspectorSig);
+      </div>
+      ${fi.preScopeSig?`<div class="sec"><h3>Pre-Work Scope Authorization</h3><img src="${fi.preScopeSig}" style="max-width:280px;height:60px;object-fit:contain"/><div style="font-size:10px;color:#666;margin-top:4px">Signed ${fi.preScopeDate?new Date(fi.preScopeDate).toLocaleString():""}</div></div>`:""}
+      ${fi.postScopeSig?`<div class="sec"><h3>Post-Work Scope Completion</h3><img src="${fi.postScopeSig}" style="max-width:280px;height:60px;object-fit:contain"/><div style="font-size:10px;color:#666;margin-top:4px">Signed ${fi.postScopeDate?new Date(fi.postScopeDate).toLocaleString():""}</div></div>`:""}
+      ${fi.customerSig?`<div class="sec"><h3>Customer Signature — Work Completion</h3><img src="${fi.customerSig}" style="max-width:280px;height:60px;object-fit:contain"/></div>`:""}`;
+    return formPrintHTML("Install Completion & Final Inspection", p, body, fi.inspectorSig, fi.customerSig);
   };
 
   // Photo preview
@@ -3490,128 +3526,285 @@ function InstallTab({p,u,onLog,user,role}) {
         </div>
       </Sec>
 
-      {/* ── PRE-WORK SCOPE OF WORK (sign before starting) ── */}
-      <Sec title="📋 Pre-Work Scope of Work" danger={!fi.preScopeSig}>
-        <div style={{fontSize:10,color:fi.preScopeSig?"#22c55e":"#f59e0b",marginBottom:8,fontWeight:600}}>
-          {fi.preScopeSig ? "✓ Customer authorized — work may proceed" : "⚠ Customer must sign before work begins"}
-        </div>
-        <div style={{opacity:fi.preScopeSig?0.7:1,pointerEvents:fi.preScopeSig?"none":"auto"}}>
-          {p.measures.length > 0 && <>
-            <div style={{fontSize:11,fontWeight:700,color:"#22c55e",marginBottom:4}}>Energy Efficiency Measures ({p.measures.length})</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}{getResolvedQty(p,m)?" ("+getResolvedQty(p,m)+")":""}</span>)}</div>
-          </>}
-          {p.healthSafety.length > 0 && <>
-            <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",marginBottom:4}}>Health & Safety Measures ({p.healthSafety.length})</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.healthSafety.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(245,158,11,.3)",background:"rgba(245,158,11,.08)",color:"#fbbf24",fontSize:10}}>✓ {m}</span>)}</div>
-          </>}
-          {p.measureNotes && <div style={{fontSize:11,color:"#94a3b8",padding:8,background:"rgba(255,255,255,.03)",borderRadius:6,marginBottom:6}}><span style={{color:"#64748b",fontWeight:600}}>Notes:</span> {p.measureNotes}</div>}
-          {s.insulQty && Object.entries(s.insulQty).some(([,v])=>v) && <>
-            <div style={{fontSize:11,fontWeight:700,color:"#60A5FA",marginBottom:4,marginTop:6}}>Insulation Quantities</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 12px",fontSize:11}}>
-              {Object.entries(s.insulQty).filter(([,v])=>v).map(([m,v])=><div key={m} style={{display:"flex",justifyContent:"space-between",padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-                <span style={{color:"#94a3b8"}}>{m}</span><span style={{fontWeight:600,color:"#e2e8f0"}}>{v} {m.includes("Rim Joist")?"LnFt":"SqFt"}</span>
-              </div>)}
-            </div>
-          </>}
-          {p.measures.length === 0 && p.healthSafety.length === 0 && <p style={{color:"#64748b",fontSize:12,textAlign:"center",padding:12}}>No measures selected in scope yet.</p>}
-        </div>
-        {fi.preScopeSig ? (
-          <div style={{marginTop:8,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                <div style={{fontSize:11,color:"#22c55e",fontWeight:600}}>✓ Pre-Work Authorization Signed</div>
-                {fi.preScopeDate && <div style={{fontSize:9,color:"#64748b"}}>{new Date(fi.preScopeDate).toLocaleString()}</div>}
-              </div>
-              {(role === "admin" || role === "scope") && <button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{uf("preScopeSig","");uf("preScopeDate","");onLog("Pre-work scope signature cleared");}}>Clear Signature</button>}
-            </div>
-            <img src={fi.preScopeSig} style={{maxWidth:200,height:50,objectFit:"contain",marginTop:4}} alt="signature"/>
-          </div>
-        ) : (
-          <div style={{marginTop:8}}>
-            <SigPad label="Customer Signature — Pre-Work Scope Authorization" value="" onChange={v=>{uf("preScopeSig",v);uf("preScopeDate",new Date().toISOString());onLog("Customer signed pre-work scope authorization");}}/>
-          </div>
-        )}
-      </Sec>
+      {/* ══════════════════════════════════════════════════════
+           PRE-WORK SCOPE OF WORK — locked original scope
+         ══════════════════════════════════════════════════════ */}
+      {(() => {
+        const htg=s.htg||{};const clg=s.clg||{};const dhw=s.dhw||{};const att=s.attic||{};const fnd=s.fnd||{};
+        const iq=s.insulQty||{};const mq=p.measureQty||{};
+        const afue=htg.btuIn&&htg.btuOut?(Number(htg.btuOut)/Number(htg.btuIn)*100).toFixed(1)+"%":"—";
+        const seer=clg.btuOut&&clg.watts?(Number(clg.btuOut)/Number(clg.watts)).toFixed(1):"—";
+        const approvedCOs = co.filter(c=>c.status==="approved");
+        const coAdds = approvedCOs.flatMap(c=>(c.adds||[]));
+        const coRemoves = approvedCOs.flatMap(c=>(c.removes||[]));
+        const postMeasures = [...p.measures.filter(m=>!coRemoves.includes(m)),...coAdds.filter(m=>!p.measures.includes(m))];
+        const postHS = [...p.healthSafety.filter(m=>!coRemoves.includes(m)),...coAdds.filter(m=>!p.healthSafety.includes(m)&&HS_MEASURES.includes(m))];
 
-      {/* ── CHANGE ORDERS ── */}
-      <Sec title={`Change Orders (${co.length})`}>
-        <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Request scope changes from the field. Admin/Compliance will approve or deny.</div>
-        <div style={{display:"flex",gap:6,marginBottom:8}}>
-          <input style={{...S.inp,flex:1}} value={coText} onChange={e=>setCoText(e.target.value)} placeholder="Describe the scope change needed…" onKeyDown={e=>{if(e.key==="Enter")addCO();}}/>
-          <button type="button" style={{...S.ghost,borderColor:"#f97316",color:"#f97316",padding:"6px 12px",whiteSpace:"nowrap"}} onClick={addCO}>+ Request</button>
-        </div>
-        {co.map(c => (
-          <div key={c.id} style={{background:c.status==="approved"?"rgba(34,197,94,.06)":c.status==="denied"?"rgba(239,68,68,.06)":"rgba(255,255,255,.03)",border:`1px solid ${c.status==="approved"?"rgba(34,197,94,.2)":c.status==="denied"?"rgba(239,68,68,.2)":"rgba(255,255,255,.08)"}`,borderRadius:8,padding:10,marginBottom:6}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
-              <div style={{flex:1,fontSize:12,color:"#e2e8f0"}}>{c.text}</div>
-              <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,fontWeight:700,marginLeft:8,flexShrink:0,
-                background:c.status==="approved"?"rgba(34,197,94,.15)":c.status==="denied"?"rgba(239,68,68,.15)":"rgba(245,158,11,.15)",
-                color:c.status==="approved"?"#22c55e":c.status==="denied"?"#ef4444":"#f59e0b"
-              }}>{c.status.toUpperCase()}</span>
+        // Formal scope detail renderer
+        const ScopeBlock = ({measures,hs,label,isPost}) => {
+          const tblStyle = {width:"100%",borderCollapse:"collapse",fontSize:11,marginTop:4};
+          const thStyle = {textAlign:"left",padding:"4px 8px",borderBottom:"2px solid rgba(255,255,255,.15)",color:"#94a3b8",fontSize:10,textTransform:"uppercase",letterSpacing:".03em"};
+          const tdStyle = {padding:"5px 8px",borderBottom:"1px solid rgba(255,255,255,.04)",color:"#e2e8f0"};
+          const tdR = {...tdStyle,textAlign:"right",fontFamily:"'JetBrains Mono',monospace",fontWeight:600};
+          const added = isPost ? coAdds : [];
+          const removed = isPost ? coRemoves : [];
+          return <>
+            {/* Property Summary */}
+            <div style={{background:"rgba(255,255,255,.02)",borderRadius:6,padding:"8px 10px",marginBottom:8,fontSize:11}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 16px"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Customer</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.customerName||"—"}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Address</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.address||"—"}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Sq Footage</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.sqft||"—"} ft²</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Year Built</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.yearBuilt||"—"}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Stories</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.stories||"—"}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Home Type</span><span style={{color:"#e2e8f0",fontWeight:600}}>{s.style||p.homeType||"—"}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Pre CFM50</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.preCFM50||"—"}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>RISE ID</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.riseId||"—"}</span></div>
+              </div>
             </div>
-            <div style={{fontSize:9,color:"#64748b"}}>{c.by} · {new Date(c.at).toLocaleString()}</div>
-            {c.response && <div style={{fontSize:11,color:c.status==="denied"?"#fca5a5":"#86efac",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>{c.response}</div>}
-            {c.status === "pending" && role !== "installer" && role !== "hvac" && (role === "admin" || role === "scope") && (
-              <div style={{marginTop:6,display:"flex",gap:4,alignItems:"center"}}>
-                <input style={{...S.inp,flex:1,fontSize:11}} placeholder="Response / explanation…" value={c._resp||""} onChange={e=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_resp:e.target.value}:x)})}/>
-                <button type="button" style={{padding:"4px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={()=>updateCO(c.id,{status:"approved",response:c._resp||""})}>Approve</button>
-                <button type="button" style={{padding:"4px 8px",borderRadius:5,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={()=>updateCO(c.id,{status:"denied",response:c._resp||""})}>Deny</button>
+            {/* EE Measures Table */}
+            <div style={{fontSize:12,fontWeight:700,color:"#22c55e",marginBottom:2,marginTop:10}}>Energy Efficiency Measures</div>
+            <div style={{fontSize:10,color:"#475569",marginBottom:4}}>The following energy conservation measures shall be performed in accordance with the approved scope of work and applicable program standards.</div>
+            <table style={tblStyle}>
+              <thead><tr><th style={thStyle}>Measure</th><th style={{...thStyle,textAlign:"right"}}>Qty</th><th style={{...thStyle,width:50}}>Unit</th><th style={{...thStyle,width:60}}>Status</th></tr></thead>
+              <tbody>
+                {measures.map(m => {
+                  const isAdded = added.includes(m);
+                  const qty = getResolvedQty(p,m)||"—";
+                  return <tr key={m} style={isAdded?{background:"rgba(249,115,22,.06)"}:{}}>
+                    <td style={tdStyle}>{isAdded&&"🔶 "}{m}</td>
+                    <td style={tdR}>{qty}</td>
+                    <td style={tdStyle}>{measUnit(m)}</td>
+                    <td style={{...tdStyle,color:isAdded?"#f97316":"#22c55e",fontWeight:600,fontSize:10}}>{isAdded?"CO Added":"Approved"}</td>
+                  </tr>;
+                })}
+                {removed.filter(m=>EE_MEASURES.includes(m)).map(m =>
+                  <tr key={"rm_"+m} style={{background:"rgba(239,68,68,.04)"}}>
+                    <td style={{...tdStyle,textDecoration:"line-through",color:"#64748b"}}>{m}</td><td style={tdR}>—</td><td style={tdStyle}>—</td>
+                    <td style={{...tdStyle,color:"#ef4444",fontWeight:600,fontSize:10}}>CO Removed</td>
+                  </tr>
+                )}
+                {measures.length === 0 && <tr><td colSpan={4} style={{...tdStyle,color:"#475569",textAlign:"center",padding:12}}>No energy efficiency measures</td></tr>}
+              </tbody>
+            </table>
+            {/* H&S Measures Table */}
+            <div style={{fontSize:12,fontWeight:700,color:"#f59e0b",marginBottom:2,marginTop:12}}>Health & Safety Measures</div>
+            <div style={{fontSize:10,color:"#475569",marginBottom:4}}>The following health and safety measures shall be completed to address identified hazards and ensure compliance with program requirements.</div>
+            <table style={tblStyle}>
+              <thead><tr><th style={thStyle}>Measure</th><th style={{...thStyle,textAlign:"right"}}>Qty</th><th style={{...thStyle,width:60}}>Status</th></tr></thead>
+              <tbody>
+                {(isPost?postHS:p.healthSafety).map(m => {
+                  const isAdded = added.includes(m);
+                  return <tr key={m} style={isAdded?{background:"rgba(249,115,22,.06)"}:{}}>
+                    <td style={tdStyle}>{isAdded&&"🔶 "}{m}</td>
+                    <td style={tdR}>{getResolvedQty(p,m)||"1"}</td>
+                    <td style={{...tdStyle,color:isAdded?"#f97316":"#22c55e",fontWeight:600,fontSize:10}}>{isAdded?"CO Added":"Approved"}</td>
+                  </tr>;
+                })}
+                {removed.filter(m=>HS_MEASURES.includes(m)).map(m =>
+                  <tr key={"rm_"+m} style={{background:"rgba(239,68,68,.04)"}}>
+                    <td style={{...tdStyle,textDecoration:"line-through",color:"#64748b"}}>{m}</td><td style={tdR}>—</td>
+                    <td style={{...tdStyle,color:"#ef4444",fontWeight:600,fontSize:10}}>CO Removed</td>
+                  </tr>
+                )}
+                {(isPost?postHS:p.healthSafety).length === 0 && <tr><td colSpan={3} style={{...tdStyle,color:"#475569",textAlign:"center",padding:12}}>No health & safety measures</td></tr>}
+              </tbody>
+            </table>
+            {/* Insulation Detail */}
+            {Object.entries(iq).some(([,v])=>v) && <>
+              <div style={{fontSize:12,fontWeight:700,color:"#60A5FA",marginBottom:2,marginTop:12}}>Insulation Specifications</div>
+              <div style={{fontSize:10,color:"#475569",marginBottom:4}}>Quantities and locations as determined during the energy assessment. All insulation shall meet or exceed specified R-values.</div>
+              <table style={tblStyle}>
+                <thead><tr><th style={thStyle}>Location</th><th style={{...thStyle,textAlign:"right"}}>Quantity</th><th style={{...thStyle,width:50}}>Unit</th></tr></thead>
+                <tbody>
+                  {Object.entries(iq).filter(([,v])=>v).map(([loc,qty])=>
+                    <tr key={loc}><td style={tdStyle}>{loc}</td><td style={tdR}>{qty}</td><td style={tdStyle}>{loc.includes("Rim Joist")?"LnFt":"SqFt"}</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </>}
+            {/* Mechanical Info */}
+            {(htg.system||clg.system||dhw.type) && <>
+              <div style={{fontSize:12,fontWeight:700,color:"#93C5FD",marginBottom:2,marginTop:12}}>Mechanical Systems</div>
+              <div style={{fontSize:10,color:"#475569",marginBottom:4}}>Existing mechanical equipment documented during assessment. Replacements, if approved, shall meet or exceed minimum program efficiency requirements.</div>
+              <div style={{background:"rgba(255,255,255,.02)",borderRadius:6,padding:"6px 10px",fontSize:11}}>
+                {htg.system && <div style={{padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Heating: {htg.system} {htg.make||""} {htg.modelNum||""}</span><span style={{color:"#93C5FD"}}>{afue!=="—"?"AFUE "+afue:""} {htg.replaceRec?"⚠ Replace Rec":""}</span></div>}
+                {clg.system && <div style={{padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Cooling: {clg.system} {clg.make||""} {clg.modelNum||""}</span><span style={{color:"#93C5FD"}}>{seer!=="—"?"SEER "+seer:""} {clg.replaceRec?"⚠ Replace Rec":""}</span></div>}
+                {dhw.type && <div style={{padding:"3px 0",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>DHW: {dhw.type} {dhw.make||""} {dhw.modelNum||""}</span><span style={{color:"#93C5FD"}}>{dhw.replaceRec?"⚠ Replace Rec":""}</span></div>}
+              </div>
+            </>}
+            {/* Notes */}
+            {p.measureNotes && <div style={{fontSize:11,color:"#94a3b8",padding:"8px 10px",background:"rgba(255,255,255,.03)",borderRadius:6,marginTop:8,borderLeft:"3px solid rgba(255,255,255,.1)"}}><span style={{color:"#64748b",fontWeight:600}}>Scope Notes:</span> {p.measureNotes}</div>}
+          </>;
+        };
+
+        return <>
+          <Sec title="📋 Pre-Work Scope of Work" danger={!fi.preScopeSig}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:4}}>
+              <div style={{fontSize:10,color:fi.preScopeSig?"#22c55e":"#f59e0b",fontWeight:600}}>
+                {fi.preScopeSig ? "✓ Customer authorized — work may proceed" : "⚠ Customer must review and sign before work begins"}
+              </div>
+              <PrintBtn label="Print Pre" onClick={()=>{
+                const body = `<div class="sec"><h3>Property Information</h3><div class="grid">
+                  <div class="row"><span class="lbl">Customer</span><span class="val">${p.customerName||"—"}</span></div>
+                  <div class="row"><span class="lbl">Address</span><span class="val">${p.address||"—"}</span></div>
+                  <div class="row"><span class="lbl">Sq Footage</span><span class="val">${p.sqft||"—"} ft²</span></div>
+                  <div class="row"><span class="lbl">Year Built</span><span class="val">${p.yearBuilt||"—"}</span></div>
+                  <div class="row"><span class="lbl">Stories</span><span class="val">${p.stories||"—"}</span></div>
+                  <div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"—"}</span></div>
+                  <div class="row"><span class="lbl">RISE ID</span><span class="val">${p.riseId||"—"}</span></div>
+                </div></div>
+                <div class="sec"><h3>Energy Efficiency Measures</h3><p style="font-size:10px;color:#666">The following energy conservation measures shall be performed in accordance with the approved scope of work and applicable program standards.</p>
+                <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">
+                <tr style="background:#f0fdf4"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="padding:3px 6px;border:1px solid #ccc">Unit</th></tr>
+                ${p.measures.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:3px 6px;border:1px solid #ddd">${measUnit(m)}</td></tr>`).join("")}
+                </table></div>
+                <div class="sec"><h3>Health & Safety Measures</h3><p style="font-size:10px;color:#666">The following health and safety measures shall be completed to address identified hazards and ensure compliance with program requirements.</p>
+                <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">
+                <tr style="background:#fffbeb"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th></tr>
+                ${p.healthSafety.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"1"}</td></tr>`).join("")}
+                </table></div>
+                ${Object.entries(iq).some(([,v])=>v)?`<div class="sec"><h3>Insulation Specifications</h3><table style="width:100%;border-collapse:collapse;font-size:10px"><tr style="background:#eff6ff"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Location</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="padding:3px 6px;border:1px solid #ccc">Unit</th></tr>${Object.entries(iq).filter(([,v])=>v).map(([l,v])=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${l}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${v}</td><td style="padding:3px 6px;border:1px solid #ddd">${l.includes("Rim Joist")?"LnFt":"SqFt"}</td></tr>`).join("")}</table></div>`:""}
+                ${p.measureNotes?`<div class="sec"><h3>Notes</h3><p>${p.measureNotes}</p></div>`:""}`;
+                savePrint(formPrintHTML("Pre-Work Scope of Work — Authorization", p, body, null, fi.preScopeSig));
+              }}/>
+            </div>
+            <div style={{opacity:fi.preScopeSig?0.7:1}}>
+              <ScopeBlock measures={p.measures} hs={p.healthSafety} label="Original" isPost={false}/>
+            </div>
+            {fi.preScopeSig ? (
+              <div style={{marginTop:10,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div><div style={{fontSize:11,color:"#22c55e",fontWeight:600}}>✓ Pre-Work Authorization Signed</div>{fi.preScopeDate && <div style={{fontSize:9,color:"#64748b"}}>{new Date(fi.preScopeDate).toLocaleString()}</div>}</div>
+                  {(role==="admin"||role==="scope")&&<button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{uf("preScopeSig","");uf("preScopeDate","");onLog("Pre-work scope signature cleared");}}>Clear Signature</button>}
+                </div>
+                <img src={fi.preScopeSig} style={{maxWidth:200,height:50,objectFit:"contain",marginTop:4}} alt="sig"/>
+              </div>
+            ) : (
+              <div style={{marginTop:10}}>
+                <div style={{fontSize:10,color:"#475569",marginBottom:4,fontStyle:"italic"}}>By signing below, the customer acknowledges and authorizes the scope of work described above. Work shall not commence until this authorization is obtained.</div>
+                <SigPad label="Customer Signature — Pre-Work Scope Authorization" value="" onChange={v=>{uf("preScopeSig",v);uf("preScopeDate",new Date().toISOString());onLog("Customer signed pre-work scope authorization");}}/>
               </div>
             )}
-            {c.status === "pending" && (role === "installer" || role === "hvac") && (
-              <div style={{marginTop:4,fontSize:10,color:"#f59e0b",fontStyle:"italic"}}>⏳ Awaiting approval from Scope/Admin</div>
-            )}
-          </div>
-        ))}
-        {co.length === 0 && <p style={{color:"#475569",fontSize:11,textAlign:"center"}}>No change orders yet.</p>}
-      </Sec>
+          </Sec>
 
-      {/* ── POST-WORK SCOPE OF WORK (reflects approved COs) ── */}
-      <Sec title="📋 Post-Work Scope of Work">
-        <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Final scope including all approved change orders. Customer signs after work is complete.</div>
-        {/* Original measures */}
-        {p.measures.length > 0 && <>
-          <div style={{fontSize:11,fontWeight:700,color:"#22c55e",marginBottom:4}}>Energy Efficiency Measures ({p.measures.length})</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}{getResolvedQty(p,m)?" ("+getResolvedQty(p,m)+")":""}</span>)}</div>
-        </>}
-        {p.healthSafety.length > 0 && <>
-          <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",marginBottom:4}}>Health & Safety Measures ({p.healthSafety.length})</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{p.healthSafety.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(245,158,11,.3)",background:"rgba(245,158,11,.08)",color:"#fbbf24",fontSize:10}}>✓ {m}</span>)}</div>
-        </>}
-        {/* Approved change orders */}
-        {co.filter(c=>c.status==="approved").length > 0 && <>
-          <div style={{fontSize:11,fontWeight:700,color:"#f97316",marginBottom:4,marginTop:8}}>Approved Change Orders ({co.filter(c=>c.status==="approved").length})</div>
-          {co.filter(c=>c.status==="approved").map(c=>(
-            <div key={c.id} style={{display:"flex",gap:6,alignItems:"flex-start",padding:"6px 8px",background:"rgba(249,115,22,.06)",border:"1px solid rgba(249,115,22,.2)",borderRadius:6,marginBottom:4,fontSize:11}}>
-              <span style={{color:"#f97316",flexShrink:0}}>🔶</span>
-              <div>
-                <div style={{color:"#e2e8f0"}}>{c.text}</div>
-                {c.response && <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{c.response}</div>}
-                <div style={{fontSize:9,color:"#64748b",marginTop:2}}>Approved · {c.by} · {new Date(c.at).toLocaleString()}</div>
-              </div>
+          {/* ══════════════════════════════════════════════════════
+               CHANGE ORDERS — structured add/remove
+             ══════════════════════════════════════════════════════ */}
+          <Sec title={`Change Orders (${co.length})`}>
+            <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Installer describes the change needed in their own words. Scope/Admin reviews and approves with specific service additions or removals.</div>
+            {/* Installer request */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:10,fontWeight:600,color:"#94a3b8",marginBottom:4,textTransform:"uppercase",letterSpacing:".04em"}}>Request a Change</div>
+              <textarea style={{...S.ta,minHeight:50}} value={coText} onChange={e=>setCoText(e.target.value)} placeholder="Describe what needs to change and why (e.g., 'Found additional air sealing opportunities in basement that were not visible during assessment. Recommend adding air sealing to scope.')..." rows={2}/>
+              <button type="button" style={{...S.ghost,borderColor:"#f97316",color:"#f97316",padding:"8px 16px",marginTop:6,width:"100%",fontSize:12,fontWeight:600}} onClick={addCO} disabled={!coText.trim()}>📝 Submit Change Order Request</button>
             </div>
-          ))}
-        </>}
-        {co.filter(c=>c.status==="pending").length > 0 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginTop:6}}>⚠ {co.filter(c=>c.status==="pending").length} change order{co.filter(c=>c.status==="pending").length>1?"s":""} still pending — post-work scope may change</div>}
-        {p.measureNotes && <div style={{fontSize:11,color:"#94a3b8",padding:8,background:"rgba(255,255,255,.03)",borderRadius:6,marginTop:6}}><span style={{color:"#64748b",fontWeight:600}}>Notes:</span> {p.measureNotes}</div>}
-        {/* Post-work signature */}
-        {fi.postScopeSig ? (
-          <div style={{marginTop:8,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div>
-                <div style={{fontSize:11,color:"#22c55e",fontWeight:600}}>✓ Post-Work Scope Signed</div>
-                {fi.postScopeDate && <div style={{fontSize:9,color:"#64748b"}}>{new Date(fi.postScopeDate).toLocaleString()}</div>}
+            {/* CO List */}
+            {co.map(c => (
+              <div key={c.id} style={{background:c.status==="approved"?"rgba(34,197,94,.04)":c.status==="denied"?"rgba(239,68,68,.04)":"rgba(255,255,255,.02)",border:`1px solid ${c.status==="approved"?"rgba(34,197,94,.2)":c.status==="denied"?"rgba(239,68,68,.2)":"rgba(255,255,255,.06)"}`,borderRadius:8,padding:10,marginBottom:6}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:12,color:"#e2e8f0",lineHeight:1.4}}>{c.text}</div>
+                    <div style={{fontSize:9,color:"#64748b",marginTop:2}}>Requested by {c.by} · {new Date(c.at).toLocaleString()}</div>
+                  </div>
+                  <span style={{fontSize:9,padding:"2px 8px",borderRadius:4,fontWeight:700,marginLeft:8,flexShrink:0,
+                    background:c.status==="approved"?"rgba(34,197,94,.15)":c.status==="denied"?"rgba(239,68,68,.15)":"rgba(245,158,11,.15)",
+                    color:c.status==="approved"?"#22c55e":c.status==="denied"?"#ef4444":"#f59e0b"
+                  }}>{c.status.toUpperCase()}</span>
+                </div>
+                {/* Show adds/removes on approved */}
+                {c.status==="approved" && (c.adds?.length>0||c.removes?.length>0) && <div style={{marginTop:6,padding:"6px 8px",background:"rgba(255,255,255,.02)",borderRadius:6,fontSize:11}}>
+                  {(c.adds||[]).map(m=><div key={"a"+m} style={{color:"#22c55e",padding:"2px 0"}}>+ Add: {m}</div>)}
+                  {(c.removes||[]).map(m=><div key={"r"+m} style={{color:"#ef4444",padding:"2px 0"}}>− Remove: {m}</div>)}
+                </div>}
+                {c.response && <div style={{fontSize:11,color:c.status==="denied"?"#fca5a5":"#86efac",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>{c.response}</div>}
+                {/* Admin/Scope approval panel */}
+                {c.status==="pending" && role!=="installer" && role!=="hvac" && (role==="admin"||role==="scope") && (
+                  <div style={{marginTop:8,padding:"8px 10px",background:"rgba(255,255,255,.02)",borderRadius:8,border:"1px solid rgba(255,255,255,.06)"}}>
+                    <div style={{fontSize:10,fontWeight:600,color:"#94a3b8",marginBottom:6}}>SCOPE TEAM RESPONSE</div>
+                    <div style={{fontSize:10,color:"#64748b",marginBottom:6}}>Select services to add or remove, then approve or deny.</div>
+                    {/* Add services */}
+                    <div style={{marginBottom:6}}>
+                      <div style={{fontSize:10,color:"#22c55e",fontWeight:600,marginBottom:3}}>+ Add Services</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
+                        {[...EE_MEASURES,...HS_MEASURES].filter(m=>!p.measures.includes(m)&&!p.healthSafety.includes(m)&&!(c._adds||[]).includes(m)).slice(0,20).map(m=>
+                          <button key={m} type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_adds:[...(x._adds||[]),m]}:x)})} style={{padding:"3px 8px",borderRadius:4,fontSize:9,cursor:"pointer",border:"1px solid rgba(34,197,94,.2)",background:"rgba(34,197,94,.05)",color:"#86efac",fontFamily:"'DM Sans',sans-serif"}}>+ {m}</button>
+                        )}
+                      </div>
+                      {(c._adds||[]).length>0 && <div style={{marginTop:4,display:"flex",flexWrap:"wrap",gap:3}}>
+                        {(c._adds||[]).map(m=><span key={m} style={{padding:"3px 8px",borderRadius:4,fontSize:10,background:"rgba(34,197,94,.15)",color:"#22c55e",display:"flex",alignItems:"center",gap:4}}>+ {m} <button type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_adds:(x._adds||[]).filter(a=>a!==m)}:x)})} style={{background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontSize:12,padding:0}}>×</button></span>)}
+                      </div>}
+                    </div>
+                    {/* Remove services */}
+                    <div style={{marginBottom:6}}>
+                      <div style={{fontSize:10,color:"#ef4444",fontWeight:600,marginBottom:3}}>− Remove Services</div>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
+                        {[...p.measures,...p.healthSafety].filter(m=>!(c._removes||[]).includes(m)).map(m=>
+                          <button key={m} type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_removes:[...(x._removes||[]),m]}:x)})} style={{padding:"3px 8px",borderRadius:4,fontSize:9,cursor:"pointer",border:"1px solid rgba(239,68,68,.2)",background:"rgba(239,68,68,.05)",color:"#fca5a5",fontFamily:"'DM Sans',sans-serif"}}>− {m}</button>
+                        )}
+                      </div>
+                      {(c._removes||[]).length>0 && <div style={{marginTop:4,display:"flex",flexWrap:"wrap",gap:3}}>
+                        {(c._removes||[]).map(m=><span key={m} style={{padding:"3px 8px",borderRadius:4,fontSize:10,background:"rgba(239,68,68,.15)",color:"#ef4444",display:"flex",alignItems:"center",gap:4}}>− {m} <button type="button" onClick={()=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_removes:(x._removes||[]).filter(r=>r!==m)}:x)})} style={{background:"none",border:"none",color:"#86efac",cursor:"pointer",fontSize:12,padding:0}}>×</button></span>)}
+                      </div>}
+                    </div>
+                    <textarea style={{...S.ta,marginBottom:6,minHeight:36}} value={c._resp||""} onChange={e=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_resp:e.target.value}:x)})} placeholder="Response / justification…" rows={1}/>
+                    <div style={{display:"flex",gap:6}}>
+                      <button type="button" style={{flex:1,padding:"8px",borderRadius:6,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>updateCO(c.id,{status:"approved",response:c._resp||"",adds:c._adds||[],removes:c._removes||[]})}>✓ Approve</button>
+                      <button type="button" style={{flex:1,padding:"8px",borderRadius:6,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>updateCO(c.id,{status:"denied",response:c._resp||""})}>✕ Deny</button>
+                    </div>
+                  </div>
+                )}
+                {c.status==="pending"&&(role==="installer"||role==="hvac")&&<div style={{marginTop:4,fontSize:10,color:"#f59e0b",fontStyle:"italic"}}>⏳ Awaiting review from Scope/Admin team</div>}
               </div>
-              {(role === "admin" || role === "scope") && <button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{uf("postScopeSig","");uf("postScopeDate","");onLog("Post-work scope signature cleared");}}>Clear Signature</button>}
+            ))}
+            {co.length===0&&<p style={{color:"#475569",fontSize:11,textAlign:"center",padding:8}}>No change orders submitted.</p>}
+          </Sec>
+
+          {/* ══════════════════════════════════════════════════════
+               POST-WORK SCOPE — original + approved COs
+             ══════════════════════════════════════════════════════ */}
+          <Sec title="📋 Post-Work Scope of Work">
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:4}}>
+              <div style={{fontSize:10,color:"#64748b"}}>Final scope of work as performed, including all approved modifications. Customer signs upon completion of all work.</div>
+              <PrintBtn label="Print Post" onClick={()=>{
+                const addedM=coAdds.filter(m=>EE_MEASURES.includes(m)); const removedM=coRemoves.filter(m=>EE_MEASURES.includes(m));
+                const addedH=coAdds.filter(m=>HS_MEASURES.includes(m)); const removedH=coRemoves.filter(m=>HS_MEASURES.includes(m));
+                const measRows = postMeasures.map(m=>`<tr style="${coAdds.includes(m)?'background:#fff7ed':''}">`+
+                  `<td style="padding:3px 6px;border:1px solid #ddd">${coAdds.includes(m)?"🔶 ":""}${m}</td>`+
+                  `<td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td>`+
+                  `<td style="padding:3px 6px;border:1px solid #ddd">${measUnit(m)}</td>`+
+                  `<td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:${coAdds.includes(m)?"#c2410c":"#16a34a"}">${coAdds.includes(m)?"CO Added":"Approved"}</td></tr>`).join("");
+                const removedRows = removedM.map(m=>`<tr style="background:#fef2f2"><td style="padding:3px 6px;border:1px solid #ddd;text-decoration:line-through;color:#999">${m}</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:#dc2626">CO Removed</td></tr>`).join("");
+                const body = `<div class="sec"><h3>Energy Efficiency Measures (Final)</h3>
+                  <p style="font-size:10px;color:#666">The following measures were performed as part of the approved scope including any approved change orders.</p>
+                  <table style="width:100%;border-collapse:collapse;font-size:10px"><tr style="background:#f0fdf4"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="padding:3px 6px;border:1px solid #ccc">Unit</th><th style="padding:3px 6px;border:1px solid #ccc">Status</th></tr>${measRows}${removedRows}</table></div>
+                  ${approvedCOs.length?`<div class="sec"><h3>Approved Change Orders (${approvedCOs.length})</h3>${approvedCOs.map(c=>`<div style="padding:4px 0;border-bottom:1px solid #eee"><span style="font-weight:600">${c.text}</span><br/><span style="font-size:10px;color:#666">${(c.adds||[]).map(a=>"+ "+a).concat((c.removes||[]).map(r=>"− "+r)).join(" · ")||"No service changes"}${c.response?" — "+c.response:""}</span></div>`).join("")}</div>`:""}`+
+                  `<p style="font-size:10px;color:#666;margin-top:12px;font-style:italic">By signing below, the customer acknowledges that the work described above has been completed to their satisfaction.</p>`;
+                savePrint(formPrintHTML("Post-Work Scope of Work — Completion", p, body, null, fi.postScopeSig));
+              }}/>
             </div>
-            <img src={fi.postScopeSig} style={{maxWidth:200,height:50,objectFit:"contain",marginTop:4}} alt="signature"/>
-          </div>
-        ) : (
-          <div style={{marginTop:8}}>
-            <SigPad label="Customer Signature — Post-Work Scope Completion" value="" onChange={v=>{uf("postScopeSig",v);uf("postScopeDate",new Date().toISOString());onLog("Customer signed post-work scope completion");}}/>
-          </div>
-        )}
-      </Sec>
+            {approvedCOs.length>0 && <div style={{padding:"6px 10px",background:"rgba(249,115,22,.06)",border:"1px solid rgba(249,115,22,.2)",borderRadius:6,fontSize:11,color:"#f97316",marginBottom:8}}>
+              📝 This scope reflects {approvedCOs.length} approved change order{approvedCOs.length>1?"s":""} — additions marked 🔶, removals shown as struck through.
+            </div>}
+            {co.filter(c=>c.status==="pending").length>0 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginBottom:8}}>⚠ {co.filter(c=>c.status==="pending").length} change order{co.filter(c=>c.status==="pending").length>1?"s":""} pending review — post-work scope may still change</div>}
+            <ScopeBlock measures={postMeasures} hs={postHS} label="Final" isPost={true}/>
+            {fi.postScopeSig ? (
+              <div style={{marginTop:10,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div><div style={{fontSize:11,color:"#22c55e",fontWeight:600}}>✓ Post-Work Scope Signed — Work Accepted</div>{fi.postScopeDate&&<div style={{fontSize:9,color:"#64748b"}}>{new Date(fi.postScopeDate).toLocaleString()}</div>}</div>
+                  {(role==="admin"||role==="scope")&&<button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{uf("postScopeSig","");uf("postScopeDate","");onLog("Post-work scope signature cleared");}}>Clear Signature</button>}
+                </div>
+                <img src={fi.postScopeSig} style={{maxWidth:200,height:50,objectFit:"contain",marginTop:4}} alt="sig"/>
+              </div>
+            ) : (
+              <div style={{marginTop:10}}>
+                <div style={{fontSize:10,color:"#475569",marginBottom:4,fontStyle:"italic"}}>By signing below, the customer acknowledges that the work described in this post-work scope has been completed to their satisfaction and accepts the work as performed.</div>
+                <SigPad label="Customer Signature — Post-Work Scope Acceptance" value="" onChange={v=>{uf("postScopeSig",v);uf("postScopeDate",new Date().toISOString());onLog("Customer signed post-work scope acceptance");}}/>
+              </div>
+            )}
+          </Sec>
+        </>;
+      })()}
 
       {/* ── POST PHOTOS ── */}
       <Sec title={<span>Post-Install Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{postTaken}/{postItems.length}</span></span>}>
@@ -3680,7 +3873,7 @@ function InstallTab({p,u,onLog,user,role}) {
 
             {/* Building Inputs */}
             <div style={hdr}>Building Inputs (Post-Work)</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+            <div className="ashrae-inputs" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
               <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ft²]</div><div style={autoBox}>{Afl||"—"}</div><div style={autoSub}>{finBasement>0?`${baseSqft} + ${finBasement} fin. bsmt`:"← Sq Footage"}</div></div>
               <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Nocc (occupants)</div><div style={autoBox}>{Nbr + 1}</div><div style={autoSub}>{Nbr} bedrooms + 1 = {Nbr + 1}</div></div>
               <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Height [ft]</div><div style={autoBox}>{H}</div><div style={autoSub}>{st>=2?"2-story":"1"+(st>=1.5?".5":"")+"-story"}</div></div>
@@ -3690,7 +3883,7 @@ function InstallTab({p,u,onLog,user,role}) {
             {/* Local Ventilation — read-only from scope */}
             <div style={hdr}>Local Ventilation — Alternative Compliance <span style={{fontSize:9,fontWeight:400,color:"#64748b"}}>(from Scope)</span></div>
             <div style={{fontSize:9,color:"#64748b",marginBottom:2}}>Blank = no fan = no requirement. Openable window = 20 CFM credit. Kitchen: 100 CFM · Bath: 50 CFM (intermittent rates)</div>
-            <div style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",fontSize:11,alignItems:"center"}}>
+            <div className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",fontSize:11,alignItems:"center"}}>
               <span style={{fontWeight:600,color:"#64748b"}}></span>
               <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Fan Flow [CFM]</span>
               <span style={{fontWeight:600,color:"#64748b",textAlign:"center",fontSize:9}}>Window</span>
@@ -3703,7 +3896,7 @@ function InstallTab({p,u,onLog,user,role}) {
               {n:"Bath #2",v:b2,w:b2Win,r:b2Req,d:b2Def,present:b2Present},
               {n:"Bath #3",v:b3,w:b3Win,r:b3Req,d:b3Def,present:b3Present},
             ].map(f=>(
-              <div key={f.n} style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",alignItems:"center",marginBottom:2}}>
+              <div key={f.n} className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",alignItems:"center",marginBottom:2}}>
                 <span style={{fontSize:12,color:"#cbd5e1"}}>{f.n}</span>
                 <div style={{textAlign:"center",fontSize:12,fontFamily:"'JetBrains Mono',monospace",color:f.present?"#e2e8f0":"#475569",background:"rgba(255,255,255,.03)",borderRadius:4,padding:"4px 6px"}}>{f.present?f.v:"—"}</div>
                 <div style={{textAlign:"center",fontSize:11,color:f.w?"#60A5FA":"#475569"}}>{f.w?"✓":"—"}</div>
@@ -3711,7 +3904,7 @@ function InstallTab({p,u,onLog,user,role}) {
                 <div style={{textAlign:"center",fontSize:13,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:!f.present?"#475569":f.d>0?"#f59e0b":"#22c55e"}}>{f.present?f.d:"—"}</div>
               </div>
             ))}
-            <div style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",borderTop:"1px solid rgba(255,255,255,.1)",paddingTop:4,marginTop:4}}>
+            <div className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",borderTop:"1px solid rgba(255,255,255,.1)",paddingTop:4,marginTop:4}}>
               <span style={{fontSize:12,fontWeight:700,color:"#e2e8f0"}}>Total</span>
               <span></span><span></span><span></span>
               <div style={{textAlign:"center",fontSize:14,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:totalDef>0?"#f59e0b":"#22c55e"}}>{Ri(totalDef)}</div>
@@ -3884,6 +4077,83 @@ function HVACTab({p,u,onLog,user}) {
   const c = h.condenser || {};
   const [guide,setGuide] = useState(null);
 
+  const getHVACHTML = () => {
+    const v = (x) => x || "—";
+    const cell = (num,label,val) => `<td style="border:1px solid #999;padding:6px 8px;width:50%;vertical-align:top"><span style="font-weight:700">${num}. ${label}</span><br/><span style="color:#333">${v(val)}</span></td>`;
+    const row2 = (n1,l1,v1,n2,l2,v2) => `<tr>${cell(n1,l1,v1)}${cell(n2,l2,v2)}</tr>`;
+    const row1 = (num,label,val) => `<tr><td colspan="2" style="border:1px solid #999;padding:6px 8px"><span style="font-weight:700">${num}. ${label}</span><br/><span style="color:#333">${v(val)}</span></td></tr>`;
+    const secHdr = (title) => `<tr><td colspan="2" style="border:2px solid #333;padding:8px 10px;background:#f0f0f0;font-weight:700;font-size:14px">${title}</td></tr>`;
+    const afueRow = `<tr><td style="border:1px solid #999;padding:6px 8px;background:#ffe;font-weight:600">AFUE Pre-Tune Up: <span style="color:#1E3A8A">${v(f.afuePre)}%</span></td><td style="border:1px solid #999;padding:6px 8px;background:#ffe;font-weight:600">AFUE Post-Tune Up: <span style="color:#16a34a">${v(f.afuePost)}%</span></td></tr>`;
+    const findingsTags = (findings) => findings ? findings.split("; ").map(t=>`<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:3px;background:#e8f4fd;border:1px solid #b8d9f0;font-size:10px">${t}</span>`).join("") : "—";
+    const sigBlock = (label, sig) => sig ? `<div style="margin-top:16px;padding-top:8px;border-top:1px solid #ccc"><span style="font-size:10px;color:#666">${label}:</span><br/><img src="${sig}" style="max-width:280px;height:60px;object-fit:contain"/><br/><span style="font-size:9px;color:#999">Digitally signed in HES Tracker</span></div>` : `<div style="margin-top:16px;padding-top:8px;border-top:1px solid #ccc"><span style="font-size:10px;color:#666">${label}:</span><br/><div style="height:40px;border-bottom:1px solid #333;width:250px;margin-top:4px"></div></div>`;
+
+    return `<!DOCTYPE html><html><head><title>AIS System Tune Up</title>
+<style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:12px;font-size:12px;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:4px}h1{font-size:16px;margin:0;text-align:center}h2{font-size:13px;margin:4px 0;font-weight:400;text-align:center;color:#444}
+.hdr-tbl td{border:none;padding:2px 0;font-size:11px;vertical-align:top}
+</style></head><body>
+<div style="text-align:center;margin-bottom:8px">
+<div style="font-size:22px;font-weight:900;letter-spacing:1px;color:#c00">ASSURED</div>
+<div style="font-size:11px;font-weight:700;color:#333;letter-spacing:2px">HEATING & COOLING</div>
+</div>
+<table class="hdr-tbl" style="margin-bottom:12px"><tr>
+<td style="width:50%">Assured Heating and Cooling<br/>22530 Center Rd.<br/>Frankfort, IL 60423<br/>708-580-8100</td>
+<td style="width:50%;text-align:right"><b>Bill To:</b><br/>Assured Insulation Solutions LLC<br/>22530 Center Rd.<br/>Frankfort, IL 60423</td>
+</tr></table>
+<table class="hdr-tbl" style="margin-bottom:8px">
+<tr><td><b>Work Order #:</b> ${v(p.stId)}</td><td><b>Customer:</b> ${v(p.customerName)}</td></tr>
+<tr><td><b>Assigned Technician:</b> ${v(h.techName)}</td><td><b>Address:</b> ${v(p.address)}</td></tr>
+<tr><td><b>Date:</b> ${h.completedDate ? new Date(h.completedDate).toLocaleDateString() : new Date().toLocaleDateString()}</td><td><b>Task:</b> Tune-up and cleaning</td></tr>
+</table>
+<div style="font-size:10px;color:#444;padding:4px 0 8px;border-bottom:1px solid #ccc;margin-bottom:8px">
+<b>Work Order Description:</b> Furnace tune-up and cleaning, A/C tune-up and cleaning, and water heater check-up. Gather all equipment information, photos of any necessary repairs, and check all heat exchangers.
+</div>
+
+<table style="margin-top:4px">
+<tr><td colspan="2" style="border:2px solid #333;padding:8px 10px;background:#e8e8e8;font-weight:700;font-size:15px">AIS System Tune Up<br/><span style="font-size:11px;font-weight:400;font-style:italic">Furnace / Condenser / Water Heater tune up and checklist</span></td></tr>
+${secHdr("FURNACE TUNE-UP")}
+${row2(1,"Furnace Make",f.make,2,"Furnace Model #",f.model)}
+${row2(3,"Furnace Serial #",f.serial,4,"Furnace Age",f.age?f.age+" years":"")}
+${row2(5,"Condition of Heat Exchanger",f.heatExchanger,6,"Inducer Motor Operations & Condition",f.inducerMotor)}
+${row2(7,"Ignitor Condition & OHM Reading",(f.ignitorCond||"")+(f.ignitorOhm?" · "+f.ignitorOhm+"Ω":""),8,"Burner Condition & Operations",f.burnerCond)}
+${row2(9,"Flame Sensor Condition",f.flameSensor,10,"Filter Size",f.filterSize)}
+${row2(11,"Filter Changed",f.filterChanged,12,"Blower Motor Operations & Condition",f.blowerMotor)}
+${row2(13,"Control Board Operations & Condition",f.controlBoard,14,"Thermostat Location & Condition",f.thermostat)}
+${afueRow}
+${row1(15,"Findings & Recommendations",findingsTags(f.findings)+(f.findingsNotes?"<br/><span style='font-size:11px;color:#555'>"+f.findingsNotes+"</span>":""))}
+
+${secHdr("WATER HEATER CHECK-UP")}
+${row2(16,"Water Heater Make",w.make,17,"Water Heater Model #",w.model)}
+${row2(18,"Water Heater Serial #",w.serial,19,"Water Heater Age",w.age?w.age+" years":"")}
+${row2(20,"Water Heater Condition",w.condition,21,"Water Heater Venting",w.venting)}
+${row2(22,"Water Heater Burners",w.burners,23,"Water Heater Recommendations",findingsTags(w.findings)+(w.findingsNotes?"<br/>"+w.findingsNotes:""))}
+
+${secHdr("A/C TUNE-UP")}
+${row2(24,"Condenser Make",c.make,25,"Condenser Model #",c.model)}
+${row2(26,"Condenser Serial #",c.serial,27,"Condenser Age",c.age?c.age+" years":"")}
+${row2(28,"Condenser Condition",c.condition,29,"Condenser Coils Cleaned",c.coilsCleaned)}
+${row2(30,"Electrical Components, Whip & Disconnect",c.electrical,31,"Refrigerant Pressures",(c.suctionPSI?"Suction: "+c.suctionPSI+" PSI":"")+(c.dischargePSI?" · Discharge: "+c.dischargePSI+" PSI":"")+(c.refrigerant?" · "+c.refrigerant:""))}
+${row2(32,"Exposed Line Set Condition",c.lineSet,33,"Other Issues (piping, venting, drainage)",c.otherIssues)}
+${row1(34,"Evaporator Coil Condition",c.evapCoil)}
+
+${secHdr("WHOLE SYSTEM ASSESSMENT")}
+${row1(35,"Details, Notes & Recommendations",findingsTags(h.systemNotes)+(h.detailNotes?"<br/><span style='font-size:11px;color:#555'>"+h.detailNotes+"</span>":""))}
+${(h.systemNotes||"").includes("replacement")?`<tr><td colspan="2" style="border:1px solid #999;padding:6px 8px;background:#fff3cd"><b>⚠ Replacement Flagged</b> — Priority: ${v(h.replacePriority)} · Type: ${v(h.replaceType)}</td></tr>`:""}
+</table>
+
+<div style="margin-top:16px;display:flex;justify-content:space-between">
+<div>
+<div style="font-size:10px;color:#666">Technician Signature:</div>
+<div style="margin-top:20px;border-top:1px solid #333;width:240px;padding-top:2px;font-size:10px">${v(h.techName)}</div>
+</div>
+<div>
+<div style="font-size:10px;color:#666">Manager:</div>
+<div style="margin-top:20px;border-top:1px solid #333;width:240px;padding-top:2px;font-size:10px">Dave Duer</div>
+</div>
+</div>
+<div style="text-align:center;margin-top:16px;font-size:9px;color:#999">Date: ${new Date().toLocaleDateString()}</div>
+</body></html>`;
+  };
+
   // Dropdown field with optional "Other" override
   const DDField = ({label,section,field,opts,tip}) => {
     const val = (section?h[section]?.[field]:h[field]) || "";
@@ -3922,10 +4192,11 @@ function HVACTab({p,u,onLog,user}) {
   return (
     <div>
       <Sec title="HVAC Tune & Clean">
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,flexWrap:"wrap",gap:6}}>
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Complete all sections that apply. Use dropdowns — only use "Other" if none fit.</p>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
             <F label="Technician" value={h.techName||""} onChange={v=>uhTop("techName",v)}/>
+            <PrintBtn onClick={()=>savePrint(getHVACHTML())}/>
           </div>
         </div>
         {!h.completed ? (
@@ -4154,7 +4425,7 @@ function QAQCTab({p,u}) {
     body += `<div class="sec"><h3>Contractor Checklist</h3>`;
     FI_CONTRACTOR_CK.forEach(ck => { body += `<div class="row"><span class="lbl">${ck}</span><span class="${fi.ck?.[ck]?"pass":"na"}">${fi.ck?.[ck]?"☑":"☐"}</span></div>`; });
     body += `</div>`;
-    return formPrintHTML("Home Energy Savings – Retrofits Final Inspection Form", p, body, fi.inspectorSig);
+    return formPrintHTML("Home Energy Savings – Retrofits Final Inspection Form", p, body, fi.inspectorSig, fi.custSig);
   };
 
   return (
@@ -4299,7 +4570,7 @@ function QAQCTab({p,u}) {
               body += `<div class="sec"><h3>${cat}</h3>${rows}</div>`;
             });
             body += `<div class="sec"><h3>Result</h3><div class="row"><span class="lbl">Overall</span><span class="${q.passed===true?"pass":"fail"}">${q.passed===true?"PASS":q.passed===false?"FAIL":"—"}</span></div>${q.notes?`<p style="margin-top:6px;color:#666">${q.notes}</p>`:""}</div>`;
-            savePrint(formPrintHTML("QAQC Observation Form", p, body, q.inspectorSig));
+            savePrint(formPrintHTML("QAQC Observation Form", p, body, q.inspectorSig, q.custSig));
           }}/>
         </div>
       </Sec>
@@ -4502,7 +4773,7 @@ function Hdr({role,user,onSw,onBack,title,sub,badge,actions}) {
 function Sec({title,children,danger}) {
   return <div style={{...S.sec,...(danger?{borderColor:"rgba(239,68,68,.3)"}:{})}}><h3 style={{...S.secT,...(danger?{color:"#ef4444"}:{})}}>{title}</h3>{children}</div>;
 }
-function Gr({children}) { return <div style={S.gr}>{children}</div>; }
+function Gr({children}) { return <div className="gr-wrap">{children}</div>; }
 function F({label,value,onChange,type="text",placeholder,num,computed,suffix}) {
   return <div style={{display:"flex",flexDirection:"column"}}>
     <label style={S.fl}>{label}</label>
@@ -4621,7 +4892,7 @@ function SI({l,v,c}) { return <div style={S.si}><span style={{fontSize:9,color:"
 // STYLES - responsive for iPhone/iPad/Laptop
 // ═══════════════════════════════════════════════════════════════
 const S = {
-  app: { fontFamily:"'DM Sans',sans-serif", background:"#0b0e18", minHeight:"100vh", color:"#e2e8f0", paddingBottom:60 },
+  app: { fontFamily:"'DM Sans',sans-serif", background:"#0b0e18", minHeight:"100vh", color:"#e2e8f0", paddingBottom:60, overflowX:"hidden" },
   center: { display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"100vh", background:"#0b0e18" },
   spin: { width:24, height:24, border:"3px solid #1e293b", borderTopColor:"#2563EB", borderRadius:"50%", animation:"spin .7s linear infinite" },
 
