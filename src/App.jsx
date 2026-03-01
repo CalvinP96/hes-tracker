@@ -56,7 +56,10 @@ const PHOTO_SECTIONS = {
   "HVAC — Furnace":[{id:"hvac_furn_tag",l:"Furnace nameplate/tag",p:"hvac"},{id:"hvac_furn_hx",l:"Heat exchanger",p:"hvac"},{id:"hvac_furn_burner",l:"Burners/flame",p:"hvac"},{id:"hvac_furn_board",l:"Control board",p:"hvac"},{id:"hvac_furn_filter",l:"Filter",p:"hvac"},{id:"hvac_furn_issue",l:"Any issues found",p:"hvac"}],
   "HVAC — Water Heater":[{id:"hvac_wh_tag",l:"WH nameplate/tag",p:"hvac"},{id:"hvac_wh_cond",l:"WH overall condition",p:"hvac"},{id:"hvac_wh_vent",l:"WH venting",p:"hvac"},{id:"hvac_wh_burner",l:"WH burners",p:"hvac"},{id:"hvac_wh_issue",l:"WH any issues",p:"hvac"}],
   "HVAC — A/C":[{id:"hvac_ac_tag",l:"Condenser nameplate/tag",p:"hvac"},{id:"hvac_ac_cond",l:"Condenser condition",p:"hvac"},{id:"hvac_ac_elec",l:"Electrical/disconnect",p:"hvac"},{id:"hvac_ac_line",l:"Line set",p:"hvac"},{id:"hvac_ac_evap",l:"Evaporator coil",p:"hvac"},{id:"hvac_ac_issue",l:"A/C any issues",p:"hvac"}],
-  "HVAC — Thermostat":[{id:"hvac_thermo",l:"Thermostat",p:"hvac"}]
+  "HVAC — Thermostat":[{id:"hvac_thermo",l:"Thermostat",p:"hvac"}],
+  "HVAC Replacement — Before":[{id:"repl_before_equip",l:"Old equipment (before removal)",p:"repl"},{id:"repl_before_tag",l:"Old equipment nameplate",p:"repl"},{id:"repl_before_area",l:"Install area (before)",p:"repl"}],
+  "HVAC Replacement — Install":[{id:"repl_new_equip",l:"New equipment installed",p:"repl"},{id:"repl_new_tag",l:"New equipment nameplate/tag",p:"repl"},{id:"repl_new_model",l:"New model/serial label",p:"repl"},{id:"repl_new_vent",l:"Venting/flue connections",p:"repl"},{id:"repl_new_gas",l:"Gas line connections",p:"repl"},{id:"repl_new_elec",l:"Electrical connections",p:"repl"},{id:"repl_new_area",l:"Install area (after)",p:"repl"},{id:"repl_new_thermo",l:"Thermostat/controls",p:"repl"}],
+  "HVAC Replacement — Verification":[{id:"repl_permit",l:"Permit/sticker (if applicable)",p:"repl"},{id:"repl_startup",l:"Startup/commissioning readings",p:"repl"},{id:"repl_co_test",l:"CO test after install",p:"repl"},{id:"repl_complete",l:"Completed install overview",p:"repl"}]
 };
 
 const CAZ_ITEMS = [{k:"ambient_co",l:"Ambient CO",r:true,u:"PPM"},{k:"gas_sniff",l:"Gas Sniffing",r:false},{k:"spillage",l:"Spillage Test",r:false},{k:"worst_case",l:"Worst Case Depress.",r:true,u:"PA"},{k:"oven_co",l:"Gas Oven CO",r:true,u:"PPM"},{k:"heat_co",l:"Heating System CO",r:true,u:"PPM"},{k:"wh_co",l:"Water Heater CO",r:true,u:"PPM"},{k:"dryer",l:"Dryer Vented",r:false}];
@@ -1375,13 +1378,83 @@ const exportProjectForms = async (proj) => {
       }
 
       // 8. Activity Log
-      stepEl.textContent = "8/8 Activity Log…";
+      stepEl.textContent = "8/10 Activity Log…";
       if (p.activityLog?.length) {
         zip.file(nm+"_activity_log.pdf", buildPDF("Activity Log", [
           { title: p.activityLog.length + " Entries", rows:
             p.activityLog.slice(0,100).map(l => [new Date(l.ts).toLocaleString()+" — "+l.by, l.txt])
           }
         ]));
+      }
+
+      // 9. HVAC Tune-Up Report
+      stepEl.textContent = "9/10 HVAC Tune-Up…";
+      {
+        const hvac = p.hvac || {};
+        const f2 = hvac.furnace||{}; const w2 = hvac.waterHeater||{}; const ac2 = hvac.condenser||{};
+        if (hvac.techName || hvac.completed) {
+          const secs = [];
+          secs.push({ title: "Job Info", rows: [
+            ["Customer", p.customerName], ["Address", p.address], ["ST#", p.stId],
+            ["Technician", hvac.techName], ["Manager", hvac.managerName],
+            ["Date", hvac.completedDate ? new Date(hvac.completedDate).toLocaleDateString() : "\u2014"],
+            ["Status", hvac.completed ? "Completed" : "In Progress"]
+          ]});
+          if (f2.make) secs.push({ title: "Furnace", rows: [
+            ["Make",f2.make],["Model",f2.model],["Serial",f2.serial],["Age",f2.age?(f2.age+" yrs"):"\u2014"],
+            ["Heat Exchanger",f2.heatExchanger],["Inducer Motor",f2.inducerMotor],["Ignitor",f2.ignitorCond],
+            ["Burner",f2.burnerCond],["Flame Sensor",f2.flameSensor],["Filter Size",f2.filterSize],
+            ["Filter Changed",f2.filterChanged],["Blower Motor",f2.blowerMotor],
+            ["Control Board",f2.controlBoard],["Thermostat",f2.thermostat],
+            ["Findings",f2.findings],...(f2.findingsNotes?[["Notes",f2.findingsNotes]]:[])
+          ].filter(r=>r[1])});
+          if (w2.make) secs.push({ title: "Water Heater", rows: [
+            ["Make",w2.make],["Model",w2.model],["Serial",w2.serial],["Age",w2.age?(w2.age+" yrs"):"\u2014"],
+            ["Condition",w2.condition],["Venting",w2.venting],["Burners",w2.burners],
+            ["Findings",w2.findings],...(w2.findingsNotes?[["Notes",w2.findingsNotes]]:[])
+          ].filter(r=>r[1])});
+          if (ac2.make) secs.push({ title: "Air Conditioning / Condenser", rows: [
+            ["Make",ac2.make],["Model",ac2.model],["Serial",ac2.serial],["Age",ac2.age?(ac2.age+" yrs"):"\u2014"],
+            ["Condition",ac2.condition],["Electrical",ac2.electrical],["Line Set",ac2.lineSet],
+            ["Evap Coil",ac2.evapCoil],["Other Issues",ac2.otherIssues],
+            ["Findings",ac2.findings],...(ac2.findingsNotes?[["Notes",ac2.findingsNotes]]:[])
+          ].filter(r=>r[1])});
+          if (hvac.systemNotes) secs.push({ title: "System Assessment", rows: [["Findings", hvac.systemNotes],...(hvac.detailNotes?[["Details",hvac.detailNotes]]:[])] });
+          if (hvac.replaceRequestStatus) secs.push({ title: "Replacement Request", rows: [
+            ["Type", hvac.replaceType], ["Priority", hvac.replacePriority],
+            ["Status", hvac.replaceRequestStatus?.toUpperCase()],
+            ["Justification", hvac.replaceJustification]
+          ].filter(r=>r[1])});
+          if (hvac.replInstallComplete) secs.push({ title: "Replacement Install", rows: [
+            ["New Make", hvac.replNewMake], ["New Model", hvac.replNewModel], ["New Serial", hvac.replNewSerial],
+            ["Install Date", hvac.replInstallDate ? new Date(hvac.replInstallDate).toLocaleDateString() : "\u2014"],
+            ["Installed By", hvac.replInstallBy], ["Notes", hvac.replNotes]
+          ].filter(r=>r[1])});
+          zip.file(nm+"_hvac_tuneup.pdf", buildPDF("AES System Tune Up Report", secs));
+        }
+      }
+
+      // 10. HVAC + Replacement Photos
+      stepEl.textContent = "10/10 HVAC Photos…";
+      {
+        const hvacPhotoItems = Object.entries(PHOTO_SECTIONS).filter(([cat])=>cat.startsWith("HVAC")).flatMap(([,items])=>items);
+        const replPhotoItems = Object.entries(PHOTO_SECTIONS).filter(([cat])=>cat.startsWith("HVAC Replacement")).flatMap(([,items])=>items);
+        const allHvacItems = [...hvacPhotoItems,...replPhotoItems];
+        let hvacPhotoCount2 = 0;
+        for (const item of allHvacItems) {
+          const photos = getPhotos(p.photos, item.id);
+          for (let i = 0; i < photos.length; i++) {
+            const ph = photos[i];
+            if (ph.d) {
+              const ext = ph.d.startsWith("data:image/png")?"png":"jpg";
+              const b64 = ph.d.split(",")[1];
+              if (b64) {
+                zip.file(`hvac_photos/${item.l.replace(/[^a-zA-Z0-9 ]/g,"_")}${photos.length>1?"_"+(i+1):""}.${ext}`, b64, {base64:true});
+                hvacPhotoCount2++;
+              }
+            }
+          }
+        }
       }
 
       stepEl.textContent = "Compressing ZIP…";
@@ -1543,13 +1616,123 @@ const exportProjectForms = async (proj) => {
         if (hv.replaceRequestStatus === "denied") myNotifications.push({ proj: pr, status: "denied", type: hv.replaceType });
       }
     });
-    const pendingJobs = hvacJobs.filter(p => !(p.hvac||{}).completed);
-    const completedJobs = hvacJobs.filter(p => (p.hvac||{}).completed);
+    // Job states: tuneJobs = not done yet, replJobs = tune done + approved + repl not done, doneJobs = fully done (hidden)
+    const tuneJobs = hvacJobs.filter(p => !(p.hvac||{}).completed);
+    const replJobs = hvacJobs.filter(p => {
+      const hv = p.hvac||{};
+      return hv.completed && hv.replaceRequestStatus==="approved" && !hv.replInstallComplete;
+    });
+    const pendingJobs = [...tuneJobs, ...replJobs]; // all active
+    const completedJobs = hvacJobs.filter(p => {
+      const hv = p.hvac||{};
+      if (!hv.completed) return false;
+      if (hv.replaceRequestStatus==="approved" && !hv.replInstallComplete) return false;
+      return true;
+    });
 
     // If a project is selected, show HVAC work view
     if (selId) {
       const pr = projects.find(p => p.id === selId);
       if (pr) {
+        const hv = pr.hvac||{};
+        const isReplPhase = hv.completed && hv.replaceRequestStatus==="approved" && !hv.replInstallComplete;
+        const replSections = Object.entries(PHOTO_SECTIONS).filter(([cat])=>cat.startsWith("HVAC Replacement"));
+        const replItems = replSections.flatMap(([,items])=>items);
+        const replTaken = replItems.filter(i=>hasPhoto(pr.photos,i.id)).length;
+
+        const compressRepl = (id,file) => {
+          if(!file) return;
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+              const maxW=1600; let w=img.width,h2=img.height;
+              if(w>maxW){h2=Math.round(h2*maxW/w);w=maxW;}
+              const c=document.createElement("canvas"); c.width=w; c.height=h2;
+              c.getContext("2d").drawImage(img,0,0,w,h2);
+              const compressed=c.toDataURL("image/jpeg",0.7);
+              const existing=getPhotos(pr.photos,id);
+              upC(pr.id,{photos:{...pr.photos,[id]:[...existing,{d:compressed,at:new Date().toISOString(),by:userName}]}});
+              addLog(pr.id,`📸 Replacement: ${replItems.find(x=>x.id===id)?.l||id}`);
+            };
+            img.src=e.target.result;
+          };
+          reader.readAsDataURL(file);
+        };
+
+        // ── Replacement Install View ──
+        if (isReplPhase) {
+          return (
+            <div style={S.app}>{globalCSS}
+              <Hdr role={curRole} user={userName} onSw={doLogout}
+                onBack={()=>setSelId(null)}
+                title={pr.customerName||"Unnamed"} sub={`Replacement Install — ${hv.replaceType||"Equipment"}`}
+                badge={<span style={{...S.bdg,background:"#22c55e"}}>✅ Approved</span>}
+              />
+              <div className="proj-cnt cnt-wrap" style={S.cnt}>
+                {/* Replacement info */}
+                <Sec title="🔄 Replacement Install">
+                  <div style={{padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8,marginBottom:10}}>
+                    <div style={{fontSize:12,fontWeight:600,color:"#22c55e"}}>✅ Replacement Approved — {hv.replaceType}</div>
+                    <div style={{fontSize:11,color:"#94a3b8",marginTop:2}}>Priority: {hv.replacePriority}</div>
+                    {hv.replaceJustification && <div style={{fontSize:10,color:"#64748b",marginTop:4}}>{hv.replaceJustification}</div>}
+                  </div>
+                  <div style={{fontSize:11,color:"#94a3b8",marginBottom:8}}>Document the replacement install with photos below. Take before, during, and after photos for program proof.</div>
+
+                  {/* Replacement notes */}
+                  <F label="New Equipment Make" value={hv.replNewMake||""} onChange={v=>upC(pr.id,{hvac:{...hv,replNewMake:v}})}/>
+                  <div style={{height:6}}/>
+                  <F label="New Equipment Model #" value={hv.replNewModel||""} onChange={v=>upC(pr.id,{hvac:{...hv,replNewModel:v}})}/>
+                  <div style={{height:6}}/>
+                  <F label="New Equipment Serial #" value={hv.replNewSerial||""} onChange={v=>upC(pr.id,{hvac:{...hv,replNewSerial:v}})}/>
+                  <div style={{height:6}}/>
+                  <textarea style={{...S.ta,minHeight:40}} value={hv.replNotes||""} onChange={e=>upC(pr.id,{hvac:{...hv,replNotes:e.target.value}})} placeholder="Install notes (any issues, special conditions, etc.)..." rows={2}/>
+                </Sec>
+
+                {/* Replacement photos */}
+                <Sec title={<span>📷 Replacement Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{replTaken}/{replItems.length}</span></span>}>
+                  <div style={S.prog}><div style={{...S.progF,width:`${replItems.length?(replTaken/replItems.length)*100:0}%`,background:"linear-gradient(90deg,#22c55e,#16a34a)"}}/></div>
+                  {replSections.map(([cat,items])=>{
+                    const cd=items.filter(i=>hasPhoto(pr.photos,i.id)).length;
+                    return <div key={cat} style={{marginTop:10}}>
+                      <div style={{fontSize:11,fontWeight:700,color:"#22c55e",marginBottom:4,display:"flex",justifyContent:"space-between"}}>
+                        <span>{cat.replace("HVAC Replacement — ","")}</span><span style={{color:cd===items.length?"#22c55e":"#64748b"}}>{cd}/{items.length}</span>
+                      </div>
+                      {items.map(it=>{
+                        const photos=getPhotos(pr.photos,it.id);
+                        const has=photos.length>0;
+                        return <div key={it.id} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                          <div style={{width:48,height:48,borderRadius:6,border:`1px dashed ${has?"rgba(34,197,94,.3)":"rgba(255,255,255,.1)"}`,background:has?"rgba(34,197,94,.04)":"rgba(255,255,255,.02)",display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",flexShrink:0}}>
+                            {has ? <img src={photos[photos.length-1].d} style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:5}} alt=""/> :
+                              <label style={{fontSize:10,color:"#64748b",cursor:"pointer",textAlign:"center",padding:4}}>📸 Tap<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{compressRepl(it.id,e.target.files?.[0]);e.target.value="";}}/></label>
+                            }
+                          </div>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:11,color:has?"#e2e8f0":"#64748b"}}>{has?"✓ ":""}{it.l}</div>
+                            {has && <div style={{fontSize:9,color:"#475569"}}>{photos.length} photo{photos.length>1?"s":""}</div>}
+                          </div>
+                          {has && <label style={{fontSize:10,color:"#60A5FA",cursor:"pointer"}}>＋<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{compressRepl(it.id,e.target.files?.[0]);e.target.value="";}}/></label>}
+                        </div>;
+                      })}
+                    </div>;
+                  })}
+                </Sec>
+
+                {/* Mark replacement complete */}
+                <div style={{padding:"12px 0"}}>
+                  <button type="button" style={{...S.btn,width:"100%",padding:"12px",fontSize:14,opacity:replTaken>=3?1:.4}} disabled={replTaken<3} onClick={()=>{
+                    upC(pr.id,{hvac:{...hv,replInstallComplete:true,replInstallDate:new Date().toISOString(),replInstallBy:userName}});
+                    addLog(pr.id,`✅ Replacement install documented: ${hv.replaceType} — ${replTaken} photos`);
+                    setSelId(null);
+                  }}>✓ Mark Replacement Install Complete</button>
+                  {replTaken<3 && <div style={{fontSize:10,color:"#f59e0b",textAlign:"center",marginTop:4}}>Take at least 3 photos to complete</div>}
+                </div>
+              </div>
+            </div>
+          );
+        }
+
+        // ── Standard Tune & Clean View ──
         return (
           <div style={S.app}>{globalCSS}
             <Hdr role={curRole} user={userName} onSw={doLogout}
@@ -1644,10 +1827,10 @@ const exportProjectForms = async (proj) => {
         <div style={{padding:"0 16px"}}>
           {/* ── KPI Row ── */}
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginTop:8,marginBottom:8}}>
-            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#f59e0b"}}>{pendingJobs.length}</div><div style={kpiLbl}>To Do</div></div>
-            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#22c55e"}}>{completedJobs.length}</div><div style={kpiLbl}>Done</div></div>
+            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#f59e0b"}}>{tuneJobs.length}</div><div style={kpiLbl}>Tune & Clean</div></div>
+            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#22c55e"}}>{replJobs.length}</div><div style={kpiLbl}>Repl Install</div></div>
             <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#fbbf24"}}>{replPending.length}</div><div style={kpiLbl}>Repl Pending</div></div>
-            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#22c55e"}}>{replApproved.length}</div><div style={kpiLbl}>Repl Approved</div></div>
+            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#94a3b8"}}>{completedJobs.length}</div><div style={kpiLbl}>Done</div></div>
           </div>
 
           {/* ── Replacement Request Tracker ── */}
@@ -1711,10 +1894,10 @@ const exportProjectForms = async (proj) => {
             ))}
           </div>}
 
-          {/* ── Jobs To Complete ── */}
-          {pendingJobs.length > 0 && <>
-            <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:4}}>🔧 Jobs To Complete</div>
-            {pendingJobs.map(pr => {
+          {/* ── Tune & Clean Jobs ── */}
+          {tuneJobs.length > 0 && <>
+            <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:4}}>🔧 Tune & Clean</div>
+            {tuneJobs.map(pr => {
               const hv = pr.hvac||{};
               const replSt = hv.replaceRequestStatus;
               const pc = hvacPhotoCount(pr);
@@ -1731,44 +1914,41 @@ const exportProjectForms = async (proj) => {
                       <div style={{fontSize:9,color:pc===totalHvacPhotos?"#22c55e":"#64748b",marginTop:4}}>📷 {pc}/{totalHvacPhotos}</div>
                     </div>
                   </div>
-                  {/* Status indicators */}
                   <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
                     {hv.techName && <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(255,255,255,.05)",color:"#94a3b8"}}>Tech: {hv.techName}</span>}
                     {replSt==="pending" && <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(245,158,11,.15)",color:"#fbbf24"}}>🔄 Repl Pending</span>}
-                    {replSt==="approved" && <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(34,197,94,.15)",color:"#22c55e"}}>✅ Repl Approved</span>}
                   </div>
                 </button>
               );
             })}
           </>}
 
-          {/* ── Completed ── */}
-          {completedJobs.length > 0 && <>
-            <div style={{fontSize:11,fontWeight:700,color:"#22c55e",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:16}}>✓ Completed</div>
-            {completedJobs.map(pr => {
+          {/* ── Replacement Install Jobs ── */}
+          {replJobs.length > 0 && <>
+            <div style={{fontSize:11,fontWeight:700,color:"#22c55e",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:12}}>🔄 Replacement Install</div>
+            {replJobs.map(pr => {
               const hv = pr.hvac||{};
-              const replSt = hv.replaceRequestStatus;
+              const replPhotos = Object.entries(PHOTO_SECTIONS).filter(([cat])=>cat.startsWith("HVAC Replacement")).flatMap(([,items])=>items);
+              const rpc = replPhotos.filter(i=>hasPhoto(pr.photos,i.id)).length;
               return (
-                <button key={pr.id} style={{...S.card,width:"100%",textAlign:"left",cursor:"pointer",marginBottom:6,opacity:.6}} onClick={()=>setSelId(pr.id)}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div>
-                      <div style={{fontSize:13,color:"#94a3b8"}}>{pr.customerName||"Unnamed"}</div>
-                      <div style={{fontSize:10,color:"#64748b"}}>{pr.address}</div>
+                <button key={pr.id} style={{...S.card,width:"100%",textAlign:"left",cursor:"pointer",marginBottom:6,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.03)"}} onClick={()=>setSelId(pr.id)}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:14,fontWeight:600,color:"#e2e8f0"}}>{pr.customerName||"Unnamed"}</div>
+                      <div style={{fontSize:12,color:"#94a3b8"}}>{pr.address}</div>
+                      <div style={{fontSize:11,color:"#22c55e",marginTop:3,fontWeight:600}}>{hv.replaceType} — Approved</div>
                     </div>
-                    <div style={{textAlign:"right"}}>
-                      <span style={{fontSize:10,color:"#22c55e"}}>✓ Done</span>
-                      {hv.completedDate && <div style={{fontSize:9,color:"#475569"}}>{new Date(hv.completedDate).toLocaleDateString()}</div>}
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <span style={{...S.bdg,background:"#22c55e",fontSize:9}}>✅ Install</span>
+                      <div style={{fontSize:9,color:rpc>=3?"#22c55e":"#64748b",marginTop:4}}>📷 {rpc}/{replPhotos.length}</div>
                     </div>
                   </div>
-                  {replSt && <div style={{fontSize:10,marginTop:3,color:replSt==="approved"?"#22c55e":replSt==="denied"?"#ef4444":"#fbbf24"}}>
-                    {replSt==="approved"?"✅ Replacement approved":replSt==="denied"?"❌ Replacement denied":"🔄 Replacement pending"}
-                  </div>}
                 </button>
               );
             })}
           </>}
 
-          {hvacJobs.length === 0 && <div style={{textAlign:"center",padding:40,color:"#64748b"}}>
+          {tuneJobs.length===0 && replJobs.length===0 && <div style={{textAlign:"center",padding:40,color:"#64748b"}}>
             <div style={{fontSize:32}}>🔧</div>
             <div style={{fontSize:13,marginTop:8}}>No HVAC jobs assigned right now.</div>
             <div style={{fontSize:11,color:"#475569",marginTop:4}}>Jobs appear here when projects reach the Tune & Clean stage.</div>
