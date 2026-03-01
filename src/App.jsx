@@ -4277,7 +4277,7 @@ function HVACTab({p,u,onLog,user}) {
     const findingsTags = (findings) => findings ? findings.split("; ").map(t=>`<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:3px;background:#e8f4fd;border:1px solid #b8d9f0;font-size:10px">${t}</span>`).join("") : "—";
     const sigBlock = (label, sig) => sig ? `<div style="margin-top:16px;padding-top:8px;border-top:1px solid #ccc"><span style="font-size:10px;color:#666">${label}:</span><br/><img src="${sig}" style="max-width:280px;height:60px;object-fit:contain"/><br/><span style="font-size:9px;color:#999">Digitally signed in HES Tracker</span></div>` : `<div style="margin-top:16px;padding-top:8px;border-top:1px solid #ccc"><span style="font-size:10px;color:#666">${label}:</span><br/><div style="height:40px;border-bottom:1px solid #333;width:250px;margin-top:4px"></div></div>`;
 
-    return `<!DOCTYPE html><html><head><title>AIS System Tune Up</title>
+    return `<!DOCTYPE html><html><head><title>AES System Tune Up</title>
 <style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:12px;font-size:12px;color:#000}table{width:100%;border-collapse:collapse;margin-bottom:4px}h1{font-size:16px;margin:0;text-align:center}h2{font-size:13px;margin:4px 0;font-weight:400;text-align:center;color:#444}
 .hdr-tbl td{border:none;padding:2px 0;font-size:11px;vertical-align:top}
 </style></head><body>
@@ -4286,8 +4286,7 @@ function HVACTab({p,u,onLog,user}) {
 <div style="font-size:11px;font-weight:700;color:#333;letter-spacing:2px">HEATING & COOLING</div>
 </div>
 <table class="hdr-tbl" style="margin-bottom:12px"><tr>
-<td style="width:50%">Assured Heating and Cooling<br/>22530 Center Rd.<br/>Frankfort, IL 60423<br/>708-580-8100</td>
-<td style="width:50%;text-align:right"><b>Bill To:</b><br/>Assured Insulation Solutions LLC<br/>22530 Center Rd.<br/>Frankfort, IL 60423</td>
+<td>Assured Heating and Cooling<br/>22530 Center Rd.<br/>Frankfort, IL 60423<br/>708-580-8100</td>
 </tr></table>
 <table class="hdr-tbl" style="margin-bottom:8px">
 <tr><td><b>Work Order #:</b> ${v(p.stId)}</td><td><b>Customer:</b> ${v(p.customerName)}</td></tr>
@@ -4299,7 +4298,7 @@ function HVACTab({p,u,onLog,user}) {
 </div>
 
 <table style="margin-top:4px">
-<tr><td colspan="2" style="border:2px solid #333;padding:8px 10px;background:#e8e8e8;font-weight:700;font-size:15px">AIS System Tune Up<br/><span style="font-size:11px;font-weight:400;font-style:italic">Furnace / Condenser / Water Heater tune up and checklist</span></td></tr>
+<tr><td colspan="2" style="border:2px solid #333;padding:8px 10px;background:#e8e8e8;font-weight:700;font-size:15px">AES System Tune Up<br/><span style="font-size:11px;font-weight:400;font-style:italic">Furnace / Condenser / Water Heater tune up and checklist</span></td></tr>
 ${secHdr("FURNACE TUNE-UP")}
 ${row2(1,"Furnace Make",f.make,2,"Furnace Model #",f.model)}
 ${row2(3,"Furnace Serial #",f.serial,4,"Furnace Age",f.age?f.age+" years":"")}
