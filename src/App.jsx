@@ -296,6 +296,12 @@ function getAlerts(p) {
   if (p.scopeApproved && !p.installScheduled && !p.installDate && p.currentStage < 5) a.push({ type:"schedule", msg:"Needs install scheduling" });
   if (p.riseStatus === "corrections") a.push({ type:"warn", msg:"RISE corrections requested" });
   if (p.mechNeeded && !p.mechStatus) a.push({ type:"warn", msg:"Mech replacement needs approval" });
+  const replSt = (p.hvac||{}).replaceRequestStatus;
+  if (replSt==="pending") a.push({ type:"repl", msg:"🔄 Replacement request pending" });
+  if (replSt==="approved" || replSt==="denied") {
+    const replBy = (p.hvac||{}).replaceRequestBy;
+    if (replBy) a.push({ type:"repl_done", msg:`🔄 Replacement ${replSt}` });
+  }
   const pendingCO = (p.changeOrders||[]).filter(c=>c.status==="pending").length;
   if (pendingCO > 0) a.push({ type:"co", msg:`${pendingCO} COR${pendingCO>1?"s":""} pending` });
   return a;
@@ -1665,6 +1671,25 @@ const exportProjectForms = async (proj) => {
             </div>;
           })()}
 
+          {/* ══ PENDING REPLACEMENT REQUESTS ══ */}
+          {(role==="admin"||role==="scope") && (()=>{
+            const pendRepl = projects.filter(pr=>(pr.hvac||{}).replaceRequestStatus==="pending");
+            if (pendRepl.length === 0) return null;
+            return <div style={{...card,background:"rgba(245,158,11,.06)",borderColor:"rgba(245,158,11,.3)"}}>
+              <div style={{...hdr,color:"#f59e0b"}}>🔄 REPLACEMENT REQUESTS — {pendRepl.length} AWAITING REVIEW</div>
+              {pendRepl.map(pr => {
+                const hv = pr.hvac||{};
+                return <div key={pr.id} style={{padding:"8px 10px",background:"rgba(0,0,0,.15)",borderRadius:6,marginBottom:6,border:"1px solid rgba(245,158,11,.15)"}}>
+                  <div style={{fontSize:12,fontWeight:600,color:"#fbbf24",cursor:"pointer"}} onClick={()=>{setSelId(pr.id);setView("proj");setTab("hvac");}}>{pr.customerName||"Unnamed"} — {pr.address||""}</div>
+                  <div style={{fontSize:11,color:"#e2e8f0",marginTop:3}}><b>{hv.replaceType}</b> · {hv.replacePriority}</div>
+                  {hv.replaceJustification && <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{hv.replaceJustification}</div>}
+                  <div style={{fontSize:9,color:"#64748b",marginTop:3}}>By {hv.replaceRequestBy} · {hv.replaceRequestDate?new Date(hv.replaceRequestDate).toLocaleString():""}</div>
+                  <button type="button" style={{marginTop:6,width:"100%",padding:"8px",borderRadius:6,border:"1px solid rgba(245,158,11,.4)",background:"rgba(245,158,11,.1)",color:"#fbbf24",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>{setSelId(pr.id);setView("proj");setTab("hvac");}}>Open → Review</button>
+                </div>;
+              })}
+            </div>;
+          })()}
+
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             {/* Pipeline Breakdown */}
             <div style={card}>
@@ -1756,7 +1781,7 @@ const exportProjectForms = async (proj) => {
                 <div style={{fontSize:12,color:"#94a3b8",marginTop:2}}>{p.address}</div>
                 {al.length > 0 && (
                   <div style={{display:"flex",gap:4,marginTop:5,flexWrap:"wrap"}}>
-                    {al.map((a,i) => <span key={i} style={{...S.tBadge,...(a.type==="co"?{background:"rgba(249,115,22,.15)",color:"#f97316",border:"1px solid rgba(249,115,22,.3)"}:{})}}>{a.type==="advance"?"⬆":a.type==="co"?"🔶":"🔔"} {a.msg}</span>)}
+                    {al.map((a,i) => <span key={i} style={{...S.tBadge,...(a.type==="co"?{background:"rgba(249,115,22,.15)",color:"#f97316",border:"1px solid rgba(249,115,22,.3)"}:a.type==="repl"?{background:"rgba(245,158,11,.15)",color:"#fbbf24",border:"1px solid rgba(245,158,11,.3)"}:a.type==="repl_done"?{background:"rgba(34,197,94,.15)",color:"#22c55e",border:"1px solid rgba(34,197,94,.3)"}:{})}}>{a.type==="advance"?"⬆":a.type==="co"?"🔶":a.type==="repl"||a.type==="repl_done"?"🔄":"🔔"} {a.msg}</span>)}
                   </div>
                 )}
                 <div style={S.cMeta}>
@@ -4336,28 +4361,22 @@ ${(h.systemNotes||"").includes("replacement")?`<tr><td colspan="2" style="border
 </div>
 <div>
 <div style="font-size:10px;color:#666">Manager:</div>
-<div style="margin-top:20px;border-top:1px solid #333;width:240px;padding-top:2px;font-size:10px">Dave Duer</div>
+<div style="margin-top:20px;border-top:1px solid #333;width:240px;padding-top:2px;font-size:10px">${v(h.managerName)||"_____________________"}</div>
 </div>
 </div>
 <div style="text-align:center;margin-top:16px;font-size:9px;color:#999">Date: ${new Date().toLocaleDateString()}</div>
 </body></html>`;
   };
 
-  // Dropdown field with optional "Other" override
+  // Dropdown field — HVAC specific, no "Other" needed (options are comprehensive)
   const DDField = ({label,section,field,opts,tip}) => {
     const val = (section?h[section]?.[field]:h[field]) || "";
     const set = (v) => section ? uh(section,field,v) : uhTop(field,v);
-    const isOther = val && !opts.includes(val) && val !== "";
     return <div style={{marginBottom:4}}>
       <label style={S.fl}>{label}</label>
-      <select style={S.inp} value={isOther?"__other__":val} onChange={e=>{
-        if(e.target.value==="__other__") set("Other: ");
-        else set(e.target.value);
-      }}>
+      <select style={S.inp} value={val} onChange={e=>set(e.target.value)}>
         {opts.map(o=><option key={o} value={o}>{o||"— Select —"}</option>)}
-        <option value="__other__">Other (type below)</option>
       </select>
-      {isOther && <input style={{...S.inp,marginTop:3,borderColor:"rgba(245,158,11,.4)"}} value={val} onChange={e=>set(e.target.value)} placeholder="Describe condition…"/>}
       {tip && <div style={{fontSize:9,color:"#64748b",marginTop:2}}>💡 {tip}</div>}
     </div>;
   };
@@ -4385,6 +4404,7 @@ ${(h.systemNotes||"").includes("replacement")?`<tr><td colspan="2" style="border
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Complete all sections that apply. Use dropdowns — only use "Other" if none fit.</p>
           <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
             <F label="Technician" value={h.techName||""} onChange={v=>uhTop("techName",v)}/>
+            <F label="Manager" value={h.managerName||""} onChange={v=>uhTop("managerName",v)}/>
             <PrintBtn onClick={()=>savePrint(getHVACHTML())}/>
           </div>
         </div>
@@ -4539,14 +4559,49 @@ ${(h.systemNotes||"").includes("replacement")?`<tr><td colspan="2" style="border
         </div>
         <textarea style={S.ta} rows={3} value={h.detailNotes||""} onChange={e=>uhTop("detailNotes",e.target.value)} placeholder="Any additional details, observations, or special circumstances…"/>
 
-        {/* Replacement flag for scope team */}
+        {/* Replacement Request for scope team */}
         {(h.systemNotes||"").includes("replacement") && <div style={{marginTop:10,padding:"10px 12px",background:"rgba(245,158,11,.06)",border:"1px solid rgba(245,158,11,.2)",borderRadius:8}}>
-          <div style={{fontSize:12,fontWeight:700,color:"#f59e0b",marginBottom:4}}>🔄 Replacement Flagged</div>
-          <div style={{fontSize:11,color:"#94a3b8",marginBottom:6}}>Scope team will use this info to build the replacement scope. Make sure all equipment info and photos are complete above.</div>
+          <div style={{fontSize:12,fontWeight:700,color:"#f59e0b",marginBottom:4}}>🔄 Replacement Identified</div>
+          <div style={{fontSize:11,color:"#94a3b8",marginBottom:6}}>Fill in details below and submit a replacement request. Admin will review and approve/deny.</div>
           <Gr>
             <Sel label="Replacement Priority" value={h.replacePriority||""} onChange={v=>uhTop("replacePriority",v)} opts={["","Urgent — safety issue","Soon — failing equipment","Planned — end of life","Customer request"]}/>
             <Sel label="Replacement Type" value={h.replaceType||""} onChange={v=>uhTop("replaceType",v)} opts={["","Furnace only","A/C only","Furnace + A/C","Water heater only","Full system"]}/>
           </Gr>
+          <textarea style={{...S.ta,marginTop:6,minHeight:40}} value={h.replaceJustification||""} onChange={e=>uhTop("replaceJustification",e.target.value)} placeholder="Justification — describe why replacement is needed (condition, safety concerns, age, etc.)..." rows={2}/>
+          {/* Submit request */}
+          {!h.replaceRequestStatus && <button type="button" style={{...S.ghost,borderColor:"#f59e0b",color:"#f59e0b",padding:"10px 16px",marginTop:6,width:"100%",fontSize:12,fontWeight:600,opacity:(h.replacePriority&&h.replaceType)?1:.4}} disabled={!h.replacePriority||!h.replaceType} onClick={()=>{
+            uhTop("replaceRequestStatus","pending");
+            uhTop("replaceRequestDate",new Date().toISOString());
+            uhTop("replaceRequestBy",user);
+            onLog(`🔄 Replacement request submitted: ${h.replaceType} — ${h.replacePriority}`);
+          }}>🔄 Submit Replacement Request</button>}
+          {/* Status display */}
+          {h.replaceRequestStatus==="pending" && <div style={{marginTop:6,padding:"8px 12px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6}}>
+            <div style={{fontSize:11,color:"#fbbf24",fontWeight:600}}>⏳ Replacement Request Pending</div>
+            <div style={{fontSize:10,color:"#64748b"}}>Submitted by {h.replaceRequestBy} · {h.replaceRequestDate?new Date(h.replaceRequestDate).toLocaleString():""}</div>
+            {/* Admin approve/deny */}
+            {(role==="admin"||role==="scope") && <div style={{marginTop:6,display:"flex",gap:6}}>
+              <textarea style={{...S.ta,flex:1,minHeight:30}} value={h._replResp||""} onChange={e=>uhTop("_replResp",e.target.value)} placeholder="Response (internal)..." rows={1}/>
+              <button type="button" style={{padding:"8px 16px",borderRadius:6,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}} onClick={()=>{
+                uhTop("replaceRequestStatus","approved");uhTop("replaceResponse",h._replResp||"");
+                u({mechNeeded:true,mechStatus:"approved",mechDate:new Date().toISOString().slice(0,10)});
+                onLog(`✅ Replacement APPROVED: ${h.replaceType}`);
+              }}>✓ Approve</button>
+              <button type="button" style={{padding:"8px 16px",borderRadius:6,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}} onClick={()=>{
+                uhTop("replaceRequestStatus","denied");uhTop("replaceResponse",h._replResp||"");
+                onLog(`❌ Replacement DENIED: ${h.replaceType}`);
+              }}>✕ Deny</button>
+            </div>}
+          </div>}
+          {h.replaceRequestStatus==="approved" && <div style={{marginTop:6,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:6}}>
+            <div style={{fontSize:11,color:"#22c55e",fontWeight:600}}>✅ Replacement APPROVED</div>
+            {h.replaceResponse && (role==="admin"||role==="scope") && <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>Internal: {h.replaceResponse}</div>}
+            <div style={{fontSize:10,color:"#64748b",marginTop:2}}>Scope team will build replacement into the project scope.</div>
+          </div>}
+          {h.replaceRequestStatus==="denied" && <div style={{marginTop:6,padding:"8px 12px",background:"rgba(239,68,68,.06)",border:"1px solid rgba(239,68,68,.2)",borderRadius:6}}>
+            <div style={{fontSize:11,color:"#ef4444",fontWeight:600}}>❌ Replacement Denied</div>
+            {h.replaceResponse && (role==="admin"||role==="scope") && <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>Internal: {h.replaceResponse}</div>}
+          </div>}
         </div>}
       </Sec>
     </div>
