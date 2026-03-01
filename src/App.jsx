@@ -297,7 +297,7 @@ function getAlerts(p) {
   if (p.riseStatus === "corrections") a.push({ type:"warn", msg:"RISE corrections requested" });
   if (p.mechNeeded && !p.mechStatus) a.push({ type:"warn", msg:"Mech replacement needs approval" });
   const pendingCO = (p.changeOrders||[]).filter(c=>c.status==="pending").length;
-  if (pendingCO > 0) a.push({ type:"co", msg:`${pendingCO} change order${pendingCO>1?"s":""} pending` });
+  if (pendingCO > 0) a.push({ type:"co", msg:`${pendingCO} COR${pendingCO>1?"s":""} pending` });
   return a;
 }
 
@@ -1271,13 +1271,13 @@ const exportProjectForms = async (proj) => {
         ]});
         if (postM.length) secs.push({ title: "Energy Efficiency Measures (Final)", table: {
           cols: [{label:"Measure",w:220},{label:"Qty",w:60},{label:"Unit",w:60},{label:"Status",w:80}],
-          rows: [...postM.map(m => [addNames.includes(m)?"\ud83d\udd36 "+m:m, getQ3(m), measUnit(m), addNames.includes(m)?"CO Added":"Approved"]),
-            ...remNames.filter(m=>EE_MEASURES.includes(m)).map(m=>[{t:m,c:"r"}, "\u2014", "\u2014", {t:"CO Removed",c:"r"}])]
+          rows: [...postM.map(m => [addNames.includes(m)?"\ud83d\udd36 "+m:m, getQ3(m), measUnit(m), addNames.includes(m)?"COR Added":"Approved"]),
+            ...remNames.filter(m=>EE_MEASURES.includes(m)).map(m=>[{t:m,c:"r"}, "\u2014", "\u2014", {t:"COR Removed",c:"r"}])]
         }});
         if (postH.length) secs.push({ title: "Health & Safety Measures (Final)", table: {
           cols: [{label:"Measure",w:280},{label:"Qty",w:60},{label:"Status",w:80}],
-          rows: [...postH.map(m => [addNames.includes(m)?"\ud83d\udd36 "+m:m, getQ3(m), addNames.includes(m)?"CO Added":"Approved"]),
-            ...remNames.filter(m=>HS_MEASURES.includes(m)).map(m=>[{t:m,c:"r"}, "\u2014", {t:"CO Removed",c:"r"}])]
+          rows: [...postH.map(m => [addNames.includes(m)?"\ud83d\udd36 "+m:m, getQ3(m), addNames.includes(m)?"COR Added":"Approved"]),
+            ...remNames.filter(m=>HS_MEASURES.includes(m)).map(m=>[{t:m,c:"r"}, "\u2014", {t:"COR Removed",c:"r"}])]
         }});
         const iqRows = Object.entries(iq2).filter(([,v])=>v);
         if (iqRows.length) secs.push({ title: "Insulation Specifications", table: {
@@ -1636,7 +1636,7 @@ const exportProjectForms = async (proj) => {
             {hazards.length>0 && <div style={{...row,color:"#fca5a5"}}><span>⛔ Hazard flags (K&T/asbestos/mold)</span><b>{hazards.length}</b></div>}
           </div>}
 
-          {/* ══ PENDING CHANGE ORDERS — urgent review panel ══ */}
+          {/* ══ PENDING CHANGE ORDER REQUESTS — urgent review panel ══ */}
           {(role==="admin"||role==="scope") && (()=>{
             const allPendingCOs = [];
             projects.forEach(pr => (pr.changeOrders||[]).forEach(c => {
@@ -1645,7 +1645,7 @@ const exportProjectForms = async (proj) => {
             if (allPendingCOs.length === 0) return null;
             return <div style={{...card,background:"rgba(249,115,22,.08)",borderColor:"rgba(249,115,22,.4)",borderWidth:2,position:"relative",overflow:"hidden"}}>
               <div style={{position:"absolute",top:0,left:0,right:0,height:3,background:"linear-gradient(90deg,#f97316,#fbbf24,#f97316,#fbbf24)",backgroundSize:"200% 100%",animation:"coSlide 2s linear infinite"}}/>
-              <div style={{...hdr,color:"#f97316",fontSize:12}}>🔶 PENDING CHANGE ORDERS — {allPendingCOs.length} AWAITING REVIEW</div>
+              <div style={{...hdr,color:"#f97316",fontSize:12}}>🔶 PENDING CHANGE ORDER REQUESTS — {allPendingCOs.length} AWAITING REVIEW</div>
               <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Crews are waiting. Review and respond quickly.</div>
               {allPendingCOs.sort((a,b)=>new Date(a.at)-new Date(b.at)).map(c => {
                 const pr = c.proj;
@@ -1655,7 +1655,7 @@ const exportProjectForms = async (proj) => {
                     <span style={{fontSize:9,color:"#64748b"}}>{Math.floor((Date.now()-new Date(c.at))/(1000*60))} min ago</span>
                   </div>
                   <div style={{fontSize:11,color:"#e2e8f0",lineHeight:1.4,marginBottom:4}}>{c.text}</div>
-                  {c.photo && <img src={c.photo} style={{maxWidth:"100%",maxHeight:120,borderRadius:4,marginBottom:4,border:"1px solid rgba(255,255,255,.1)"}} alt="CO"/>}
+                  {c.photo && <img src={c.photo} style={{maxWidth:"100%",maxHeight:120,borderRadius:4,marginBottom:4,border:"1px solid rgba(255,255,255,.1)"}} alt="COR"/>}
                   <div style={{fontSize:9,color:"#64748b"}}>By {c.by} · {new Date(c.at).toLocaleString()}</div>
                   <div style={{marginTop:6,display:"flex",gap:6}}>
                     <button type="button" style={{flex:1,padding:"8px",borderRadius:6,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>{setSelId(pr.id);setView("proj");setTab("install");}}>Open → Review</button>
@@ -3527,7 +3527,7 @@ function InstallTab({p,u,onLog,user,role}) {
     return { Afl, Nbr, Q50, H, Hr, wsf, st, Qinf, Qtot, totalDef, supplement, Qfan, FAN_SETTINGS, recFan, R, Ri, baseSqft, finBasement, kCFM, b1, b2, b3, kPresent, b1Present, b2Present, b3Present, kWin, b1Win, b2Win, b3Win, kReq, b1Req, b2Req, b3Req, kDef, b1Def, b2Def, b3Def };
   };
 
-  // ── Change Orders ──
+  // ── Change Order Requests ──
   const [coPhoto, setCoPhoto] = React.useState(null);
   const compressCOPhoto = (file) => {
     if (!file) return;
@@ -3551,12 +3551,12 @@ function InstallTab({p,u,onLog,user,role}) {
     if (!coText.trim()) return;
     const newCO = { id: Date.now().toString(36), text: coText.trim(), by: user, at: new Date().toISOString(), status: "pending", response: "", photo: coPhoto||"" };
     u({ changeOrders: [...co, newCO] });
-    if (onLog) onLog(`📝 Change order requested: ${coText.trim().slice(0,50)}…`);
+    if (onLog) onLog(`📝 COR requested: ${coText.trim().slice(0,50)}…`);
     setCoText(""); setCoPhoto(null);
   };
   const updateCO = (id, fields) => {
     u({ changeOrders: co.map(c => c.id === id ? { ...c, ...fields } : c) });
-    if (onLog && fields.status) onLog(`Change order ${fields.status}: ${co.find(c=>c.id===id)?.text?.slice(0,40)}…`);
+    if (onLog && fields.status) onLog(`COR ${fields.status}: ${co.find(c=>c.id===id)?.text?.slice(0,40)}…`);
   };
 
   // ── Print HTML ──
@@ -3580,7 +3580,7 @@ function InstallTab({p,u,onLog,user,role}) {
         <div style="margin-bottom:6px"><strong>Health & Safety:</strong><br/>${hsList}</div>
         ${p.measureNotes?`<div style="margin-bottom:4px"><strong>Notes:</strong> ${p.measureNotes}</div>`:""}
       </div>
-      ${co.filter(c=>c.status==="approved").length?`<div class="sec"><h3>Approved Change Orders</h3>${coRows}</div>`:""}
+      ${co.filter(c=>c.status==="approved").length?`<div class="sec"><h3>Approved CORs</h3>${coRows}</div>`:""}
       <div class="sec"><h3>Post-Work Blower Door</h3><div class="grid">
         <div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"—"}</span></div>
         <div class="row"><span class="lbl">Post CFM50</span><span class="val">${p.postCFM50||"—"}</span></div>
@@ -3702,13 +3702,13 @@ function InstallTab({p,u,onLog,user,role}) {
                     <td style={tdStyle}>{isAdded&&"🔶 "}{m}</td>
                     <td style={tdR}>{getQty(m)}</td>
                     <td style={tdStyle}>{measUnit(m)}</td>
-                    <td style={{...tdStyle,color:isAdded?"#f97316":"#22c55e",fontWeight:600,fontSize:10}}>{isAdded?"CO Added":"Approved"}</td>
+                    <td style={{...tdStyle,color:isAdded?"#f97316":"#22c55e",fontWeight:600,fontSize:10}}>{isAdded?"COR Added":"Approved"}</td>
                   </tr>;
                 })}
                 {removed.filter(m=>EE_MEASURES.includes(m)).map(m =>
                   <tr key={"rm_"+m} style={{background:"rgba(239,68,68,.04)"}}>
                     <td style={{...tdStyle,textDecoration:"line-through",color:"#64748b"}}>{m}</td><td style={tdR}>—</td><td style={tdStyle}>—</td>
-                    <td style={{...tdStyle,color:"#ef4444",fontWeight:600,fontSize:10}}>CO Removed</td>
+                    <td style={{...tdStyle,color:"#ef4444",fontWeight:600,fontSize:10}}>COR Removed</td>
                   </tr>
                 )}
                 {measures.length === 0 && <tr><td colSpan={4} style={{...tdStyle,color:"#475569",textAlign:"center",padding:12}}>No energy efficiency measures</td></tr>}
@@ -3725,13 +3725,13 @@ function InstallTab({p,u,onLog,user,role}) {
                   return <tr key={m} style={isAdded?{background:"rgba(249,115,22,.06)"}:{}}>
                     <td style={tdStyle}>{isAdded&&"🔶 "}{m}</td>
                     <td style={tdR}>{getQty(m)}</td>
-                    <td style={{...tdStyle,color:isAdded?"#f97316":"#22c55e",fontWeight:600,fontSize:10}}>{isAdded?"CO Added":"Approved"}</td>
+                    <td style={{...tdStyle,color:isAdded?"#f97316":"#22c55e",fontWeight:600,fontSize:10}}>{isAdded?"COR Added":"Approved"}</td>
                   </tr>;
                 })}
                 {removed.filter(m=>HS_MEASURES.includes(m)).map(m =>
                   <tr key={"rm_"+m} style={{background:"rgba(239,68,68,.04)"}}>
                     <td style={{...tdStyle,textDecoration:"line-through",color:"#64748b"}}>{m}</td><td style={tdR}>—</td>
-                    <td style={{...tdStyle,color:"#ef4444",fontWeight:600,fontSize:10}}>CO Removed</td>
+                    <td style={{...tdStyle,color:"#ef4444",fontWeight:600,fontSize:10}}>COR Removed</td>
                   </tr>
                 )}
                 {(isPost?postHS:p.healthSafety).length === 0 && <tr><td colSpan={3} style={{...tdStyle,color:"#475569",textAlign:"center",padding:12}}>No health & safety measures</td></tr>}
@@ -3816,9 +3816,9 @@ function InstallTab({p,u,onLog,user,role}) {
           </Sec>
 
           {/* ══════════════════════════════════════════════════════
-               CHANGE ORDERS — structured add/remove
+               CHANGE ORDER REQUESTS — structured add/remove
              ══════════════════════════════════════════════════════ */}
-          <Sec title={`Change Orders (${co.length})`}>
+          <Sec title={`Change Order Requests (${co.length})`}>
             <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Installer describes the change needed. Scope/Admin reviews and formally adjusts the scope.</div>
             {/* Installer request */}
             <div style={{marginBottom:10}}>
@@ -3830,7 +3830,7 @@ function InstallTab({p,u,onLog,user,role}) {
                   <input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{compressCOPhoto(e.target.files?.[0]);e.target.value="";}}/>
                 </label>
                 {coPhoto && <button type="button" style={{...S.ghost,borderColor:"#ef4444",color:"#ef4444",padding:"4px 8px",fontSize:10}} onClick={()=>setCoPhoto(null)}>× Remove</button>}
-                {coPhoto && <img src={coPhoto} style={{height:36,borderRadius:4,border:"1px solid rgba(255,255,255,.1)"}} alt="CO"/>}
+                {coPhoto && <img src={coPhoto} style={{height:36,borderRadius:4,border:"1px solid rgba(255,255,255,.1)"}} alt="COR"/>}
               </div>
               <button type="button" style={{...S.ghost,borderColor:"#f97316",color:"#f97316",padding:"8px 16px",marginTop:6,width:"100%",fontSize:12,fontWeight:600,opacity:coText.trim()?1:.4}} onClick={addCO} disabled={!coText.trim()}>📝 Submit Change Order Request</button>
             </div>
@@ -3848,7 +3848,7 @@ function InstallTab({p,u,onLog,user,role}) {
                   }}>{c.status.toUpperCase()}</span>
                 </div>
                 {/* CO Photo */}
-                {c.photo && <div style={{marginTop:4,marginBottom:4}}><img src={c.photo} style={{maxWidth:"100%",maxHeight:200,borderRadius:6,border:"1px solid rgba(255,255,255,.1)"}} alt="CO photo"/></div>}
+                {c.photo && <div style={{marginTop:4,marginBottom:4}}><img src={c.photo} style={{maxWidth:"100%",maxHeight:200,borderRadius:6,border:"1px solid rgba(255,255,255,.1)"}} alt="COR photo"/></div>}
                 {/* Show adds/removes on approved — visible to everyone */}
                 {c.status==="approved" && ((c.adds||[]).length>0||(c.removes||[]).length>0) && <div style={{marginTop:6,padding:"6px 8px",background:"rgba(255,255,255,.02)",borderRadius:6,fontSize:11}}>
                   {(c.adds||[]).map((a,i)=><div key={"a"+i} style={{color:"#22c55e",padding:"2px 0"}}>+ Add: {a.m||a}{a.qty?" — Qty: "+a.qty:""}</div>)}
@@ -3933,7 +3933,7 @@ function InstallTab({p,u,onLog,user,role}) {
                 {c.status==="pending"&&(role==="installer"||role==="hvac")&&<div style={{marginTop:4,fontSize:10,color:"#f59e0b",fontStyle:"italic"}}>⏳ Awaiting review from Scope/Admin team</div>}
               </div>
             ))}
-            {co.length===0&&<p style={{color:"#475569",fontSize:11,textAlign:"center",padding:8}}>No change orders submitted.</p>}
+            {co.length===0&&<p style={{color:"#475569",fontSize:11,textAlign:"center",padding:8}}>No CORs submitted.</p>}
           </Sec>
 
           {/* ══════════════════════════════════════════════════════
@@ -3950,10 +3950,10 @@ function InstallTab({p,u,onLog,user,role}) {
                   `<td style="padding:3px 6px;border:1px solid #ddd">${coAddNames.includes(m)?"🔶 ":""}${m}</td>`+
                   `<td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getQ(m)}</td>`+
                   `<td style="padding:3px 6px;border:1px solid #ddd">${measUnit(m)}</td>`+
-                  `<td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:${coAddNames.includes(m)?"#c2410c":"#16a34a"}">${coAddNames.includes(m)?"CO Added":"Approved"}</td></tr>`).join("");
-                const removedRows = coRemoves.filter(m=>EE_MEASURES.includes(m)).map(m=>`<tr style="background:#fef2f2"><td style="padding:3px 6px;border:1px solid #ddd;text-decoration:line-through;color:#999">${m}</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:#dc2626">CO Removed</td></tr>`).join("");
+                  `<td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:${coAddNames.includes(m)?"#c2410c":"#16a34a"}">${coAddNames.includes(m)?"COR Added":"Approved"}</td></tr>`).join("");
+                const removedRows = coRemoves.filter(m=>EE_MEASURES.includes(m)).map(m=>`<tr style="background:#fef2f2"><td style="padding:3px 6px;border:1px solid #ddd;text-decoration:line-through;color:#999">${m}</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd">—</td><td style="padding:3px 6px;border:1px solid #ddd;font-size:9px;color:#dc2626">COR Removed</td></tr>`).join("");
                 const body = `<div class="sec"><h3>Energy Efficiency Measures (Final)</h3>
-                  <p style="font-size:10px;color:#666">The following measures were performed as part of the approved scope including any approved change orders.</p>
+                  <p style="font-size:10px;color:#666">The following measures were performed as part of the approved scope including any approved CORs.</p>
                   <table style="width:100%;border-collapse:collapse;font-size:10px"><tr style="background:#f0fdf4"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="padding:3px 6px;border:1px solid #ccc">Unit</th><th style="padding:3px 6px;border:1px solid #ccc">Status</th></tr>${measRows}${removedRows}</table></div>
                   ${approvedCOs.length?`<div class="sec"><h3>Approved Scope Modifications (${approvedCOs.length})</h3>${approvedCOs.map(c=>`<div style="padding:6px 0;border-bottom:1px solid #eee"><div style="font-size:11px;color:#333;margin-bottom:4px">${c.text}</div><span style="font-size:10px;color:#666">${(c.adds||[]).map(a=>"+ Add: "+(a.m||a)+(a.qty?" ("+a.qty+")":"")).concat((c.removes||[]).map(r=>"− Remove: "+r)).join("<br/>")}</span>${c.photo?'<br/><img src="'+c.photo+'" style="max-width:100%;max-height:250px;margin-top:6px;border-radius:4px;border:1px solid #ddd"/>':""}</div>`).join("")}</div>`:""}`+
                   `<p style="font-size:10px;color:#666;margin-top:12px;font-style:italic">By signing below, the customer acknowledges that the work described above has been completed to their satisfaction.</p>`;
@@ -3961,20 +3961,20 @@ function InstallTab({p,u,onLog,user,role}) {
               }}/>
             </div>
             {approvedCOs.length>0 && <div style={{padding:"6px 10px",background:"rgba(249,115,22,.06)",border:"1px solid rgba(249,115,22,.2)",borderRadius:6,fontSize:11,color:"#f97316",marginBottom:8}}>
-              📝 This scope reflects {approvedCOs.length} approved change order{approvedCOs.length>1?"s":""} — additions marked 🔶, removals shown as struck through.
+              📝 This scope reflects {approvedCOs.length} approved COR{approvedCOs.length>1?"s":""} — additions marked 🔶, removals shown as struck through.
             </div>}
-            {co.filter(c=>c.status==="pending").length>0 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginBottom:8}}>⚠ {co.filter(c=>c.status==="pending").length} change order{co.filter(c=>c.status==="pending").length>1?"s":""} pending review — post-work scope may still change</div>}
+            {co.filter(c=>c.status==="pending").length>0 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginBottom:8}}>⚠ {co.filter(c=>c.status==="pending").length} COR{co.filter(c=>c.status==="pending").length>1?"s":""} pending review — post-work scope may still change</div>}
             <ScopeBlock measures={postMeasures} hs={postHS} label="Final" isPost={true}/>
             {/* Approved CO details with photos */}
             {approvedCOs.length>0 && <div style={{marginTop:10}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#f97316",marginBottom:4}}>Approved Change Orders ({approvedCOs.length})</div>
+              <div style={{fontSize:12,fontWeight:700,color:"#f97316",marginBottom:4}}>Approved CORs ({approvedCOs.length})</div>
               {approvedCOs.map(c=><div key={c.id} style={{padding:"8px 10px",background:"rgba(249,115,22,.04)",border:"1px solid rgba(249,115,22,.15)",borderRadius:6,marginBottom:6}}>
                 <div style={{fontSize:11,color:"#e2e8f0",marginBottom:4}}>{c.text}</div>
                 <div style={{fontSize:10,color:"#94a3b8"}}>
                   {(c.adds||[]).map((a,i)=><span key={"a"+i} style={{color:"#22c55e",marginRight:8}}>+ {a.m||a}{a.qty?" ("+a.qty+")":""}</span>)}
                   {(c.removes||[]).map((m,i)=><span key={"r"+i} style={{color:"#ef4444",marginRight:8}}>− {m}</span>)}
                 </div>
-                {c.photo && <img src={c.photo} style={{maxWidth:"100%",maxHeight:200,borderRadius:6,marginTop:6,border:"1px solid rgba(255,255,255,.1)"}} alt="CO evidence"/>}
+                {c.photo && <img src={c.photo} style={{maxWidth:"100%",maxHeight:200,borderRadius:6,marginTop:6,border:"1px solid rgba(255,255,255,.1)"}} alt="COR evidence"/>}
                 <div style={{fontSize:9,color:"#64748b",marginTop:4}}>Approved · {new Date(c.at).toLocaleString()}</div>
               </div>)}
             </div>}
