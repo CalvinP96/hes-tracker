@@ -627,7 +627,7 @@ function sideBySideHTML(photos, allItems, p) {
 }
 
 function formPrintHTML(title, p, bodyHTML, sigData, custSig) {
-  const sigBlock = sigData ? `<div style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px"><p style="font-size:11px;color:#666;margin:0 0 4px">Inspector / Technician Signature:</p><img src="${sigData}" style="max-width:280px;height:70px;object-fit:contain"/><p style="font-size:10px;color:#999;margin:4px 0 0">Digitally signed in HES Tracker</p></div>` : `<div style="margin-top:30px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:11px;color:#666">Inspector Signature: _______________________________ &nbsp;&nbsp; Date: _______________</p></div>`;
+  const sigBlock = sigData === false ? "" : sigData ? `<div style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px"><p style="font-size:11px;color:#666;margin:0 0 4px">Inspector / Technician Signature:</p><img src="${sigData}" style="max-width:280px;height:70px;object-fit:contain"/><p style="font-size:10px;color:#999;margin:4px 0 0">Digitally signed in HES Tracker</p></div>` : `<div style="margin-top:30px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:11px;color:#666">Inspector Signature: _______________________________ &nbsp;&nbsp; Date: _______________</p></div>`;
   const custBlock = custSig ? `<div style="margin-top:16px;border-top:1px solid #ccc;padding-top:12px"><p style="font-size:11px;color:#666;margin:0 0 4px">Customer Signature:</p><img src="${custSig}" style="max-width:280px;height:70px;object-fit:contain"/><p style="font-size:10px;color:#999;margin:4px 0 0">Digitally signed in HES Tracker</p></div>` : `<div style="margin-top:16px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:11px;color:#666">Customer Signature: _______________________________ &nbsp;&nbsp; Date: _______________</p></div>`;
   return `<!DOCTYPE html><html><head><title>${title}</title><style>@page{margin:.5in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:12px}h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px}h2{font-size:12px;color:#666;margin-bottom:16px}.sec{margin-bottom:12px;border:1px solid #ddd;border-radius:6px;padding:10px}.sec h3{font-size:13px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:4px}.row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.pass{color:#16a34a;font-weight:600}.fail{color:#dc2626;font-weight:600}.na{color:#999}</style></head><body>
     <h1>${title}</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${bodyHTML}${sigBlock}${custBlock}</body></html>`;
@@ -4257,7 +4257,7 @@ function InstallTab({p,u,onLog,user,role}) {
                 </table></div>
                 ${Object.entries(iq).some(([,v])=>v)?`<div class="sec"><h3>Insulation Specifications</h3><table style="width:100%;border-collapse:collapse;font-size:10px"><tr style="background:#eff6ff"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Location</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="padding:3px 6px;border:1px solid #ccc">Unit</th></tr>${Object.entries(iq).filter(([,v])=>v).map(([l,v])=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${l}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${v}</td><td style="padding:3px 6px;border:1px solid #ddd">${l.includes("Rim Joist")?"LnFt":"SqFt"}</td></tr>`).join("")}</table></div>`:""}
                 ${p.measureNotes?`<div class="sec"><h3>Notes</h3><p>${p.measureNotes}</p></div>`:""}`;
-                savePrint(formPrintHTML("Pre-Work Scope of Work — Authorization", p, body, null, fi.preScopeSig));
+                savePrint(formPrintHTML("Pre-Work Scope of Work — Authorization", p, body, false, fi.preScopeSig));
               }}/>
             </div>
             <div style={{opacity:fi.preScopeSig?0.7:1}}>
@@ -4267,14 +4267,14 @@ function InstallTab({p,u,onLog,user,role}) {
               <div style={{marginTop:10,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div><div style={{fontSize:11,color:"#22c55e",fontWeight:600}}>✓ Pre-Work Authorization Signed</div>{fi.preScopeDate && <div style={{fontSize:9,color:"#64748b"}}>{new Date(fi.preScopeDate).toLocaleString()}</div>}</div>
-                  {(role==="admin"||role==="scope")&&<button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{uf("preScopeSig","");uf("preScopeDate","");onLog("Pre-work scope signature cleared");}}>Clear Signature</button>}
+                  {(role==="admin"||role==="scope")&&<button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{u({fi:{...fi,preScopeSig:"",preScopeDate:""}});onLog("Pre-work scope signature cleared");}}>Clear Signature</button>}
                 </div>
                 <img src={fi.preScopeSig} style={{maxWidth:200,height:50,objectFit:"contain",marginTop:4}} alt="sig"/>
               </div>
             ) : (
               <div style={{marginTop:10}}>
                 <div style={{fontSize:10,color:"#475569",marginBottom:4,fontStyle:"italic"}}>By signing below, the customer acknowledges and authorizes the scope of work described above. Work shall not commence until this authorization is obtained.</div>
-                <SigPad label="Customer Signature — Pre-Work Scope Authorization" value="" onChange={v=>{uf("preScopeSig",v);uf("preScopeDate",new Date().toISOString());onLog("Customer signed pre-work scope authorization");}}/>
+                <SigPad label="Customer Signature — Pre-Work Scope Authorization" value="" onChange={v=>{u({fi:{...fi,preScopeSig:v,preScopeDate:new Date().toISOString()}});onLog("Customer signed pre-work scope authorization");}}/>
               </div>
             )}
           </Sec>
@@ -4421,7 +4421,7 @@ function InstallTab({p,u,onLog,user,role}) {
                   <table style="width:100%;border-collapse:collapse;font-size:10px"><tr style="background:#f0fdf4"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="padding:3px 6px;border:1px solid #ccc">Unit</th><th style="padding:3px 6px;border:1px solid #ccc">Status</th></tr>${measRows}${removedRows}</table></div>
                   ${approvedCOs.length?`<div class="sec"><h3>Approved Scope Modifications (${approvedCOs.length})</h3>${approvedCOs.map(c=>`<div style="padding:6px 0;border-bottom:1px solid #eee"><div style="font-size:11px;color:#333;margin-bottom:4px">${c.text}</div><span style="font-size:10px;color:#666">${(c.adds||[]).map(a=>"+ Add: "+(a.m||a)+(a.qty?" ("+a.qty+")":"")).concat((c.removes||[]).map(r=>"− Remove: "+r)).join("<br/>")}</span>${c.photo?'<br/><img src="'+c.photo+'" style="max-width:100%;max-height:250px;margin-top:6px;border-radius:4px;border:1px solid #ddd"/>':""}</div>`).join("")}</div>`:""}`+
                   `<p style="font-size:10px;color:#666;margin-top:12px;font-style:italic">By signing below, the customer acknowledges that the work described above has been completed to their satisfaction.</p>`;
-                savePrint(formPrintHTML("Post-Work Scope of Work — Completion", p, body, null, fi.postScopeSig));
+                savePrint(formPrintHTML("Post-Work Scope of Work — Completion", p, body, false, fi.postScopeSig));
               }}/>
             </div>
             {approvedCOs.length>0 && <div style={{padding:"6px 10px",background:"rgba(249,115,22,.06)",border:"1px solid rgba(249,115,22,.2)",borderRadius:6,fontSize:11,color:"#f97316",marginBottom:8}}>
@@ -4446,14 +4446,14 @@ function InstallTab({p,u,onLog,user,role}) {
               <div style={{marginTop:10,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div><div style={{fontSize:11,color:"#22c55e",fontWeight:600}}>✓ Post-Work Scope Signed — Work Accepted</div>{fi.postScopeDate&&<div style={{fontSize:9,color:"#64748b"}}>{new Date(fi.postScopeDate).toLocaleString()}</div>}</div>
-                  {(role==="admin"||role==="scope")&&<button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{uf("postScopeSig","");uf("postScopeDate","");onLog("Post-work scope signature cleared");}}>Clear Signature</button>}
+                  {(role==="admin"||role==="scope")&&<button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{u({fi:{...fi,postScopeSig:"",postScopeDate:""}});onLog("Post-work scope signature cleared");}}>Clear Signature</button>}
                 </div>
                 <img src={fi.postScopeSig} style={{maxWidth:200,height:50,objectFit:"contain",marginTop:4}} alt="sig"/>
               </div>
             ) : (
               <div style={{marginTop:10}}>
                 <div style={{fontSize:10,color:"#475569",marginBottom:4,fontStyle:"italic"}}>By signing below, the customer acknowledges that the work described in this post-work scope has been completed to their satisfaction and accepts the work as performed.</div>
-                <SigPad label="Customer Signature — Post-Work Scope Acceptance" value="" onChange={v=>{uf("postScopeSig",v);uf("postScopeDate",new Date().toISOString());onLog("Customer signed post-work scope acceptance");}}/>
+                <SigPad label="Customer Signature — Post-Work Scope Acceptance" value="" onChange={v=>{u({fi:{...fi,postScopeSig:v,postScopeDate:new Date().toISOString()}});onLog("Customer signed post-work scope acceptance");}}/>
               </div>
             )}
           </Sec>
