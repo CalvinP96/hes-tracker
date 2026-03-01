@@ -661,8 +661,20 @@ export default function App() {
   useEffect(() => {
     Promise.all([loadProjects(), loadUsers()]).then(([p, u]) => {
       if (p) setProjects(p);
-      const userList = u && u.length > 0 ? u : DEFAULT_USERS;
+      // Merge: ensure all DEFAULT_USERS exist (e.g. HVAC tech added in update)
+      let userList = u && u.length > 0 ? [...u] : [...DEFAULT_USERS];
+      DEFAULT_USERS.forEach(du => {
+        if (!userList.find(x => x.id === du.id || x.username === du.username)) {
+          userList.push(du);
+        }
+      });
       setUsers(userList);
+      // Save merged list back so new defaults persist
+      if (u && u.length > 0 && userList.length > u.length) {
+        for (const nu of userList.filter(x => !u.find(y => y.id === x.id))) {
+          saveUser(nu);
+        }
+      }
       // Restore session
       const session = getSession();
       if (session?.userId) {
@@ -1607,67 +1619,148 @@ const exportProjectForms = async (proj) => {
       }
     }
 
-    // HVAC Job Queue
+    // HVAC Home — full view with tracking
+    const allRepl = projects.filter(pr=>(pr.hvac||{}).replaceRequestStatus);
+    const replPending = allRepl.filter(pr=>(pr.hvac||{}).replaceRequestStatus==="pending");
+    const replApproved = allRepl.filter(pr=>(pr.hvac||{}).replaceRequestStatus==="approved");
+    const replDenied = allRepl.filter(pr=>(pr.hvac||{}).replaceRequestStatus==="denied");
+    const hvacPhotoCount = (pr) => {
+      const hvacIds = Object.entries(PHOTO_SECTIONS).filter(([cat])=>cat.startsWith("HVAC")).flatMap(([,items])=>items).map(i=>i.id);
+      return hvacIds.filter(id=>hasPhoto(pr.photos,id)).length;
+    };
+    const totalHvacPhotos = Object.entries(PHOTO_SECTIONS).filter(([cat])=>cat.startsWith("HVAC")).flatMap(([,items])=>items).length;
+
+    const crd = {borderRadius:8,background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.06)",padding:"10px 12px",marginBottom:8};
+    const kpiBox = {textAlign:"center",padding:"8px 4px"};
+    const kpiNum = {fontSize:24,fontWeight:700,lineHeight:1};
+    const kpiLbl = {fontSize:8,color:"#64748b",marginTop:3,lineHeight:1.2,textTransform:"uppercase",letterSpacing:".04em"};
+
     return (
       <div style={S.app}>{globalCSS}
-        <Hdr role={curRole} user={userName} onSw={doLogout} title="HVAC Work Queue"
-          sub={`${pendingJobs.length} job${pendingJobs.length!==1?"s":""} to do`}
+        <Hdr role={curRole} user={userName} onSw={doLogout} title="🔧 HVAC Dashboard"
+          sub={`${userName} · ${new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})}`}
         />
 
-        {/* Notifications — replacement approvals/denials */}
-        {myNotifications.length > 0 && <div style={{padding:"8px 16px"}}>
-          {myNotifications.map((n,i) => (
-            <div key={i} style={{padding:"8px 12px",marginBottom:6,borderRadius:8,cursor:"pointer",
-              background:n.status==="approved"?"rgba(34,197,94,.06)":"rgba(239,68,68,.06)",
-              border:`1px solid ${n.status==="approved"?"rgba(34,197,94,.3)":"rgba(239,68,68,.3)"}`
-            }} onClick={()=>setSelId(n.proj.id)}>
-              <div style={{fontSize:12,fontWeight:600,color:n.status==="approved"?"#22c55e":"#ef4444"}}>
-                {n.status==="approved"?"✅":"❌"} {n.type} — Replacement {n.status.toUpperCase()}
-              </div>
-              <div style={{fontSize:11,color:"#94a3b8"}}>{n.proj.customerName} — {n.proj.address}</div>
-            </div>
-          ))}
-        </div>}
-
         <div style={{padding:"0 16px"}}>
-          {/* Pending Jobs */}
-          {pendingJobs.length > 0 && <>
-            <div style={{fontSize:10,fontWeight:600,color:"#f59e0b",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:8}}>🔧 Jobs To Complete ({pendingJobs.length})</div>
-            {pendingJobs.map(p => {
-              const hv = p.hvac||{};
-              const replSt = hv.replaceRequestStatus;
-              return (
-                <button key={p.id} style={{...S.card,width:"100%",textAlign:"left",cursor:"pointer",marginBottom:6}} onClick={()=>setSelId(p.id)}>
+          {/* ── KPI Row ── */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginTop:8,marginBottom:8}}>
+            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#f59e0b"}}>{pendingJobs.length}</div><div style={kpiLbl}>To Do</div></div>
+            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#22c55e"}}>{completedJobs.length}</div><div style={kpiLbl}>Done</div></div>
+            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#fbbf24"}}>{replPending.length}</div><div style={kpiLbl}>Repl Pending</div></div>
+            <div style={{...crd,...kpiBox,marginBottom:0}}><div style={{...kpiNum,color:"#22c55e"}}>{replApproved.length}</div><div style={kpiLbl}>Repl Approved</div></div>
+          </div>
+
+          {/* ── Replacement Request Tracker ── */}
+          {allRepl.length > 0 && <div style={{...crd,background:"rgba(245,158,11,.04)",borderColor:"rgba(245,158,11,.2)"}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",textTransform:"uppercase",letterSpacing:".06em",marginBottom:8}}>🔄 Replacement Requests</div>
+            {replPending.length > 0 && <>
+              <div style={{fontSize:9,fontWeight:600,color:"#fbbf24",marginBottom:4}}>⏳ AWAITING APPROVAL</div>
+              {replPending.map(pr=>{
+                const hv=pr.hvac||{};
+                return <div key={pr.id} style={{padding:"6px 8px",background:"rgba(245,158,11,.06)",borderRadius:6,marginBottom:4,border:"1px solid rgba(245,158,11,.15)",cursor:"pointer"}} onClick={()=>setSelId(pr.id)}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div>
-                      <div style={{fontSize:14,fontWeight:600,color:"#e2e8f0"}}>{p.customerName||"Unnamed"}</div>
-                      <div style={{fontSize:12,color:"#94a3b8"}}>{p.address}</div>
-                    </div>
-                    <span style={{...S.bdg,background:STAGES[p.currentStage].color,fontSize:10}}>{STAGES[p.currentStage].icon}</span>
+                    <div style={{fontSize:12,color:"#e2e8f0",fontWeight:600}}>{pr.customerName}</div>
+                    <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(245,158,11,.15)",color:"#fbbf24",fontWeight:600}}>PENDING</span>
                   </div>
-                  {p.stId && <div style={{fontSize:10,color:"#64748b",marginTop:3}}>ST# {p.stId}</div>}
-                  {replSt==="pending" && <div style={{fontSize:10,color:"#fbbf24",marginTop:3}}>🔄 Replacement request pending…</div>}
+                  <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{hv.replaceType} · {hv.replacePriority}</div>
+                  <div style={{fontSize:9,color:"#64748b",marginTop:1}}>Submitted {hv.replaceRequestDate?new Date(hv.replaceRequestDate).toLocaleDateString():""}</div>
+                </div>;
+              })}
+            </>}
+            {replApproved.length > 0 && <>
+              <div style={{fontSize:9,fontWeight:600,color:"#22c55e",marginBottom:4,marginTop:replPending.length?8:0}}>✅ APPROVED</div>
+              {replApproved.map(pr=>{
+                const hv=pr.hvac||{};
+                return <div key={pr.id} style={{padding:"6px 8px",background:"rgba(34,197,94,.04)",borderRadius:6,marginBottom:4,border:"1px solid rgba(34,197,94,.15)",cursor:"pointer"}} onClick={()=>setSelId(pr.id)}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{fontSize:12,color:"#e2e8f0"}}>{pr.customerName}</div>
+                    <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(34,197,94,.15)",color:"#22c55e",fontWeight:600}}>APPROVED</span>
+                  </div>
+                  <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{hv.replaceType}</div>
+                </div>;
+              })}
+            </>}
+            {replDenied.length > 0 && <>
+              <div style={{fontSize:9,fontWeight:600,color:"#ef4444",marginBottom:4,marginTop:8}}>❌ DENIED</div>
+              {replDenied.map(pr=>{
+                const hv=pr.hvac||{};
+                return <div key={pr.id} style={{padding:"6px 8px",background:"rgba(239,68,68,.04)",borderRadius:6,marginBottom:4,border:"1px solid rgba(239,68,68,.15)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{fontSize:12,color:"#94a3b8"}}>{pr.customerName}</div>
+                    <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(239,68,68,.15)",color:"#ef4444",fontWeight:600}}>DENIED</span>
+                  </div>
+                  <div style={{fontSize:10,color:"#64748b",marginTop:2}}>{hv.replaceType}</div>
+                </div>;
+              })}
+            </>}
+          </div>}
+
+          {/* ── Notifications ── */}
+          {myNotifications.length > 0 && <div style={{...crd,background:"rgba(37,99,235,.04)",borderColor:"rgba(37,99,235,.2)"}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#93C5FD",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6}}>🔔 Updates For You</div>
+            {myNotifications.map((n,i) => (
+              <div key={i} style={{padding:"6px 8px",borderRadius:6,marginBottom:4,cursor:"pointer",
+                background:n.status==="approved"?"rgba(34,197,94,.06)":"rgba(239,68,68,.06)",
+                border:`1px solid ${n.status==="approved"?"rgba(34,197,94,.2)":"rgba(239,68,68,.2)"}`
+              }} onClick={()=>setSelId(n.proj.id)}>
+                <div style={{fontSize:12,fontWeight:600,color:n.status==="approved"?"#22c55e":"#ef4444"}}>
+                  {n.status==="approved"?"✅":"❌"} {n.type} — {n.status.toUpperCase()}
+                </div>
+                <div style={{fontSize:10,color:"#94a3b8"}}>{n.proj.customerName} · {n.proj.address}</div>
+              </div>
+            ))}
+          </div>}
+
+          {/* ── Jobs To Complete ── */}
+          {pendingJobs.length > 0 && <>
+            <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:4}}>🔧 Jobs To Complete</div>
+            {pendingJobs.map(pr => {
+              const hv = pr.hvac||{};
+              const replSt = hv.replaceRequestStatus;
+              const pc = hvacPhotoCount(pr);
+              return (
+                <button key={pr.id} style={{...S.card,width:"100%",textAlign:"left",cursor:"pointer",marginBottom:6,border:"1px solid rgba(245,158,11,.2)"}} onClick={()=>setSelId(pr.id)}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:14,fontWeight:600,color:"#e2e8f0"}}>{pr.customerName||"Unnamed"}</div>
+                      <div style={{fontSize:12,color:"#94a3b8"}}>{pr.address}</div>
+                      {pr.stId && <div style={{fontSize:10,color:"#64748b",marginTop:2}}>ST# {pr.stId}</div>}
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <span style={{...S.bdg,background:STAGES[pr.currentStage].color,fontSize:9}}>{STAGES[pr.currentStage].icon} {STAGES[pr.currentStage].label}</span>
+                      <div style={{fontSize:9,color:pc===totalHvacPhotos?"#22c55e":"#64748b",marginTop:4}}>📷 {pc}/{totalHvacPhotos}</div>
+                    </div>
+                  </div>
+                  {/* Status indicators */}
+                  <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
+                    {hv.techName && <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(255,255,255,.05)",color:"#94a3b8"}}>Tech: {hv.techName}</span>}
+                    {replSt==="pending" && <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(245,158,11,.15)",color:"#fbbf24"}}>🔄 Repl Pending</span>}
+                    {replSt==="approved" && <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(34,197,94,.15)",color:"#22c55e"}}>✅ Repl Approved</span>}
+                  </div>
                 </button>
               );
             })}
           </>}
 
-          {/* Completed Jobs */}
+          {/* ── Completed ── */}
           {completedJobs.length > 0 && <>
-            <div style={{fontSize:10,fontWeight:600,color:"#22c55e",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:16}}>✓ Completed ({completedJobs.length})</div>
-            {completedJobs.map(p => {
-              const hv = p.hvac||{};
+            <div style={{fontSize:11,fontWeight:700,color:"#22c55e",textTransform:"uppercase",letterSpacing:".06em",marginBottom:6,marginTop:16}}>✓ Completed</div>
+            {completedJobs.map(pr => {
+              const hv = pr.hvac||{};
               const replSt = hv.replaceRequestStatus;
               return (
-                <button key={p.id} style={{...S.card,width:"100%",textAlign:"left",cursor:"pointer",marginBottom:6,opacity:.7}} onClick={()=>setSelId(p.id)}>
+                <button key={pr.id} style={{...S.card,width:"100%",textAlign:"left",cursor:"pointer",marginBottom:6,opacity:.6}} onClick={()=>setSelId(pr.id)}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
-                      <div style={{fontSize:13,fontWeight:600,color:"#94a3b8"}}>{p.customerName||"Unnamed"}</div>
-                      <div style={{fontSize:11,color:"#64748b"}}>{p.address}</div>
+                      <div style={{fontSize:13,color:"#94a3b8"}}>{pr.customerName||"Unnamed"}</div>
+                      <div style={{fontSize:10,color:"#64748b"}}>{pr.address}</div>
                     </div>
-                    <span style={{fontSize:10,color:"#22c55e"}}>✓ Done</span>
+                    <div style={{textAlign:"right"}}>
+                      <span style={{fontSize:10,color:"#22c55e"}}>✓ Done</span>
+                      {hv.completedDate && <div style={{fontSize:9,color:"#475569"}}>{new Date(hv.completedDate).toLocaleDateString()}</div>}
+                    </div>
                   </div>
-                  {replSt && <div style={{fontSize:10,color:replSt==="approved"?"#22c55e":replSt==="denied"?"#ef4444":"#fbbf24",marginTop:3}}>
+                  {replSt && <div style={{fontSize:10,marginTop:3,color:replSt==="approved"?"#22c55e":replSt==="denied"?"#ef4444":"#fbbf24"}}>
                     {replSt==="approved"?"✅ Replacement approved":replSt==="denied"?"❌ Replacement denied":"🔄 Replacement pending"}
                   </div>}
                 </button>
@@ -1677,7 +1770,8 @@ const exportProjectForms = async (proj) => {
 
           {hvacJobs.length === 0 && <div style={{textAlign:"center",padding:40,color:"#64748b"}}>
             <div style={{fontSize:32}}>🔧</div>
-            <div style={{fontSize:13,marginTop:8}}>No HVAC jobs available right now.</div>
+            <div style={{fontSize:13,marginTop:8}}>No HVAC jobs assigned right now.</div>
+            <div style={{fontSize:11,color:"#475569",marginTop:4}}>Jobs appear here when projects reach the Tune & Clean stage.</div>
           </div>}
         </div>
       </div>
