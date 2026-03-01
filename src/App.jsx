@@ -228,6 +228,7 @@ const DEFAULT_USERS = [
   { id:"u3", name:"Assessor", username:"assessor", pin:"1234", role:"assessor" },
   { id:"u4", name:"Scope Lead", username:"scope", pin:"1234", role:"scope" },
   { id:"u5", name:"Installer", username:"installer", pin:"1234", role:"installer" },
+  { id:"u6", name:"HVAC Tech", username:"hvac", pin:"1234", role:"hvac" },
 ];
 
 // Multi-photo helpers — backward compatible (old {d,at,by} → new [{d,at,by},...])
