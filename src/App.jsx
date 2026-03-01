@@ -4214,16 +4214,6 @@ function InstallTab({p,u,onLog,user,role}) {
                 </tbody>
               </table>
             </>}
-            {/* Mechanical Info — POST-WORK ONLY */}
-            {isPost && (htg.system||clg.system||dhw.type) && <>
-              <div style={{fontSize:12,fontWeight:700,color:"#93C5FD",marginBottom:2,marginTop:12}}>Mechanical Systems</div>
-              <div style={{fontSize:10,color:"#475569",marginBottom:4}}>Existing mechanical equipment documented during assessment.</div>
-              <div style={{background:"rgba(255,255,255,.02)",borderRadius:6,padding:"6px 10px",fontSize:11}}>
-                {htg.system && <div style={{padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Heating: {htg.system} {htg.make||""} {htg.modelNum||""}</span><span style={{color:"#93C5FD"}}>{afue!=="—"?"AFUE "+afue:""}</span></div>}
-                {clg.system && <div style={{padding:"3px 0",borderBottom:"1px solid rgba(255,255,255,.04)",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Cooling: {clg.system} {clg.make||""} {clg.modelNum||""}</span><span style={{color:"#93C5FD"}}>{seer!=="—"?"SEER "+seer:""}</span></div>}
-                {dhw.type && <div style={{padding:"3px 0",display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>DHW: {dhw.type} {dhw.make||""} {dhw.modelNum||""}</span></div>}
-              </div>
-            </>}
             {/* Notes */}
             {p.measureNotes && <div style={{fontSize:11,color:"#94a3b8",padding:"8px 10px",background:"rgba(255,255,255,.03)",borderRadius:6,marginTop:8,borderLeft:"3px solid rgba(255,255,255,.1)"}}><span style={{color:"#64748b",fontWeight:600}}>Scope Notes:</span> {p.measureNotes}</div>}
           </>;
