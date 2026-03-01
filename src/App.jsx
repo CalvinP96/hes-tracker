@@ -16,10 +16,10 @@ const STAGES = [
 ];
 
 const ROLES = [
-  { key:"admin", label:"Admin/Ops", icon:"👑", tabs:["info","scheduling","assessment","photos","scope","install","hvac","qaqc","closeout","log"] },
+  { key:"admin", label:"Admin/Ops", icon:"👑", tabs:["info","scheduling","assessment","photos","scope","hvac","install","qaqc","closeout","log"] },
   { key:"scheduler", label:"Scheduler", icon:"📅", tabs:["info","scheduling","log"] },
   { key:"assessor", label:"Assessor", icon:"🔍", tabs:["info","assessment","photos","log"] },
-  { key:"scope", label:"Scope/Compliance", icon:"📋", tabs:["info","scope","photos","install","hvac","qaqc","closeout","log"] },
+  { key:"scope", label:"Scope/Compliance", icon:"📋", tabs:["info","scope","photos","hvac","install","qaqc","closeout","log"] },
   { key:"installer", label:"Install Crew", icon:"🏗️", tabs:["info","install","photos","closeout","log"] },
   { key:"hvac", label:"HVAC Tech", icon:"🔧", tabs:["info","hvac","photos","log"] },
 ];
@@ -3490,33 +3490,47 @@ function InstallTab({p,u,onLog,user,role}) {
         </div>
       </Sec>
 
-      {/* ── SCOPE OF WORK (read-only from scope tab) ── */}
-      <Sec title="Scope of Work">
-        <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Approved scope from assessment. Request a change order below if modifications are needed.</div>
-        {p.measures.length > 0 && <>
-          <div style={{fontSize:11,fontWeight:700,color:"#22c55e",marginBottom:4}}>Energy Efficiency Measures ({p.measures.length})</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}{getResolvedQty(p,m)?" ("+getResolvedQty(p,m)+")":""}</span>)}</div>
-        </>}
-        {p.healthSafety.length > 0 && <>
-          <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",marginBottom:4}}>Health & Safety Measures ({p.healthSafety.length})</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.healthSafety.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(245,158,11,.3)",background:"rgba(245,158,11,.08)",color:"#fbbf24",fontSize:10}}>✓ {m}</span>)}</div>
-        </>}
-        {p.measureNotes && <div style={{fontSize:11,color:"#94a3b8",padding:8,background:"rgba(255,255,255,.03)",borderRadius:6,marginBottom:6}}><span style={{color:"#64748b",fontWeight:600}}>Notes:</span> {p.measureNotes}</div>}
-        {s.insulQty && Object.entries(s.insulQty).some(([,v])=>v) && <>
-          <div style={{fontSize:11,fontWeight:700,color:"#60A5FA",marginBottom:4,marginTop:6}}>Insulation Quantities</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 12px",fontSize:11}}>
-            {Object.entries(s.insulQty).filter(([,v])=>v).map(([m,v])=><div key={m} style={{display:"flex",justifyContent:"space-between",padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
-              <span style={{color:"#94a3b8"}}>{m}</span><span style={{fontWeight:600,color:"#e2e8f0"}}>{v} {m.includes("Rim Joist")?"LnFt":"SqFt"}</span>
-            </div>)}
+      {/* ── PRE-WORK SCOPE OF WORK (sign before starting) ── */}
+      <Sec title="📋 Pre-Work Scope of Work" danger={!fi.preScopeSig}>
+        <div style={{fontSize:10,color:fi.preScopeSig?"#22c55e":"#f59e0b",marginBottom:8,fontWeight:600}}>
+          {fi.preScopeSig ? "✓ Customer authorized — work may proceed" : "⚠ Customer must sign before work begins"}
+        </div>
+        <div style={{opacity:fi.preScopeSig?0.7:1,pointerEvents:fi.preScopeSig?"none":"auto"}}>
+          {p.measures.length > 0 && <>
+            <div style={{fontSize:11,fontWeight:700,color:"#22c55e",marginBottom:4}}>Energy Efficiency Measures ({p.measures.length})</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}{getResolvedQty(p,m)?" ("+getResolvedQty(p,m)+")":""}</span>)}</div>
+          </>}
+          {p.healthSafety.length > 0 && <>
+            <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",marginBottom:4}}>Health & Safety Measures ({p.healthSafety.length})</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>{p.healthSafety.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(245,158,11,.3)",background:"rgba(245,158,11,.08)",color:"#fbbf24",fontSize:10}}>✓ {m}</span>)}</div>
+          </>}
+          {p.measureNotes && <div style={{fontSize:11,color:"#94a3b8",padding:8,background:"rgba(255,255,255,.03)",borderRadius:6,marginBottom:6}}><span style={{color:"#64748b",fontWeight:600}}>Notes:</span> {p.measureNotes}</div>}
+          {s.insulQty && Object.entries(s.insulQty).some(([,v])=>v) && <>
+            <div style={{fontSize:11,fontWeight:700,color:"#60A5FA",marginBottom:4,marginTop:6}}>Insulation Quantities</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 12px",fontSize:11}}>
+              {Object.entries(s.insulQty).filter(([,v])=>v).map(([m,v])=><div key={m} style={{display:"flex",justifyContent:"space-between",padding:"2px 0",borderBottom:"1px solid rgba(255,255,255,.04)"}}>
+                <span style={{color:"#94a3b8"}}>{m}</span><span style={{fontWeight:600,color:"#e2e8f0"}}>{v} {m.includes("Rim Joist")?"LnFt":"SqFt"}</span>
+              </div>)}
+            </div>
+          </>}
+          {p.measures.length === 0 && p.healthSafety.length === 0 && <p style={{color:"#64748b",fontSize:12,textAlign:"center",padding:12}}>No measures selected in scope yet.</p>}
+        </div>
+        {fi.preScopeSig ? (
+          <div style={{marginTop:8,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:11,color:"#22c55e",fontWeight:600}}>✓ Pre-Work Authorization Signed</div>
+                {fi.preScopeDate && <div style={{fontSize:9,color:"#64748b"}}>{new Date(fi.preScopeDate).toLocaleString()}</div>}
+              </div>
+              {(role === "admin" || role === "scope") && <button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{uf("preScopeSig","");uf("preScopeDate","");onLog("Pre-work scope signature cleared");}}>Clear Signature</button>}
+            </div>
+            <img src={fi.preScopeSig} style={{maxWidth:200,height:50,objectFit:"contain",marginTop:4}} alt="signature"/>
           </div>
-        </>}
-        {p.measures.length === 0 && p.healthSafety.length === 0 && <p style={{color:"#64748b",fontSize:12,textAlign:"center",padding:12}}>No measures selected in scope yet.</p>}
-      </Sec>
-
-      {/* ── CUSTOMER SCOPE AUTHORIZATION ── */}
-      <Sec title="Customer Scope Authorization">
-        <p style={{fontSize:10,color:"#64748b",marginBottom:6}}>Customer acknowledges and authorizes the scope of work listed above.</p>
-        <SigPad label="Customer Signature — Scope Authorization" value={fi.scopeAuthSig||""} onChange={v=>uf("scopeAuthSig",v)}/>
+        ) : (
+          <div style={{marginTop:8}}>
+            <SigPad label="Customer Signature — Pre-Work Scope Authorization" value="" onChange={v=>{uf("preScopeSig",v);uf("preScopeDate",new Date().toISOString());onLog("Customer signed pre-work scope authorization");}}/>
+          </div>
+        )}
       </Sec>
 
       {/* ── CHANGE ORDERS ── */}
@@ -3537,19 +3551,66 @@ function InstallTab({p,u,onLog,user,role}) {
             </div>
             <div style={{fontSize:9,color:"#64748b"}}>{c.by} · {new Date(c.at).toLocaleString()}</div>
             {c.response && <div style={{fontSize:11,color:c.status==="denied"?"#fca5a5":"#86efac",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>{c.response}</div>}
-            {c.status === "pending" && (role === "admin" || role === "scope") && (
+            {c.status === "pending" && role !== "installer" && role !== "hvac" && (role === "admin" || role === "scope") && (
               <div style={{marginTop:6,display:"flex",gap:4,alignItems:"center"}}>
                 <input style={{...S.inp,flex:1,fontSize:11}} placeholder="Response / explanation…" value={c._resp||""} onChange={e=>u({changeOrders:co.map(x=>x.id===c.id?{...x,_resp:e.target.value}:x)})}/>
                 <button type="button" style={{padding:"4px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={()=>updateCO(c.id,{status:"approved",response:c._resp||""})}>Approve</button>
                 <button type="button" style={{padding:"4px 8px",borderRadius:5,border:"1px solid rgba(239,68,68,.4)",background:"rgba(239,68,68,.1)",color:"#ef4444",fontSize:10,fontWeight:700,cursor:"pointer"}} onClick={()=>updateCO(c.id,{status:"denied",response:c._resp||""})}>Deny</button>
               </div>
             )}
-            {c.status === "pending" && role === "installer" && (
+            {c.status === "pending" && (role === "installer" || role === "hvac") && (
               <div style={{marginTop:4,fontSize:10,color:"#f59e0b",fontStyle:"italic"}}>⏳ Awaiting approval from Scope/Admin</div>
             )}
           </div>
         ))}
         {co.length === 0 && <p style={{color:"#475569",fontSize:11,textAlign:"center"}}>No change orders yet.</p>}
+      </Sec>
+
+      {/* ── POST-WORK SCOPE OF WORK (reflects approved COs) ── */}
+      <Sec title="📋 Post-Work Scope of Work">
+        <div style={{fontSize:10,color:"#64748b",marginBottom:8}}>Final scope including all approved change orders. Customer signs after work is complete.</div>
+        {/* Original measures */}
+        {p.measures.length > 0 && <>
+          <div style={{fontSize:11,fontWeight:700,color:"#22c55e",marginBottom:4}}>Energy Efficiency Measures ({p.measures.length})</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{p.measures.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(34,197,94,.3)",background:"rgba(34,197,94,.08)",color:"#86efac",fontSize:10}}>✓ {m}{getResolvedQty(p,m)?" ("+getResolvedQty(p,m)+")":""}</span>)}</div>
+        </>}
+        {p.healthSafety.length > 0 && <>
+          <div style={{fontSize:11,fontWeight:700,color:"#f59e0b",marginBottom:4}}>Health & Safety Measures ({p.healthSafety.length})</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:6}}>{p.healthSafety.map(m=><span key={m} style={{padding:"3px 8px",borderRadius:5,border:"1px solid rgba(245,158,11,.3)",background:"rgba(245,158,11,.08)",color:"#fbbf24",fontSize:10}}>✓ {m}</span>)}</div>
+        </>}
+        {/* Approved change orders */}
+        {co.filter(c=>c.status==="approved").length > 0 && <>
+          <div style={{fontSize:11,fontWeight:700,color:"#f97316",marginBottom:4,marginTop:8}}>Approved Change Orders ({co.filter(c=>c.status==="approved").length})</div>
+          {co.filter(c=>c.status==="approved").map(c=>(
+            <div key={c.id} style={{display:"flex",gap:6,alignItems:"flex-start",padding:"6px 8px",background:"rgba(249,115,22,.06)",border:"1px solid rgba(249,115,22,.2)",borderRadius:6,marginBottom:4,fontSize:11}}>
+              <span style={{color:"#f97316",flexShrink:0}}>🔶</span>
+              <div>
+                <div style={{color:"#e2e8f0"}}>{c.text}</div>
+                {c.response && <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{c.response}</div>}
+                <div style={{fontSize:9,color:"#64748b",marginTop:2}}>Approved · {c.by} · {new Date(c.at).toLocaleString()}</div>
+              </div>
+            </div>
+          ))}
+        </>}
+        {co.filter(c=>c.status==="pending").length > 0 && <div style={{padding:"6px 10px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6,fontSize:11,color:"#fbbf24",marginTop:6}}>⚠ {co.filter(c=>c.status==="pending").length} change order{co.filter(c=>c.status==="pending").length>1?"s":""} still pending — post-work scope may change</div>}
+        {p.measureNotes && <div style={{fontSize:11,color:"#94a3b8",padding:8,background:"rgba(255,255,255,.03)",borderRadius:6,marginTop:6}}><span style={{color:"#64748b",fontWeight:600}}>Notes:</span> {p.measureNotes}</div>}
+        {/* Post-work signature */}
+        {fi.postScopeSig ? (
+          <div style={{marginTop:8,padding:"8px 12px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:11,color:"#22c55e",fontWeight:600}}>✓ Post-Work Scope Signed</div>
+                {fi.postScopeDate && <div style={{fontSize:9,color:"#64748b"}}>{new Date(fi.postScopeDate).toLocaleString()}</div>}
+              </div>
+              {(role === "admin" || role === "scope") && <button type="button" style={{...S.ghost,padding:"3px 8px",fontSize:9,color:"#f59e0b",borderColor:"rgba(245,158,11,.3)"}} onClick={()=>{uf("postScopeSig","");uf("postScopeDate","");onLog("Post-work scope signature cleared");}}>Clear Signature</button>}
+            </div>
+            <img src={fi.postScopeSig} style={{maxWidth:200,height:50,objectFit:"contain",marginTop:4}} alt="signature"/>
+          </div>
+        ) : (
+          <div style={{marginTop:8}}>
+            <SigPad label="Customer Signature — Post-Work Scope Completion" value="" onChange={v=>{uf("postScopeSig",v);uf("postScopeDate",new Date().toISOString());onLog("Customer signed post-work scope completion");}}/>
+          </div>
+        )}
       </Sec>
 
       {/* ── POST PHOTOS ── */}
@@ -4456,13 +4517,19 @@ function F({label,value,onChange,type="text",placeholder,num,computed,suffix}) {
   </div>;
 }
 function Sel({label,value,onChange,opts}) {
+  const isOther = value && !opts.includes(value) && value !== "";
   return (
     <div style={{display:"flex",flexDirection:"column"}}>
       <label style={S.fl}>{label}</label>
-      <select value={value||""} onChange={e=>onChange(e.target.value)} style={{...S.inp,cursor:"pointer",marginTop:"auto",appearance:"auto",WebkitAppearance:"menulist",color:value?"#e2e8f0":"#64748b"}}>
+      <select value={isOther?"__other__":value||""} onChange={e=>{
+        if(e.target.value==="__other__") onChange("Other: ");
+        else onChange(e.target.value);
+      }} style={{...S.inp,cursor:"pointer",marginTop:"auto",appearance:"auto",WebkitAppearance:"menulist",color:value?"#e2e8f0":"#64748b"}}>
         <option value="" style={{background:"#1e293b",color:"#64748b"}}>— Select —</option>
         {opts.map(o => <option key={o} value={o} style={{background:"#1e293b",color:"#e2e8f0"}}>{o}</option>)}
+        <option value="__other__" style={{background:"#1e293b",color:"#f59e0b"}}>Other (type in)</option>
       </select>
+      {isOther && <input style={{...S.inp,marginTop:3,borderColor:"rgba(245,158,11,.4)"}} value={value} onChange={e=>onChange(e.target.value)} placeholder="Type custom value…"/>}
     </div>
   );
 }
