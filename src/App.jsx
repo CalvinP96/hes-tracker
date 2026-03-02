@@ -5045,13 +5045,22 @@ function QAQCTab({p,u}) {
     const d = fi[item.k] || {};
     const ud = (f,v) => ufi(item.k,{...d,[f]:v});
     return (
-      <div style={{borderBottom:"1px solid rgba(255,255,255,.06)",padding:"8px 0"}}>
-        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-          <span style={{flex:1,fontSize:11,minWidth:120,...(item.sub?{paddingLeft:16}:{fontWeight:600})}}>{item.l}</span>
-          {item.yn && <BtnGrp value={d.yn||""} onChange={v=>ud("yn",v)} opts={[{v:"Y",l:"Yes",c:"#22c55e"},{v:"N",l:"No",c:"#ef4444"},{v:"NA",l:"N/A",c:"#64748b"}]}/>}
-          {item.r && <input style={{...S.inp,width:70,fontSize:11}} value={d.reading||""} onChange={e=>ud("reading",e.target.value)} placeholder={item.u||""}/>}
-          <BtnGrp value={d.pf||""} onChange={v=>ud("pf",v)} opts={[{v:"P",l:"P",c:"#22c55e"},{v:"F",l:"F",c:"#ef4444"},{v:"NA",l:"N/A",c:"#64748b"}]}/>
-          <BtnGrp value={d.fu||""} onChange={v=>ud("fu",v)} opts={[{v:"Y",l:"F/U",c:"#f59e0b"},{v:"N",l:"No",c:"#64748b"},{v:"NA",l:"N/A",c:"#475569"}]}/>
+      <div style={{borderBottom:"1px solid rgba(255,255,255,.06)",padding:"10px 0"}}>
+        <div style={{fontSize:12,...(item.sub?{paddingLeft:12,fontWeight:400,color:"#94a3b8"}:{fontWeight:600,color:"#e2e8f0"}),marginBottom:6}}>{item.l}</div>
+        <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+          {item.r && <input style={{...S.inp,width:80,fontSize:12,padding:"6px 8px"}} value={d.reading||""} onChange={e=>ud("reading",e.target.value)} placeholder={item.u||""}/>}
+          {item.yn && <div style={{display:"flex",flexDirection:"column",gap:2}}>
+            <span style={{fontSize:8,color:"#64748b",textTransform:"uppercase",letterSpacing:".06em"}}>Result</span>
+            <BtnGrp value={d.yn||""} onChange={v=>ud("yn",v)} opts={[{v:"Y",l:"Yes",c:"#22c55e"},{v:"N",l:"No",c:"#ef4444"},{v:"NA",l:"N/A",c:"#64748b"}]}/>
+          </div>}
+          <div style={{display:"flex",flexDirection:"column",gap:2}}>
+            <span style={{fontSize:8,color:"#64748b",textTransform:"uppercase",letterSpacing:".06em"}}>Pass/Fail</span>
+            <BtnGrp value={d.pf||""} onChange={v=>ud("pf",v)} opts={[{v:"P",l:"Pass",c:"#22c55e"},{v:"F",l:"Fail",c:"#ef4444"},{v:"NA",l:"N/A",c:"#64748b"}]}/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:2}}>
+            <span style={{fontSize:8,color:"#64748b",textTransform:"uppercase",letterSpacing:".06em"}}>Follow-up</span>
+            <BtnGrp value={d.fu||""} onChange={v=>ud("fu",v)} opts={[{v:"Y",l:"Yes",c:"#f59e0b"},{v:"N",l:"No",c:"#64748b"},{v:"NA",l:"N/A",c:"#475569"}]}/>
+          </div>
         </div>
       </div>
     );
@@ -5127,9 +5136,6 @@ function QAQCTab({p,u}) {
 
       {/* ── HEALTH & SAFETY ── */}
       <Sec title="Health & Safety">
-        <div style={{display:"flex",gap:16,fontSize:9,color:"#64748b",marginBottom:4,justifyContent:"flex-end"}}>
-          <span>Pass/Fail</span><span>Follow-up?</span>
-        </div>
         {FI_SAFETY.map(item => <PFRow key={item.k} item={item}/>)}
 
         <div style={{marginTop:10,borderTop:"1px solid rgba(255,255,255,.06)",paddingTop:10}}>
@@ -5253,10 +5259,12 @@ function QAQCTab({p,u}) {
           {items.map((item,i) => {
             const r = q.results?.[`${cat}-${i}`] || {};
             return (
-              <div key={i} style={S.qqR}>
-                <span style={{flex:1,fontSize:11,minWidth:100}}>{i+1}. {item}</span>
-                <BtnGrp value={r.v||""} onChange={v=>sr(cat,i,"v",v)} opts={[{v:"Y",l:"Y",c:"#22c55e"},{v:"N",l:"N",c:"#ef4444"},{v:"NA",l:"N/A",c:"#64748b"}]}/>
-                <input style={{...S.inp,width:90}} value={r.c||""} onChange={e=>sr(cat,i,"c",e.target.value)} placeholder="Comment"/>
+              <div key={i} style={{borderBottom:"1px solid rgba(255,255,255,.04)",padding:"8px 0"}}>
+                <div style={{fontSize:12,color:"#e2e8f0",marginBottom:6}}>{i+1}. {item}</div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <BtnGrp value={r.v||""} onChange={v=>sr(cat,i,"v",v)} opts={[{v:"Y",l:"Yes",c:"#22c55e"},{v:"N",l:"No",c:"#ef4444"},{v:"NA",l:"N/A",c:"#64748b"}]}/>
+                  <input style={{...S.inp,flex:1,fontSize:11,minWidth:0}} value={r.c||""} onChange={e=>sr(cat,i,"c",e.target.value)} placeholder="Comment…"/>
+                </div>
               </div>
             );
           })}
@@ -5475,7 +5483,7 @@ function Sel({label,value,onChange,opts}) {
   );
 }
 function CK({checked,onChange,label,color,strike,small}) { return <label style={{...S.ck,fontSize:small?10:12,...(color?{color}:{}),cursor:"pointer",...(strike?{textDecoration:"line-through"}:{})}}><input type="checkbox" checked={!!checked} onChange={e=>onChange(e.target.checked)} style={{marginRight:6,accentColor:"#2563EB",width:small?14:16,height:small?14:16,flexShrink:0}}/><span style={{lineHeight:1.3}}>{label}</span></label>; }
-function BtnGrp({value,onChange,opts}) { return <div style={{display:"flex",gap:2}}>{opts.map(o=><button key={o.v} type="button" onClick={()=>onChange(value===o.v?"":o.v)} style={{padding:"5px 8px",borderRadius:5,border:value===o.v?`2px solid ${o.c}`:"1px solid rgba(255,255,255,.1)",background:value===o.v?`${o.c}22`:"rgba(255,255,255,.03)",color:value===o.v?o.c:"#64748b",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",minWidth:36,minHeight:32}}>{o.l}</button>)}</div>; }
+function BtnGrp({value,onChange,opts}) { return <div style={{display:"flex",gap:3}}>{opts.map(o=><button key={o.v} type="button" onClick={()=>onChange(value===o.v?"":o.v)} style={{padding:"7px 10px",borderRadius:6,border:value===o.v?`2px solid ${o.c}`:"1px solid rgba(255,255,255,.1)",background:value===o.v?`${o.c}22`:"rgba(255,255,255,.03)",color:value===o.v?o.c:"#64748b",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"'DM Sans',sans-serif",minWidth:40,minHeight:36}}>{o.l}</button>)}</div>; }
 
 function SigPad({value, onChange, label}) {
   const [signing, setSigning] = useState(false);
