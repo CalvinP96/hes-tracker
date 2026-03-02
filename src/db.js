@@ -88,6 +88,40 @@ export async function deleteProject(id) {
 }
 
 // ══════════════════════════════════════════════════════
+// APP SETTINGS (stored as a special project row)
+// ══════════════════════════════════════════════════════
+const SETTINGS_ID = '__app_settings__'
+
+export async function loadSettings() {
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('data')
+      .eq('id', SETTINGS_ID)
+      .single()
+    if (error || !data) return {}
+    return data.data || {}
+  } catch { return {} }
+}
+
+export async function saveSettings(settings) {
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .upsert({
+        id: SETTINGS_ID,
+        data: settings,
+        customer_name: '__settings__',
+        address: '',
+        current_stage: -1,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'id' })
+    if (error) { console.error('saveSettings:', error); return false }
+    return true
+  } catch { return false }
+}
+
+// ══════════════════════════════════════════════════════
 // SESSION (browser-local only)
 // ══════════════════════════════════════════════════════
 

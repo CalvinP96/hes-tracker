@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { loadUsers, saveUser, deleteUser as dbDeleteUser, loadProjects, saveProjects, getSession, setSession, setSessionNav } from "./db.js";
+import { loadUsers, saveUser, deleteUser as dbDeleteUser, loadProjects, saveProjects, getSession, setSession, setSessionNav, loadSettings, saveSettings } from "./db.js";
 
 // ═══════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -390,7 +390,7 @@ function printScope(p, s) {
   var afue = (htg.btuIn && htg.btuOut) ? (Number(htg.btuOut) / Number(htg.btuIn) * 100).toFixed(1) + "%" : "\u2014";
 
   sec("Customer Information");
-  row("Customer", p.customerName); row("Address", p.address); row("RISE ID", p.riseId);
+  row("Customer", p.customerName); row("Address", p.address); row("RISE PID", p.riseId);
   row("Sq Ft", p.sqft); row("Volume", Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() + " ft\u00b3" : null);
   row("Stories", p.stories); row("Bedrooms", s.bedrooms); row("Year Built", p.yearBuilt);
   row("Home Age", p.yearBuilt ? (yr - Number(p.yearBuilt)) + " yrs" : null); row("Occupants", p.occupants);
@@ -655,6 +655,8 @@ export default function App() {
   const [loginErr, setLoginErr] = useState("");
   // User management
   const [showUsers, setShowUsers] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [appSettings, setAppSettings] = useState({});
   const [editUser, setEditUser] = useState(null);
   const tmr = useRef(null);
 
@@ -662,8 +664,9 @@ export default function App() {
   const userName = curUser?.name || "";
 
   useEffect(() => {
-    Promise.all([loadProjects(), loadUsers()]).then(([p, u]) => {
-      if (p) setProjects(p);
+    Promise.all([loadProjects(), loadUsers(), loadSettings()]).then(([p, u, s]) => {
+      if (p) setProjects(p.filter(x => x.id !== "__app_settings__"));
+      if (s) setAppSettings(s);
       // Merge: ensure all DEFAULT_USERS exist (e.g. HVAC tech added in update)
       let userList = u && u.length > 0 ? [...u] : [...DEFAULT_USERS];
       DEFAULT_USERS.forEach(du => {
@@ -684,9 +687,29 @@ export default function App() {
         const found = userList.find(x => x.id === session.userId);
         if (found) {
           setCurUser(found);
-          if (session.view) setView(session.view);
-          if (session.selId) setSelId(session.selId);
-          if (session.tab) setTab(session.tab);
+          // Check URL deep link (?project=ID&tab=install)
+          const urlParams = new URLSearchParams(window.location.search);
+          const deepProject = urlParams.get("project");
+          const deepTab = urlParams.get("tab");
+          if (deepProject) {
+            setView("proj");
+            setSelId(deepProject);
+            if (deepTab) setTab(deepTab);
+            // Clean URL
+            window.history.replaceState({}, "", window.location.pathname);
+          } else {
+            if (session.view) setView(session.view);
+            if (session.selId) setSelId(session.selId);
+            if (session.tab) setTab(session.tab);
+          }
+        }
+      } else {
+        // Not logged in — check if deep link exists, stash it for after login
+        const urlParams = new URLSearchParams(window.location.search);
+        const deepProject = urlParams.get("project");
+        if (deepProject) {
+          localStorage.setItem("hes-deeplink", JSON.stringify({ project: deepProject, tab: urlParams.get("tab") }));
+          window.history.replaceState({}, "", window.location.pathname);
         }
       }
       setLoading(false);
@@ -847,6 +870,15 @@ input,select,textarea,button{font-size:inherit}
       setLoginUser("");
       setLoginPin("");
       setSession(found.id);
+      // Check for stashed deep link from email
+      try {
+        const dl = localStorage.getItem("hes-deeplink");
+        if (dl) {
+          const { project, tab: dlTab } = JSON.parse(dl);
+          localStorage.removeItem("hes-deeplink");
+          if (project) { setView("proj"); setSelId(project); if (dlTab) setTab(dlTab); }
+        }
+      } catch(e){}
     } else {
       setLoginErr("Invalid username or PIN");
     }
@@ -1068,7 +1100,7 @@ const exportProjectForms = async (proj) => {
       stepEl.textContent = "2/8 Assessment…";
       zip.file(nm+"_assessment.pdf", buildPDF("Data Collection Tool — Assessment", [
         { title: "Project Info", rows: [
-          ["RISE ID", p.riseId], ["Stage", STAGES[p.currentStage]?.label],
+          ["RISE PID", p.riseId], ["Stage", STAGES[p.currentStage]?.label],
           ["Bedrooms", a.bedrooms], ["Bathrooms", a.bathrooms],
           ["Year Built", a.yearBuilt||p.yearBuilt], ["Sq Ft", a.sqft||p.sqft], ["Stories", a.stories]
         ]},
@@ -1095,7 +1127,7 @@ const exportProjectForms = async (proj) => {
 
         const secs = [];
         secs.push({ title: "Customer Information", rows: [
-          ["Customer", p.customerName], ["Address", p.address], ["RISE ID", p.riseId],
+          ["Customer", p.customerName], ["Address", p.address], ["RISE PID", p.riseId],
           ["Sq Ft", p.sqft], ["Volume", Number(p.sqft)?(Number(p.sqft)*8).toLocaleString()+" ft\u00b3":null],
           ["Stories", p.stories], ["Bedrooms", s2.bedrooms], ["Year Built", p.yearBuilt],
           ["Home Age", p.yearBuilt?(yr-Number(p.yearBuilt))+" yrs":null], ["Occupants", p.occupants]
@@ -1249,7 +1281,7 @@ const exportProjectForms = async (proj) => {
         const iq2 = s2.insulQty||{};
         const secs = [];
         secs.push({ title: "Property Information", rows: [
-          ["Customer", p.customerName], ["Address", p.address], ["RISE ID", p.riseId],
+          ["Customer", p.customerName], ["Address", p.address], ["RISE PID", p.riseId],
           ["Sq Footage", (p.sqft||"")+" ft\u00b2"], ["Year Built", p.yearBuilt], ["Stories", p.stories], ["Pre CFM50", p.preCFM50]
         ]});
         if (p.measures.length) secs.push({ title: "Energy Efficiency Measures", table: {
@@ -1287,7 +1319,7 @@ const exportProjectForms = async (proj) => {
         const getQ3 = (m) => coQtyMap3[m]||getResolvedQty(p,m)||"1";
         const secs = [];
         secs.push({ title: "Property Information", rows: [
-          ["Customer", p.customerName], ["Address", p.address], ["RISE ID", p.riseId],
+          ["Customer", p.customerName], ["Address", p.address], ["RISE PID", p.riseId],
           ["Sq Footage", (p.sqft||"")+" ft\u00b2"], ["Year Built", p.yearBuilt], ["Stories", p.stories],
           ["Pre CFM50", p.preCFM50], ["Post CFM50", p.postCFM50]
         ]});
@@ -1595,7 +1627,7 @@ const exportProjectForms = async (proj) => {
           {tab==="assessment" && <AuditTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName}/>}
           {tab==="photos" && <PhotoTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
           {tab==="scope" && <ScopeTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
-          {tab==="install" && <InstallTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
+          {tab==="install" && <InstallTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role} appSettings={appSettings}/>}
           {tab==="hvac" && <HVACTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)} user={userName} role={role}/>}
           {tab==="qaqc" && <QAQCTab p={proj} u={c=>upC(proj.id,c)}/>}
           {tab==="closeout" && <CloseoutTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
@@ -1979,11 +2011,39 @@ const exportProjectForms = async (proj) => {
     <div style={S.app}>{globalCSS}
       <Hdr role={curRole} user={userName} onSw={doLogout} title="HES Retrofits"
         sub={`${projects.length} projects`}
-        actions={<>{role==="admin" && <><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={()=>setShowUsers(!showUsers)}>👥 Users</button><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={exportData}>📥 Data</button><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={exportPhotos}>📷 Photos</button></>}<button style={{...S.btn,padding:"8px 16px",fontSize:13}} onClick={()=>setView("new")}>+ New Lead</button></>}
+        actions={<>{role==="admin" && <><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={()=>setShowSettings(!showSettings)}>⚙️ Settings</button><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={()=>setShowUsers(!showUsers)}>👥 Users</button><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={exportData}>📥 Data</button><button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={exportPhotos}>📷 Photos</button></>}<button style={{...S.btn,padding:"8px 16px",fontSize:13}} onClick={()=>setView("new")}>+ New Lead</button></>}
       />
 
       {/* ── User Management (Admin only) ── */}
       {showUsers && role === "admin" && <UserMgmt users={users} onSave={saveUserList} onDelete={async (id) => { await dbDeleteUser(id); setUsers(prev => prev.filter(u => u.id !== id)); }} onClose={()=>setShowUsers(false)}/>}
+
+      {showSettings && role === "admin" && (() => {
+        const saveSetting = (k,v) => {
+          const ns = {...appSettings, [k]:v};
+          setAppSettings(ns);
+          saveSettings(ns);
+        };
+        return <div style={{...S.card,margin:"0 16px 12px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#e2e8f0"}}>⚙️ Settings</div>
+            <button style={{...S.ghost,padding:"4px 10px",fontSize:11}} onClick={()=>setShowSettings(false)}>✕ Close</button>
+          </div>
+
+          <div style={{fontSize:11,fontWeight:600,color:"#93C5FD",textTransform:"uppercase",letterSpacing:".06em",marginBottom:4}}>Notifications</div>
+          <div style={{fontSize:10,color:"#64748b",marginBottom:6}}>COR and replacement request emails go to these addresses. Separate multiple with commas.</div>
+          <F label="Notification Email(s)" value={appSettings.notifyEmail||""} onChange={v=>saveSetting("notifyEmail",v)} placeholder="dave@company.com, manager@company.com"/>
+          <div style={{marginTop:8}}>
+            <F label="CC Email(s) (optional)" value={appSettings.notifyCc||""} onChange={v=>saveSetting("notifyCc",v)} placeholder="backup@company.com"/>
+          </div>
+
+          {appSettings.notifyEmail && <div style={{marginTop:10,padding:"6px 10px",background:"rgba(34,197,94,.06)",border:"1px solid rgba(34,197,94,.2)",borderRadius:6,fontSize:11,color:"#22c55e"}}>
+            ✓ Emails will be sent to: {appSettings.notifyEmail}
+          </div>}
+          {!appSettings.notifyEmail && <div style={{marginTop:10,padding:"6px 10px",background:"rgba(245,158,11,.06)",border:"1px solid rgba(245,158,11,.2)",borderRadius:6,fontSize:11,color:"#f59e0b"}}>
+            ⚠ No notification email set — COR emails will use the server default (ADMIN_EMAIL env var)
+          </div>}
+        </div>;
+      })()}
 
       {alertCount > 0 && (
         <div style={S.readyBan} onClick={() => setFilter(filter === "alerts" ? "all" : "alerts")}>
@@ -2252,7 +2312,7 @@ function InfoTab({p,u,role,onLog,onDel}) {
       </Sec>
       <Sec title="System IDs">
         <p style={{fontSize:11,color:"#64748b",marginBottom:8}}>Lookup customer in ST, enter IDs here</p>
-        <Gr><F label="RISE ID" value={p.riseId} onChange={v=>u({riseId:v})}/><F label="ServiceTitan ID" value={p.stId} onChange={v=>u({stId:v})}/><F label="Utility" value={p.utility} onChange={v=>u({utility:v})} placeholder="Nicor, ComEd…"/></Gr>
+        <Gr><F label="RISE PID" value={p.riseId} onChange={v=>u({riseId:v})}/><F label="ServiceTitan ID" value={p.stId} onChange={v=>u({stId:v})}/><F label="Utility" value={p.utility} onChange={v=>u({utility:v})} placeholder="Nicor, ComEd…"/></Gr>
       </Sec>
 
       <Sec title="Flags & Notes">
@@ -2951,7 +3011,7 @@ function ScopeTab({p,u,onLog}) {
     const R = (l, vv) => '<div class="row"><span class="lbl">'+l+'</span><span class="val">'+(vv!=null?vv:"\u2014")+'</span></div>';
 
     body += '<div class="sec"><h3>Customer Information</h3><div class="grid">';
-    body += R("Customer",p.customerName) + R("Address",p.address) + R("RISE ID",p.riseId||"\u2014");
+    body += R("Customer",p.customerName) + R("Address",p.address) + R("RISE PID",p.riseId||"\u2014");
     body += R("Assessment Date",p.assessmentDate?fmts(p.assessmentDate):"\u2014");
     body += R("Sq Ft",p.sqft||"\u2014") + R("Volume",Number(p.sqft)?(Number(p.sqft)*8).toLocaleString()+" ft\u00b3":"\u2014");
     body += R("Stories",p.stories||"\u2014") + R("Bedrooms",s.bedrooms||"\u2014");
@@ -3900,7 +3960,7 @@ function ScopeTab({p,u,onLog}) {
   );
 }
 
-function InstallTab({p,u,onLog,user,role}) {
+function InstallTab({p,u,onLog,user,role,appSettings={}}) {
   const fi = p.fi || {};
   const sf = (k,f,v) => u({fi:{...fi,safety:{...(fi.safety||{}),[k]:{...(fi.safety?.[k]||{}),[f]:v}}}});
   const uf = (k,v) => u({fi:{...fi,[k]:v}});
@@ -4017,6 +4077,17 @@ function InstallTab({p,u,onLog,user,role}) {
     const newCO = { id: Date.now().toString(36), text: coText.trim(), by: user, at: new Date().toISOString(), status: "pending", response: "", photo: coPhoto||"" };
     u({ changeOrders: [...co, newCO] });
     if (onLog) onLog(`📝 COR requested: ${coText.trim().slice(0,50)}…`);
+    // Send email notification (fire-and-forget)
+    try {
+      fetch("/.netlify/functions/cor-email", {
+        method: "POST", headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          projectId: p.id, corId: newCO.id, corText: newCO.text, corBy: user,
+          corDate: newCO.at, customerName: p.customerName, address: p.address, riseId: p.riseId,
+          notifyEmail: appSettings.notifyEmail||"", notifyCc: appSettings.notifyCc||"",
+        })
+      }).catch(()=>{});
+    } catch(e){}
     setCoText(""); setCoPhoto(null);
   };
   const updateCO = (id, fields) => {
@@ -4152,7 +4223,7 @@ function InstallTab({p,u,onLog,user,role}) {
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Stories</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.stories||"—"}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Home Type</span><span style={{color:"#e2e8f0",fontWeight:600}}>{s.style||p.homeType||"—"}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Pre CFM50</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.preCFM50||"—"}</span></div>
-                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>RISE ID</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.riseId||"—"}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>RISE PID</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.riseId||"—"}</span></div>
               </div>
             </div>
             {/* EE Measures Table */}
@@ -4234,7 +4305,7 @@ function InstallTab({p,u,onLog,user,role}) {
                   <div class="row"><span class="lbl">Year Built</span><span class="val">${p.yearBuilt||"—"}</span></div>
                   <div class="row"><span class="lbl">Stories</span><span class="val">${p.stories||"—"}</span></div>
                   <div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"—"}</span></div>
-                  <div class="row"><span class="lbl">RISE ID</span><span class="val">${p.riseId||"—"}</span></div>
+                  <div class="row"><span class="lbl">RISE PID</span><span class="val">${p.riseId||"—"}</span></div>
                 </div></div>
                 <div class="sec"><h3>Energy Efficiency Measures</h3><p style="font-size:10px;color:#666">The following energy conservation measures shall be performed in accordance with the approved scope of work and applicable program standards.</p>
                 <table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">
