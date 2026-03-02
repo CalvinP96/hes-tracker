@@ -414,7 +414,7 @@ function printScope(p, s) {
   row("Age", htg.year ? (yr - Number(htg.year)) + " yrs" : null); row("Condition", htg.condition);
   row("BTU Input", htg.btuIn); row("BTU Output", htg.btuOut); row("AFUE", afue); row("Draft", htg.draft);
   row("Gas Shut Off", CK(htg.gasShutoff)); row("Asbestos Pipes", CK(htg.asbestosPipes));
-  row("Replacement Rec", CK(htg.replaceRec)); row("Clean & Tune", CK(htg.cleanTune || htg.cleanTuneOverride));
+  row("Replacement Rec", CK(htg.replaceRec)); row("Clean & Tune", CK(htg.cleanTuneOverride !== undefined ? htg.cleanTuneOverride : htg.cleanTune));
   if (htg.notes) row("Notes", htg.notes);
 
   sec("Cooling System Info");
@@ -1118,7 +1118,7 @@ const exportProjectForms = async (proj) => {
           ["Manufacturer", htg.mfg], ["Install Year", htg.year], ["Age", htg.year?(yr-Number(htg.year))+" yrs":null],
           ["Condition", htg.condition], ["BTU In", htg.btuIn], ["BTU Out", htg.btuOut], ["AFUE", afue2], ["Draft", htg.draft],
           ["Gas Shut Off", CK(htg.gasShutoff)], ["Asbestos Pipes", CK(htg.asbestosPipes)],
-          ["Replace Rec", CK(htg.replaceRec)], ["Clean & Tune", CK(htg.cleanTune||htg.cleanTuneOverride)]
+          ["Replace Rec", CK(htg.replaceRec)], ["Clean & Tune", CK(htg.cleanTuneOverride!==undefined?htg.cleanTuneOverride:htg.cleanTune)]
         ]});
         if (htg.notes) secs[secs.length-1].rows.push(["Notes", htg.notes]);
         secs.push({ title: "Cooling System", rows: [
@@ -2979,7 +2979,7 @@ function ScopeTab({p,u,onLog}) {
     body += R("Thermostat",htg.thermostat||"\u2014") + R("Fuel Type",htg.fuel||"\u2014") + R("System Type",htg.system||"\u2014") + R("Flue Condition",htg.flue||"\u2014");
     body += R("Manufacturer",htg.mfg||"\u2014") + R("Install Year",htg.year||"\u2014") + R("Age",htg.year?(new Date().getFullYear()-Number(htg.year))+" yrs":"\u2014") + R("Condition",htg.condition||"\u2014");
     body += R("BTU Input",htg.btuIn||"\u2014") + R("BTU Output",htg.btuOut||"\u2014") + R("AFUE",afue) + R("Draft",htg.draft||"\u2014");
-    body += R("Gas Shut Off",chk(htg.gasShutoff)) + R("Pipes Asbestos Wrapped",chk(htg.asbestosPipes)) + R("Replacement Recommended",chk(htg.replaceRec)) + R("Clean & Tune",chk(htg.cleanTune||htg.cleanTuneOverride));
+    body += R("Gas Shut Off",chk(htg.gasShutoff)) + R("Pipes Asbestos Wrapped",chk(htg.asbestosPipes)) + R("Replacement Recommended",chk(htg.replaceRec)) + R("Clean & Tune",chk(htg.cleanTuneOverride!==undefined?htg.cleanTuneOverride:htg.cleanTune));
     body += '</div>'+(htg.notes?'<p style="color:#333;margin-top:6px">Notes: '+htg.notes+'</p>':"")+'</div>';
 
     body += '<div class="sec"><h3>Cooling System Info</h3><div class="grid">';
@@ -3203,9 +3203,9 @@ function ScopeTab({p,u,onLog}) {
             const autoOn = age > 3 && s.htg?.fuel==="Natural Gas" && !s.htg?.replaceRec;
             const val = s.htg?.cleanTuneOverride !== undefined ? s.htg.cleanTuneOverride : (autoOn || !!s.htg?.cleanTune);
             return <div style={{display:"flex",alignItems:"center",gap:4}}>
-              <CK checked={val} onChange={v=>{sn("htg","cleanTune",v);sn("htg","cleanTuneOverride",v);}} label="Clean & Tune"/>
+              <CK checked={val} onChange={v=>{u({scope2026:{...s,htg:{...(s.htg||{}),cleanTune:v,cleanTuneOverride:v}}});}} label="Clean & Tune"/>
               {autoOn && s.htg?.cleanTuneOverride===undefined && <span style={{fontSize:8,color:"#60A5FA"}}>auto</span>}
-              {s.htg?.cleanTuneOverride!==undefined && autoOn && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{sn("htg","cleanTuneOverride",undefined);sn("htg","cleanTune",true);}}>↻ auto</span>}
+              {s.htg?.cleanTuneOverride!==undefined && autoOn && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{u({scope2026:{...s,htg:{...(s.htg||{}),cleanTuneOverride:undefined,cleanTune:true}}});}}>↻ auto</span>}
             </div>;
           })()}
         </div>
@@ -3774,7 +3774,8 @@ function ScopeTab({p,u,onLog}) {
           if(s.htg?.replaceRec) aq[s.htg?.system==="Boiler"?"Boiler Replacement":"Furnace Replacement"] = 1;
           if(s.dhw?.replaceRec) aq["Water Heater Replacement"] = 1;
           if(s.clg?.replaceRec) aq["Central AC Replacement"] = 1;
-          if(s.htg?.cleanTune || (Number(s.htg?.year||0) && (new Date().getFullYear()-Number(s.htg.year))>3 && s.htg?.fuel==="Natural Gas" && !s.htg?.replaceRec && s.htg?.cleanTuneOverride!==false)) aq["Furnace Tune-Up"] = 1;
+          const ctVal = s.htg?.cleanTuneOverride!==undefined ? s.htg.cleanTuneOverride : (s.htg?.cleanTune || (Number(s.htg?.year||0) && (new Date().getFullYear()-Number(s.htg.year))>3 && s.htg?.fuel==="Natural Gas" && !s.htg?.replaceRec));
+          if(ctVal) aq["Furnace Tune-Up"] = 1;
           aq["Air Sealing"] = 1;
           if(s.attic?.ductwork || s.collar?.ductwork || s.fnd?.crawlDuct) aq["Duct Sealing"] = 1;
 
