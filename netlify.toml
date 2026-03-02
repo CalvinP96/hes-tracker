@@ -6,12 +6,6 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
-# Functions bypass SPA redirect
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
-
 # SPA redirect — all routes serve index.html
 [[redirects]]
   from = "/*"
