@@ -93,7 +93,7 @@ export async function deleteProject(id) {
 
 export function getSession() {
   try {
-    const s = sessionStorage.getItem('hes-session')
+    const s = localStorage.getItem('hes-session')
     return s ? JSON.parse(s) : null
   } catch { return null }
 }
@@ -102,14 +102,14 @@ export function setSession(userId, nav) {
   try {
     if (userId) {
       const existing = getSession() || {}
-      sessionStorage.setItem('hes-session', JSON.stringify({ ...existing, userId, ...nav }))
-    } else sessionStorage.removeItem('hes-session')
+      localStorage.setItem('hes-session', JSON.stringify({ ...existing, userId, ...nav }))
+    } else localStorage.removeItem('hes-session')
   } catch {}
 }
 
 export function setSessionNav(nav) {
   try {
     const existing = getSession()
-    if (existing) sessionStorage.setItem('hes-session', JSON.stringify({ ...existing, ...nav }))
+    if (existing) localStorage.setItem('hes-session', JSON.stringify({ ...existing, ...nav }))
   } catch {}
 }
