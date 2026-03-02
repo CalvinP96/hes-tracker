@@ -726,6 +726,28 @@ export default function App() {
     tmr.current = setTimeout(() => saveProjects(p), 400);
   }, []);
 
+  // Re-fetch from Supabase when user returns to tab (picks up email approvals, other device changes)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && curUser) {
+        loadProjects().then(p => {
+          if (p) setProjects(prev => {
+            const fresh = p.filter(x => x.id !== "__app_settings__");
+            // Merge: use server version for each project (picks up email COR approvals)
+            return fresh.map(fp => {
+              const local = prev.find(lp => lp.id === fp.id);
+              // If local has unsaved edits (within last 2 sec), keep local
+              if (local && tmr.current) return local;
+              return fp;
+            });
+          });
+        });
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [curUser]);
+
   const saveUserList = async (list) => {
     setUsers(list);
     // Sync each user to Supabase
