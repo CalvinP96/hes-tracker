@@ -4097,19 +4097,14 @@ function InstallTab({p,u,onLog,user,role,appSettings={}}) {
   const addCO = () => {
     if (!coText.trim()) return;
     const newCO = { id: Date.now().toString(36), text: coText.trim(), by: user, at: new Date().toISOString(), status: "pending", response: "", photo: coPhoto||"" };
+    // Send email BEFORE state update — keepalive prevents mobile from killing it
+    try { fetch("/.netlify/functions/cor-email", { method:"POST", keepalive:true, headers:{"Content-Type":"application/json"}, body:JSON.stringify({
+      projectId: p.id, corId: newCO.id, corText: newCO.text, corBy: user,
+      corDate: newCO.at, customerName: p.customerName, address: p.address, riseId: p.riseId,
+      notifyEmail: appSettings.notifyEmail||"", notifyCc: appSettings.notifyCc||"",
+    })}).catch(()=>{}); } catch(e){}
     u({ changeOrders: [...co, newCO] });
     if (onLog) onLog(`📝 COR requested: ${coText.trim().slice(0,50)}…`);
-    // Send email notification (fire-and-forget)
-    try {
-      fetch("/.netlify/functions/cor-email", {
-        method: "POST", headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({
-          projectId: p.id, corId: newCO.id, corText: newCO.text, corBy: user,
-          corDate: newCO.at, customerName: p.customerName, address: p.address, riseId: p.riseId,
-          notifyEmail: appSettings.notifyEmail||"", notifyCc: appSettings.notifyCc||"",
-        })
-      }).catch(()=>{});
-    } catch(e){}
     setCoText(""); setCoPhoto(null);
   };
   const updateCO = (id, fields) => {
