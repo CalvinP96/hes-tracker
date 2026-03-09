@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useCallback } from "react";
+﻿﻿import React, { useState, useRef, useCallback } from "react";
 import { S } from "../styles/index.js";
 import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM } from "../constants/index.js";
 import { uid, fmts, getPhotos, hasPhoto, photoCount, getResolvedQty, measUnit, calcRtoAdd, calcStage, getAlerts } from "../helpers/index.js";
@@ -587,7 +587,7 @@ export function ScopeTab({p,u,onLog}) {
         {s.kneeWall?.preR && Number(s.kneeWall?.preR)===0 && <Rec type="info">Knee wall cavity must have no existing thermal resistance to qualify. Insulate to R-11 or greater (R-13+5 or R-20 preferred).</Rec>}
       </Sec>
 
-      <Sec title="Exterior Walls â€” 1st Floor">
+      <Sec title="Exterior Walls — 1st Floor">
         <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)} num/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.16) : "â€”"}/><F label="Total R" computed={s.extWall1?.preR||s.extWall1?.addR ? "R-"+(Number(s.extWall1?.preR||0)+Number(s.extWall1?.addR||0)) : "â€”"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall1?.densePack} onChange={v=>sn("extWall1","densePack",v)} label="Dense Pack"/>
@@ -605,7 +605,7 @@ export function ScopeTab({p,u,onLog}) {
         {s.extWall1?.preR && Number(s.extWall1.preR) > 0 && <Rec type="info">Walls may only be insulated if no existing insulation or existing is in poor condition.</Rec>}
       </Sec>
 
-      <Sec title="Exterior Walls â€” 2nd Floor">
+      <Sec title="Exterior Walls — 2nd Floor">
         <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)} num/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.14) : "â€”"}/><F label="Total R" computed={s.extWall2?.preR||s.extWall2?.addR ? "R-"+(Number(s.extWall2?.preR||0)+Number(s.extWall2?.addR||0)) : "â€”"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall2?.densePack} onChange={v=>sn("extWall2","densePack",v)} label="Dense Pack"/>
@@ -1068,5 +1068,6 @@ export function ScopeTab({p,u,onLog}) {
     </div>
   );
 }
+
 
 

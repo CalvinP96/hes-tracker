@@ -7,8 +7,7 @@ export function AuditTab({p,u,onLog,user}) {
   const a = p.audit || {};
   const sa = (k,v) => u({audit:{...a,[k]:v}});
   const [prev, setPrev] = useState(null); // {id, idx}
-
-  // â”€â”€ Pre Photos â”€â”€
+  // Pre Photos
   const preSections = Object.entries(PHOTO_SECTIONS).filter(([cat]) => cat.includes("(Pre)"));
   const preItems = preSections.flatMap(([cat,items])=>items.map(i=>({...i,cat})));
   const preTaken = preItems.filter(i=>hasPhoto(p.photos,i.id)).length;
@@ -96,7 +95,7 @@ export function AuditTab({p,u,onLog,user}) {
       </div></div>
       <div class="sec"><h3>H&S Conditions</h3>${["Gas Mechanical Repair","Mold Remediation","Water/Sewage Issues","Asbestos Abatement","Electrical Issues","Other"].filter(x=>a.hsConds?.[x]).map(x=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #ddd;border-radius:4px;margin:2px;font-size:11px">${x}</span>`).join("")||"<span style='color:#999'>None</span>"}</div>
       <div class="sec"><h3>Status</h3><div class="row"><span class="lbl">Deferred?</span><span class="val">${a.deferred||"â€”"}</span></div>${a.additionalNotes?`<p style="margin-top:6px;color:#666">${a.additionalNotes}</p>`:""}</div>`;
-    return formPrintHTML("Data Collection Tool â€” Assessment", p, body, a.assessorSig);
+    return formPrintHTML("Data Collection Tool — Assessment", p, body, a.assessorSig);
   };
 
   return (
@@ -276,5 +275,6 @@ export function AuditTab({p,u,onLog,user}) {
     </div>
   );
 }
+
 
 

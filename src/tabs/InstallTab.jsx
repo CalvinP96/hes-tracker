@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useCallback } from "react";
+﻿﻿﻿import React, { useState, useRef, useCallback } from "react";
 import { S } from "../styles/index.js";
 import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM } from "../constants/index.js";
 import { uid, fmts, getPhotos, hasPhoto, photoCount, getResolvedQty, measUnit, calcRtoAdd, calcStage, getAlerts } from "../helpers/index.js";
@@ -213,7 +213,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
   return (
     <div>
       {/* â”€â”€ HEADER + PRINT â”€â”€ */}
-      <Sec title="ðŸ—ï¸ Install Completion">
+      <Sec title="🏗️ Install Completion">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Complete all sections before leaving the job site.</p>
           <PrintBtn onClick={()=>savePrint(getInstallHTML())}/>
@@ -221,7 +221,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
       </Sec>
 
       {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-           PRE-WORK SCOPE OF WORK â€” locked original scope
+           PRE-WORK SCOPE OF WORK — locked original scope
          â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {(() => {
         const htg=s.htg||{};const clg=s.clg||{};const dhw=s.dhw||{};const att=s.attic||{};const fnd=s.fnd||{};
@@ -330,7 +330,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
         };
 
         return <>
-          <Sec title="ðŸ“‹ Pre-Work Scope of Work" danger={!fi.preScopeSig}>
+          <Sec title="📋 Pre-Work Scope of Work" danger={!fi.preScopeSig}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6,flexWrap:"wrap",gap:4}}>
               <div style={{fontSize:10,color:fi.preScopeSig?"#22c55e":"#f59e0b",fontWeight:600}}>
                 {fi.preScopeSig ? "âœ“ Customer authorized â€” work may proceed" : "âš  Customer must review and sign before work begins"}
@@ -357,7 +357,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
                 </table></div>
                 ${Object.entries(iq).some(([,v])=>v)?`<div class="sec"><h3>Insulation Specifications</h3><table style="width:100%;border-collapse:collapse;font-size:10px"><tr style="background:#eff6ff"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Location</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="padding:3px 6px;border:1px solid #ccc">Unit</th></tr>${Object.entries(iq).filter(([,v])=>v).map(([l,v])=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${l}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${v}</td><td style="padding:3px 6px;border:1px solid #ddd">${l.includes("Rim Joist")?"LnFt":"SqFt"}</td></tr>`).join("")}</table></div>`:""}
                 ${p.measureNotes?`<div class="sec"><h3>Notes</h3><p>${p.measureNotes}</p></div>`:""}`;
-                savePrint(formPrintHTML("Pre-Work Scope of Work â€” Authorization", p, body, false, fi.preScopeSig));
+                savePrint(formPrintHTML("Pre-Work Scope of Work — Authorization", p, body, false, fi.preScopeSig));
               }}/>
             </div>
             <div style={{opacity:fi.preScopeSig?0.7:1}}>
@@ -374,7 +374,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
             ) : (
               <div style={{marginTop:10}}>
                 <div style={{fontSize:10,color:"#475569",marginBottom:4,fontStyle:"italic"}}>By signing below, the customer acknowledges and authorizes the scope of work described above. Work shall not commence until this authorization is obtained.</div>
-                <SigPad label="Customer Signature â€” Pre-Work Scope Authorization" value="" onChange={v=>{u({fi:{...fi,preScopeSig:v,preScopeDate:new Date().toISOString()}});onLog("Customer signed pre-work scope authorization");}}/>
+                <SigPad label="Customer Signature — Pre-Work Scope Authorization" value="" onChange={v=>{u({fi:{...fi,preScopeSig:v,preScopeDate:new Date().toISOString()}});onLog("Customer signed pre-work scope authorization");}}/>
               </div>
             )}
           </Sec>
@@ -766,5 +766,6 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
     </div>
   );
 }
+
 
 
