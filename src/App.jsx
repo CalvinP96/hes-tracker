@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { loadUsers, saveUser, deleteUser, loadProjects, saveProjects, getSession, setSession, setSessionNav, loadSettings, saveSettings } from "./db.js";
-import { STAGES, ROLES, TAB_META, DEFAULT_USERS } from "./constants/index.js";
+import { STAGES, ROLES, TAB_META, DEFAULT_USERS, PHOTO_SECTIONS } from "./constants/index.js";
 import { uid, fmts, blank, calcStage, getAlerts, getPhotos, hasPhoto } from "./helpers/index.js";
 import { S } from "./styles/index.js";
 import { Rec, InsulRec, Sec, Gr, F, Sel, CK, BtnGrp, SigPad, PrintBtn, SI, Hdr, UserMgmt } from "./components/ui.jsx";
@@ -8,7 +8,6 @@ import { savePrint, printScope, photoPageHTML, sideBySideHTML, formPrintHTML } f
 import { exportData, exportPhotos, exportProjectPhotos, exportProjectForms } from "./export/exportForms.js";
 import { ToastContainer } from "./components/Toast.jsx";
 import { SkeletonDashboard } from "./components/Skeleton.jsx";
-import { BottomNav } from "./components/BottomNav.jsx";
 import { BatchOps, BatchActionBar } from "./components/BatchOps.jsx";
 import { InfoTab }     from "./tabs/InfoTab.jsx";
 import { SchedTab }    from "./tabs/SchedTab.jsx";
@@ -451,7 +450,6 @@ input,select,textarea,button{font-size:inherit}
           {tab==="closeout" && <CloseoutTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
           {tab==="log" && <LogTab p={proj} onLog={t=>addLog(proj.id,t)}/>}
         </div>
-        <BottomNav tabs={tabs} activeTab={tab} onTabChange={setTab} tabMeta={TAB_META}/>
         <ToastContainer toasts={toasts} onDismiss={removeToast}/>
       </div>
     );
@@ -835,7 +833,7 @@ input,select,textarea,button{font-size:inherit}
       />
 
       {/* ── User Management (Admin only) ── */}
-      {showUsers && role === "admin" && <UserMgmt users={users} onSave={saveUserList} onDelete={async (id) => { await dbDeleteUser(id); setUsers(prev => prev.filter(u => u.id !== id)); }} onClose={()=>setShowUsers(false)}/>}
+      {showUsers && role === "admin" && <UserMgmt users={users} onSave={saveUserList} onDelete={async (id) => { await deleteUser(id); setUsers(prev => prev.filter(u => u.id !== id)); }} onClose={()=>setShowUsers(false)}/>}
 
       {showSettings && role === "admin" && (() => {
         const saveSetting = (k,v) => {
