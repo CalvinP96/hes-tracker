@@ -1,0 +1,5 @@
+{
+  "agents": {
+    "claude": { "command": "node C:/Users/Calvin/AppData/Roaming/npm/node_modules/@zed-industries/claude-agent-acp/dist/acp-agent.js" }
+  }
+}
