@@ -264,7 +264,7 @@ export function ScopeTab({p,u,onLog}) {
 
 
     const html = `<!DOCTYPE html><html><head><title>HEA/IE Retrofit Form â€” ${p.customerName}</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:11px}h1{font-size:16px;border-bottom:2px solid #333;padding-bottom:6px}h2{font-size:11px;color:#666;margin-bottom:12px}.sec{margin-bottom:10px;border:1px solid #ddd;border-radius:5px;padding:8px}.sec h3{font-size:12px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:3px}.row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}</style></head><body>
-      <h1>2026 HEA / IE Retrofit Form</h1><h2>${p.customerName} Â· ${p.address} Â· RISE: ${p.riseId||"â€”"} Â· ${new Date().toLocaleDateString()}</h2>${body}</body></html>`;
+      <h1>2026 HEA / IE Retrofit Form</h1><h2>${p.customerName} · ${p.address} · RISE: ${p.riseId||"â€”"} · ${new Date().toLocaleDateString()}</h2>${body}</body></html>`;
     return html;
   };
 
@@ -293,7 +293,7 @@ export function ScopeTab({p,u,onLog}) {
           <F label="Bedrooms" value={s.bedrooms||""} onChange={v=>ss("bedrooms",v)} num/>
           <F label="Occupants" value={p.occupants} onChange={v=>u({occupants:v})} num/>
           <F label="Sq Footage" value={p.sqft} onChange={v=>u({sqft:v})} num/>
-          <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>Volume</label><div style={{...S.inp,background:"rgba(37,99,235,.08)",color:"#93C5FD",display:"flex",alignItems:"center",marginTop:"auto"}}>{Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() : "â€”"}<span style={{fontSize:10,color:"#64748b",marginLeft:6}}>ftÂ³ (sqft Ã— 8)</span></div></div>
+          <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>Volume</label><div style={{...S.inp,background:"rgba(37,99,235,.08)",color:"#93C5FD",display:"flex",alignItems:"center",marginTop:"auto"}}>{Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() : "â€”"}<span style={{fontSize:10,color:"#64748b",marginLeft:6}}>ft³ (sqft Ã— 8)</span></div></div>
           <F label="Home Age" computed={p.yearBuilt ? (new Date().getFullYear() - Number(p.yearBuilt)) + " yrs" : "â€”"} suffix="auto"/>
           <Sel label="Tenant Type" value={s.tenantType||""} onChange={v=>ss("tenantType",v)} opts={["Own","Rent"]}/>
         </Gr>
@@ -318,7 +318,7 @@ export function ScopeTab({p,u,onLog}) {
       </Sec>
 
       {/* â•â• INTERIOR CONDITIONS (from assessment) â•â• */}
-      <Sec title={<span>Interior Conditions {a.ceilingCond && <span style={{fontSize:9,color:"#60A5FA",fontWeight:400}}> Â· assessment values auto-filled</span>}</span>}>
+      <Sec title={<span>Interior Conditions {a.ceilingCond && <span style={{fontSize:9,color:"#60A5FA",fontWeight:400}}> · assessment values auto-filled</span>}</span>}>
         <Gr>
           <Sel label="Ceiling Conditions" value={s.ceilingCond||""} onChange={v=>ss("ceilingCond",v)} opts={["Good","Poor"]}/>
           <Sel label="Wall Conditions" value={s.wallCond||""} onChange={v=>ss("wallCond",v)} opts={["Good","Fair","Poor"]}/>
@@ -542,7 +542,7 @@ export function ScopeTab({p,u,onLog}) {
         <textarea style={{...S.ta,marginTop:6}} value={s.attic?.notes||""} onChange={e=>sn("attic","notes",e.target.value)} rows={2} placeholder="Attic notesâ€¦"/>
         <InsulRec section="attic" preR={s.attic?.preR} addR={s.attic?.addR}/>
         {s.attic?.ceilingCond==="Poor" && <Rec type="warn">Poor ceiling condition â€” consider fiberglass instead of cellulose (cellulose weighs ~2x fiberglass for same R-value).</Rec>}
-        {s.attic?.floorBoards && <Rec type="info">Floor boards present â€” dense pack at 3.5 lbs/ftÂ³ unless homeowner agrees to remove flooring and blow to R-49.</Rec>}
+        {s.attic?.floorBoards && <Rec type="info">Floor boards present â€” dense pack at 3.5 lbs/ft³ unless homeowner agrees to remove flooring and blow to R-49.</Rec>}
         {s.attic?.knobTube && <Rec type="flag">KNOB & TUBE in attic â€” insulation CANNOT proceed until remediated by licensed electrician.</Rec>}
         {s.attic?.vermPresent && <Rec type="flag">VERMICULITE in attic â€” do NOT disturb. Abatement required before insulation.</Rec>}
         {s.attic?.moldPresent && <Rec type="flag">MOLD in attic â€” remediation required before insulation work.</Rec>}
@@ -796,7 +796,7 @@ export function ScopeTab({p,u,onLog}) {
               {/* â•â• BUILDING INPUTS â•â• */}
               <div style={hdr}>Building Inputs</div>
               <div className="ashrae-inputs" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
-                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ftÂ²]</div><div style={autoBox}>{Afl||"â€”"}</div><div style={autoSub}>{finBasement > 0 ? `${baseSqft} + ${finBasement} fin. bsmt` : "â† Sq Footage"}</div></div>
+                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ft²]</div><div style={autoBox}>{Afl||"â€”"}</div><div style={autoSub}>{finBasement > 0 ? `${baseSqft} + ${finBasement} fin. bsmt` : "â† Sq Footage"}</div></div>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Nocc (occupants)</div><div style={autoBox}>{Nbr + 1}</div><div style={autoSub}>{Nbr} bedrooms + 1 = {Nbr + 1}</div></div>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Height [ft]</div><div style={autoBox}>{H}</div><div style={autoSub}>{st>=2?"2-story":"1"+(st>=1.5?".5":"")+"-story"}</div></div>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Q50 [CFM] â€” est. post</div><div style={{...autoBox,color:canAirSeal?"#f59e0b":"#e2e8f0"}}>{Q50||"â€”"}</div><div style={autoSub}>{canAirSeal ? `${preQ50} Ã— 0.75 (25% reduction)` : `${preQ50} (no air seal)`}</div>
@@ -809,7 +809,7 @@ export function ScopeTab({p,u,onLog}) {
 
               {/* â•â• LOCAL VENTILATION â•â• */}
               <div style={hdr}>Local Ventilation â€” Alternative Compliance</div>
-              <div style={{fontSize:9,color:"#64748b",marginBottom:2}}>Blank = no fan = no requirement. Openable window = 20 CFM credit. Kitchen: 100 CFM Â· Bath: 50 CFM (intermittent rates)</div>
+              <div style={{fontSize:9,color:"#64748b",marginBottom:2}}>Blank = no fan = no requirement. Openable window = 20 CFM credit. Kitchen: 100 CFM · Bath: 50 CFM (intermittent rates)</div>
               <div style={{fontSize:9,color:"#f59e0b",marginBottom:6}}>âš  If a fan is present but not operational or CFM is unknown, enter 0.</div>
               <div className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",fontSize:11,alignItems:"center"}}>
                 <span style={{fontWeight:600,color:"#64748b"}}></span>
@@ -850,7 +850,7 @@ export function ScopeTab({p,u,onLog}) {
                 <div style={eq}>= 0.03 Ã— Afl + 7.5 Ã— (Nbr + 1)<br/>= 0.03 Ã— {Afl} + 7.5 Ã— ({Nbr} + 1)<br/>= {R(0.03*Afl)} + {R(7.5*(Nbr+1))}</div>
 
                 <div style={row}><span style={lbl}>Total local ventilation deficit [CFM]</span><span style={val}>{Ri(totalDef)}</span></div>
-                <div style={eq}>= Î£ max(0, req âˆ’ measured) per fan<br/>Kitchen {kReq} âˆ’ {kCFM} = {kDef} Â· Bath1 {b1Req} âˆ’ {b1} = {b1Def} Â· Bath2 {b2Req} âˆ’ {b2} = {b2Def} Â· Bath3 {b3Req} âˆ’ {b3} = {b3Def}</div>
+                <div style={eq}>= Î£ max(0, req âˆ’ measured) per fan<br/>Kitchen {kReq} âˆ’ {kCFM} = {kDef} · Bath1 {b1Req} âˆ’ {b1} = {b1Def} · Bath2 {b2Req} âˆ’ {b2} = {b2Def} · Bath3 {b3Req} âˆ’ {b3} = {b3Def}</div>
 
                 <div style={row}><span style={lbl}>Alternative compliance supplement [CFM]</span><span style={val}>{R(supplement)}</span></div>
                 <div style={eq}>= totalDeficit Ã— 0.25 (intermittent â†’ continuous)<br/>= {Ri(totalDef)} Ã— 0.25</div>
@@ -897,7 +897,7 @@ export function ScopeTab({p,u,onLog}) {
                       <span style={{fontSize:12,color:"#cbd5e1"}}>Min. run-time per hour</span>
                       <span style={{fontSize:14,fontWeight:700,color:"#60A5FA",fontFamily:"'JetBrains Mono',monospace"}}>{minPerHr} min/hr</span>
                     </div>
-                    <div style={eq}>= Qfan Ã· fan capacity Ã— 60<br/>= {R(Qfan)} Ã· {fan} Ã— 60 = {minPerHr} min/hr</div>
+                    <div style={eq}>= Qfan ÷ fan capacity Ã— 60<br/>= {R(Qfan)} ÷ {fan} Ã— 60 = {minPerHr} min/hr</div>
                     <div style={{marginTop:6,fontSize:10,color:fan >= Qfan ? "#22c55e" : "#f59e0b",fontWeight:600}}>
                       {fan >= Qfan ? `âœ“ Continuous (60 min/hr) exceeds minimum ${minPerHr} min/hr` : `âš  Fan setting below Qfan â€” does not meet requirement`}
                     </div>
@@ -905,7 +905,7 @@ export function ScopeTab({p,u,onLog}) {
                 })()}
               </div>}
 
-              <p style={{fontSize:9,color:"#475569",marginTop:10,textAlign:"right"}}>ASHRAE 62.2-2016 Â· Local Ventilation Alternative Compliance Â· basc.pnnl.gov/redcalc</p>
+              <p style={{fontSize:9,color:"#475569",marginTop:10,textAlign:"right"}}>ASHRAE 62.2-2016 · Local Ventilation Alternative Compliance · basc.pnnl.gov/redcalc</p>
             </div>
           );
         })()}

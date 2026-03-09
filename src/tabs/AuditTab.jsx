@@ -61,7 +61,7 @@ export function AuditTab({p,u,onLog,user}) {
           {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€¹</button>}
           {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€º</button>}
         </div>
-        <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} Â· {ph?.at&&new Date(ph.at).toLocaleString()}</div>
+        <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} · {ph?.at&&new Date(ph.at).toLocaleString()}</div>
       </div>
     );
   }
@@ -155,7 +155,7 @@ export function AuditTab({p,u,onLog,user}) {
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>For use with BLK2GO</p>
           <PrintBtn onClick={()=>savePrint(getAuditHTML())}/>
         </div>
-        <p style={{fontSize:10,color:"#64748b",marginTop:4}}>Customer: <b>{p.customerName}</b> Â· {p.address} Â· Assessment: {p.assessmentDate ? fmts(p.assessmentDate) : "â€”"}</p>
+        <p style={{fontSize:10,color:"#64748b",marginTop:4}}>Customer: <b>{p.customerName}</b> · {p.address} · Assessment: {p.assessmentDate ? fmts(p.assessmentDate) : "â€”"}</p>
       </Sec>
 
       <Sec title="Basic Info">
@@ -218,7 +218,7 @@ export function AuditTab({p,u,onLog,user}) {
         <Gr>
           <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})} num/>
           <F label="BD Location" value={p.bdLoc} onChange={v=>u({bdLoc:v})} placeholder="Front/Side"/>
-          <F label="Ext. Temp" value={p.extTemp} onChange={v=>u({extTemp:v})} placeholder="Â°F" num/>
+          <F label="Ext. Temp" value={p.extTemp} onChange={v=>u({extTemp:v})} placeholder="°F" num/>
         </Gr>
         {p.preCFM50 && p.sqft && <div style={S.calc}><span>Pre CFM50: <b>{p.preCFM50}</b></span><span style={{color:Number(p.preCFM50)>=Number(p.sqft)*1.1?"#22c55e":"#f59e0b",marginLeft:10}}>{Number(p.preCFM50)>=Number(p.sqft)*1.1?"âœ“ â‰¥110% sqft":"âš  <110% sqft"}</span></div>}
       </Sec>

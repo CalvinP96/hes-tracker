@@ -140,7 +140,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
     const safetyRows = FI_SAFETY.map(c => {
       const r = fi.safety?.[c.k] || {};
       const cls = r.pf==="P"?"pass":r.pf==="F"?"fail":"na";
-      return `<div class="row"><span class="lbl">${c.l}</span><span>${c.r&&r.reading?r.reading+" "+c.u+" Â· ":""}<span class="${cls}">${r.pf||"â€”"}</span>${r.fu?" âš  F/U":""}</span></div>`;
+      return `<div class="row"><span class="lbl">${c.l}</span><span>${c.r&&r.reading?r.reading+" "+c.u+" · ":""}<span class="${cls}">${r.pf||"â€”"}</span>${r.fu?" âš  F/U":""}</span></div>`;
     }).join("");
     const mq2 = p.measureQty||{};
     const measList = p.measures.length ? `<table style="width:100%;border-collapse:collapse;font-size:9px;margin-top:4px">\n<tr style="background:#f0fdf4;"><th style="text-align:left;padding:2px 5px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:2px 5px;border:1px solid #ccc">Qty</th><th style="padding:2px 5px;border:1px solid #ccc">Unit</th></tr>\n${p.measures.map(m=>`<tr><td style="padding:2px 5px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:2px 5px;border:1px solid #ddd">${getResolvedQty(p,m)||"â€”"}</td><td style="padding:2px 5px;border:1px solid #ddd">${measUnit(m)}</td></tr>`).join("")}\n</table>` : "<em>None</em>";
@@ -161,13 +161,13 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
         ${p.preCFM50&&p.postCFM50?`<div class="row"><span class="lbl">Reduction</span><span class="val">${Math.round(((p.preCFM50-p.postCFM50)/p.preCFM50)*100)}%</span></div>`:""}
       </div></div>
       <div class="sec"><h3>Post-Work ASHRAE 62.2-2016</h3><div class="grid">
-        <div class="row"><span class="lbl">Floor area</span><span class="val">${rc.Afl} ftÂ²</span></div>
+        <div class="row"><span class="lbl">Floor area</span><span class="val">${rc.Afl} ft²</span></div>
         <div class="row"><span class="lbl">Post Q50</span><span class="val">${rc.Q50} CFM</span></div>
         <div class="row"><span class="lbl">Qinf</span><span class="val">${R(rc.Qinf)} CFM</span></div>
         <div class="row"><span class="lbl">Qtot</span><span class="val">${R(rc.Qtot)} CFM</span></div>
         <div class="row"><span class="lbl">Supplement</span><span class="val">${R(rc.supplement)} CFM</span></div>
         <div class="row" style="border-top:2px solid #1E3A8A;padding-top:4px;margin-top:4px"><span style="font-weight:700">Qfan (post)</span><span style="font-weight:700;color:#1E3A8A;font-size:14px">${R(rc.Qfan)} CFM</span></div>
-        ${fan?`<div class="row"><span class="lbl">Fan: ${fan} CFM Â· Run-time: ${R(rc.Qfan/fan*60)} min/hr</span></div>`:""}
+        ${fan?`<div class="row"><span class="lbl">Fan: ${fan} CFM · Run-time: ${R(rc.Qfan/fan*60)} min/hr</span></div>`:""}
       </div></div>
       <div class="sec"><h3>Health & Safety Checks</h3>${safetyRows}</div>
       <div class="sec"><h3>Status</h3>
@@ -200,7 +200,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
           {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€¹</button>}
           {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€º</button>}
         </div>
-        <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} Â· {ph?.at&&new Date(ph.at).toLocaleString()}</div>
+        <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} · {ph?.at&&new Date(ph.at).toLocaleString()}</div>
       </div>
     );
   }
@@ -256,7 +256,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
               <div className="hvac-2col" style={{gap:"2px 16px"}}>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Customer</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.customerName||"â€”"}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Address</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.address||"â€”"}</span></div>
-                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Sq Footage</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.sqft||"â€”"} ftÂ²</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Sq Footage</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.sqft||"â€”"} ft²</span></div>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Year Built</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.yearBuilt||"â€”"}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Stories</span><span style={{color:"#e2e8f0",fontWeight:600}}>{p.stories||"â€”"}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#64748b"}}>Home Type</span><span style={{color:"#e2e8f0",fontWeight:600}}>{s.style||p.homeType||"â€”"}</span></div>
@@ -339,7 +339,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
                 const body = `<div class="sec"><h3>Property Information</h3><div class="grid">
                   <div class="row"><span class="lbl">Customer</span><span class="val">${p.customerName||"â€”"}</span></div>
                   <div class="row"><span class="lbl">Address</span><span class="val">${p.address||"â€”"}</span></div>
-                  <div class="row"><span class="lbl">Sq Footage</span><span class="val">${p.sqft||"â€”"} ftÂ²</span></div>
+                  <div class="row"><span class="lbl">Sq Footage</span><span class="val">${p.sqft||"â€”"} ft²</span></div>
                   <div class="row"><span class="lbl">Year Built</span><span class="val">${p.yearBuilt||"â€”"}</span></div>
                   <div class="row"><span class="lbl">Stories</span><span class="val">${p.stories||"â€”"}</span></div>
                   <div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||"â€”"}</span></div>
@@ -404,7 +404,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,color:"#e2e8f0",lineHeight:1.4}}>{c.text}</div>
-                    <div style={{fontSize:9,color:"#64748b",marginTop:2}}>Requested by {c.by} Â· {new Date(c.at).toLocaleString()}</div>
+                    <div style={{fontSize:9,color:"#64748b",marginTop:2}}>Requested by {c.by} · {new Date(c.at).toLocaleString()}</div>
                   </div>
                   <span style={{fontSize:9,padding:"2px 8px",borderRadius:4,fontWeight:700,marginLeft:8,flexShrink:0,
                     background:c.status==="approved"?"rgba(34,197,94,.15)":c.status==="denied"?"rgba(239,68,68,.15)":"rgba(245,158,11,.15)",
@@ -539,7 +539,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
                   {(c.removes||[]).map((m,i)=><span key={"r"+i} style={{color:"#ef4444",marginRight:8}}>âˆ’ {m}</span>)}
                 </div>
                 {c.photo && <img src={c.photo} style={{maxWidth:"100%",maxHeight:200,borderRadius:6,marginTop:6,border:"1px solid rgba(255,255,255,.1)"}} alt="COR evidence"/>}
-                <div style={{fontSize:9,color:"#64748b",marginTop:4}}>Approved Â· {new Date(c.at).toLocaleString()}</div>
+                <div style={{fontSize:9,color:"#64748b",marginTop:4}}>Approved · {new Date(c.at).toLocaleString()}</div>
               </div>)}
             </div>}
             {fi.postScopeSig ? (
@@ -628,7 +628,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
             {/* Building Inputs */}
             <div style={hdr}>Building Inputs (Post-Work)</div>
             <div className="ashrae-inputs" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
-              <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ftÂ²]</div><div style={autoBox}>{Afl||"â€”"}</div><div style={autoSub}>{finBasement>0?`${baseSqft} + ${finBasement} fin. bsmt`:"â† Sq Footage"}</div></div>
+              <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ft²]</div><div style={autoBox}>{Afl||"â€”"}</div><div style={autoSub}>{finBasement>0?`${baseSqft} + ${finBasement} fin. bsmt`:"â† Sq Footage"}</div></div>
               <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Nocc (occupants)</div><div style={autoBox}>{Nbr + 1}</div><div style={autoSub}>{Nbr} bedrooms + 1 = {Nbr + 1}</div></div>
               <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Height [ft]</div><div style={autoBox}>{H}</div><div style={autoSub}>{st>=2?"2-story":"1"+(st>=1.5?".5":"")+"-story"}</div></div>
               <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Post Q50 [CFM]</div><div style={{...autoBox,color:"#22c55e"}}>{Q50}</div><div style={autoSub}>â† Post blower door</div></div>
@@ -636,7 +636,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
 
             {/* Local Ventilation â€” read-only from scope */}
             <div style={hdr}>Local Ventilation â€” Alternative Compliance <span style={{fontSize:9,fontWeight:400,color:"#64748b"}}>(from Scope)</span></div>
-            <div style={{fontSize:9,color:"#64748b",marginBottom:2}}>Blank = no fan = no requirement. Openable window = 20 CFM credit. Kitchen: 100 CFM Â· Bath: 50 CFM (intermittent rates)</div>
+            <div style={{fontSize:9,color:"#64748b",marginBottom:2}}>Blank = no fan = no requirement. Openable window = 20 CFM credit. Kitchen: 100 CFM · Bath: 50 CFM (intermittent rates)</div>
             <div className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",fontSize:11,alignItems:"center"}}>
               <span style={{fontWeight:600,color:"#64748b"}}></span>
               <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Fan Flow [CFM]</span>
@@ -675,7 +675,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
               <div style={eq}>= 0.03 Ã— Afl + 7.5 Ã— (Nbr + 1)<br/>= 0.03 Ã— {Afl} + 7.5 Ã— ({Nbr} + 1)<br/>= {R(0.03*Afl)} + {R(7.5*(Nbr+1))}</div>
 
               <div style={row}><span style={lbl}>Total local ventilation deficit [CFM]</span><span style={val}>{Ri(totalDef)}</span></div>
-              <div style={eq}>= Î£ max(0, req âˆ’ measured) per fan<br/>Kitchen {kReq} âˆ’ {kCFM} = {kDef} Â· Bath1 {b1Req} âˆ’ {b1} = {b1Def} Â· Bath2 {b2Req} âˆ’ {b2} = {b2Def} Â· Bath3 {b3Req} âˆ’ {b3} = {b3Def}</div>
+              <div style={eq}>= Î£ max(0, req âˆ’ measured) per fan<br/>Kitchen {kReq} âˆ’ {kCFM} = {kDef} · Bath1 {b1Req} âˆ’ {b1} = {b1Def} · Bath2 {b2Req} âˆ’ {b2} = {b2Def} · Bath3 {b3Req} âˆ’ {b3} = {b3Def}</div>
 
               <div style={row}><span style={lbl}>Alternative compliance supplement [CFM]</span><span style={val}>{R(supplement)}</span></div>
               <div style={eq}>= totalDeficit Ã— 0.25 (intermittent â†’ continuous)<br/>= {Ri(totalDef)} Ã— 0.25</div>
@@ -686,7 +686,7 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
               </div>
               <div style={eq}>= Qtot + supplement âˆ’ Qinf<br/>= {R(Qtot)} + {R(supplement)} âˆ’ {R(Qinf)}</div>
               {Qfan < PROGRAM.fanMinCFM && <div style={{marginTop:6,padding:"8px 12px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.3)",borderRadius:6,fontSize:12,color:"#22c55e",fontWeight:600}}>âœ“ Qfan below {PROGRAM.fanMinCFM} CFM â€” no mechanical ventilation fan required</div>}
-              {rcPre.Qfan > 0 && <div style={{fontSize:10,color:"#64748b",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>Pre-work Qfan was {R(rcPre.Qfan)} CFM Â· Î” {R(Qfan-rcPre.Qfan)} CFM</div>}
+              {rcPre.Qfan > 0 && <div style={{fontSize:10,color:"#64748b",marginTop:4,padding:"4px 8px",background:"rgba(255,255,255,.03)",borderRadius:4}}>Pre-work Qfan was {R(rcPre.Qfan)} CFM · Î” {R(Qfan-rcPre.Qfan)} CFM</div>}
             </div>
 
             {/* Fan Setting + Run-Time Solver */}
@@ -723,14 +723,14 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
                     <span style={{fontSize:12,color:"#cbd5e1"}}>Min. run-time per hour</span>
                     <span style={{fontSize:14,fontWeight:700,color:"#60A5FA",fontFamily:"'JetBrains Mono',monospace"}}>{minPerHr} min/hr</span>
                   </div>
-                  <div style={eq}>= Qfan Ã· fan capacity Ã— 60<br/>= {R(Qfan)} Ã· {fan} Ã— 60 = {minPerHr} min/hr</div>
+                  <div style={eq}>= Qfan ÷ fan capacity Ã— 60<br/>= {R(Qfan)} ÷ {fan} Ã— 60 = {minPerHr} min/hr</div>
                   <div style={{marginTop:6,fontSize:10,color:fan >= Qfan?"#22c55e":"#f59e0b",fontWeight:600}}>
                     {fan >= Qfan?`âœ“ Continuous (60 min/hr) exceeds minimum ${minPerHr} min/hr`:`âš  Fan setting below Qfan â€” does not meet requirement`}
                   </div>
                 </div>;
               })()}
             </div>}
-            <p style={{fontSize:9,color:"#475569",marginTop:10,textAlign:"right"}}>ASHRAE 62.2-2016 Â· Local Ventilation Alternative Compliance Â· basc.pnnl.gov/redcalc</p>
+            <p style={{fontSize:9,color:"#475569",marginTop:10,textAlign:"right"}}>ASHRAE 62.2-2016 · Local Ventilation Alternative Compliance · basc.pnnl.gov/redcalc</p>
           </div>;
         })()}
       </Sec>

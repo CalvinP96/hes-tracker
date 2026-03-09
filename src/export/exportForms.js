@@ -90,7 +90,7 @@ export async function exportProjectForms(proj) {
 
       // Sub
       doc.setFontSize(9); doc.setFont("helvetica","normal"); doc.setTextColor(...gray);
-      doc.text((p.customerName||"") + " Â· " + (p.address||"") + " Â· " + new Date().toLocaleDateString(), ML, y + 9); y += 18;
+      doc.text((p.customerName||"") + " · " + (p.address||"") + " · " + new Date().toLocaleDateString(), ML, y + 9); y += 18;
 
       sections.forEach(sec => {
         checkPage(40);

@@ -219,7 +219,7 @@ import { Sec, Gr, F, Sel, CK, PrintBtn, SI, SigPad } from "../components/ui.jsx"
     return (
       <div style={S.app}>{globalCSS}
         <Hdr role={curRole} user={userName} onSw={doLogout} title="ðŸ”§ HVAC Dashboard"
-          sub={`${userName} Â· ${new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})}`}
+          sub={`${userName} · ${new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})}`}
         />
 
         <div style={{padding:"0 16px"}}>
@@ -243,7 +243,7 @@ import { Sec, Gr, F, Sel, CK, PrintBtn, SI, SigPad } from "../components/ui.jsx"
                     <div style={{fontSize:12,color:"#e2e8f0",fontWeight:600}}>{pr.customerName}</div>
                     <span style={{fontSize:9,padding:"2px 6px",borderRadius:4,background:"rgba(245,158,11,.15)",color:"#fbbf24",fontWeight:600}}>PENDING</span>
                   </div>
-                  <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{hv.replaceType} Â· {hv.replacePriority}</div>
+                  <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{hv.replaceType} · {hv.replacePriority}</div>
                   <div style={{fontSize:9,color:"#64748b",marginTop:1}}>Submitted {hv.replaceRequestDate?new Date(hv.replaceRequestDate).toLocaleDateString():""}</div>
                 </div>;
               })}
@@ -287,7 +287,7 @@ import { Sec, Gr, F, Sel, CK, PrintBtn, SI, SigPad } from "../components/ui.jsx"
                 <div style={{fontSize:12,fontWeight:600,color:n.status==="approved"?"#22c55e":"#ef4444"}}>
                   {n.status==="approved"?"âœ…":"âŒ"} {n.type} â€” {n.status.toUpperCase()}
                 </div>
-                <div style={{fontSize:10,color:"#94a3b8"}}>{n.proj.customerName} Â· {n.proj.address}</div>
+                <div style={{fontSize:10,color:"#94a3b8"}}>{n.proj.customerName} · {n.proj.address}</div>
               </div>
             ))}
           </div>}

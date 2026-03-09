@@ -174,7 +174,7 @@ import { Sec, Gr, F, Sel, CK, PrintBtn, SI, SigPad } from "../components/ui.jsx"
                   </div>
                   <div style={{fontSize:11,color:"#e2e8f0",lineHeight:1.4,marginBottom:4}}>{c.text}</div>
                   {c.photo && <img src={c.photo} style={{maxWidth:"100%",maxHeight:120,borderRadius:4,marginBottom:4,border:"1px solid rgba(255,255,255,.1)"}} alt="COR"/>}
-                  <div style={{fontSize:9,color:"#64748b"}}>By {c.by} Â· {new Date(c.at).toLocaleString()}</div>
+                  <div style={{fontSize:9,color:"#64748b"}}>By {c.by} · {new Date(c.at).toLocaleString()}</div>
                   <div style={{marginTop:6,display:"flex",gap:6}}>
                     <button type="button" style={{flex:1,padding:"8px",borderRadius:6,border:"1px solid rgba(34,197,94,.4)",background:"rgba(34,197,94,.1)",color:"#22c55e",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>{setSelId(pr.id);setView("proj");setTab("install");}}>Open â†’ Review</button>
                   </div>
@@ -193,9 +193,9 @@ import { Sec, Gr, F, Sel, CK, PrintBtn, SI, SigPad } from "../components/ui.jsx"
                 const hv = pr.hvac||{};
                 return <div key={pr.id} style={{padding:"8px 10px",background:"rgba(0,0,0,.15)",borderRadius:6,marginBottom:6,border:"1px solid rgba(245,158,11,.15)"}}>
                   <div style={{fontSize:12,fontWeight:600,color:"#fbbf24",cursor:"pointer"}} onClick={()=>{setSelId(pr.id);setView("proj");setTab("hvac");}}>{pr.customerName||"Unnamed"} â€” {pr.address||""}</div>
-                  <div style={{fontSize:11,color:"#e2e8f0",marginTop:3}}><b>{hv.replaceType}</b> Â· {hv.replacePriority}</div>
+                  <div style={{fontSize:11,color:"#e2e8f0",marginTop:3}}><b>{hv.replaceType}</b> · {hv.replacePriority}</div>
                   {hv.replaceJustification && <div style={{fontSize:10,color:"#94a3b8",marginTop:2}}>{hv.replaceJustification}</div>}
-                  <div style={{fontSize:9,color:"#64748b",marginTop:3}}>By {hv.replaceRequestBy} Â· {hv.replaceRequestDate?new Date(hv.replaceRequestDate).toLocaleString():""}</div>
+                  <div style={{fontSize:9,color:"#64748b",marginTop:3}}>By {hv.replaceRequestBy} · {hv.replaceRequestDate?new Date(hv.replaceRequestDate).toLocaleString():""}</div>
                   <button type="button" style={{marginTop:6,width:"100%",padding:"8px",borderRadius:6,border:"1px solid rgba(245,158,11,.4)",background:"rgba(245,158,11,.1)",color:"#fbbf24",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"'DM Sans',sans-serif"}} onClick={()=>{setSelId(pr.id);setView("proj");setTab("hvac");}}>Open â†’ Review</button>
                 </div>;
               })}

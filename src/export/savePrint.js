@@ -277,11 +277,11 @@ export function photoPageHTML(title, photos, items, p) {
     return getPhotos(photos, i.id).map((ph,idx) => `<div style="break-inside:avoid;margin-bottom:12px;border:1px solid #ddd;border-radius:6px;overflow:hidden">
       <div style="padding:6px 10px;background:#f5f5f5;font-size:12px;font-weight:600">${i.l}${idx>0?" ("+(idx+1)+")":""} <span style="font-weight:400;color:#888">(${i.cat})</span></div>
       <img src="${ph.d}" style="width:100%;max-height:500px;object-fit:contain;display:block"/>
-      <div style="padding:4px 10px;font-size:10px;color:#999">${ph.by||""} Â· ${ph.at?new Date(ph.at).toLocaleString():""}</div>
+      <div style="padding:4px 10px;font-size:10px;color:#999">${ph.by||""} · ${ph.at?new Date(ph.at).toLocaleString():""}</div>
     </div>`).join("");
   }).join("");
   return `<!DOCTYPE html><html><head><title>${title}</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px}h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px}h2{font-size:12px;color:#666;margin-bottom:16px}</style></head><body>
-    <h1>${title}</h1><h2>${p.customerName} Â· ${p.address} Â· ${new Date().toLocaleDateString()}</h2>${rows}</body></html>`;
+    <h1>${title}</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${rows}</body></html>`;
 }
 
 export function sideBySideHTML(photos, allItems, p) {
@@ -310,14 +310,14 @@ export function sideBySideHTML(photos, allItems, p) {
       </tr></table></div>`;
   }).join("");
   return `<!DOCTYPE html><html><head><title>Pre vs Post</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:900px;margin:0 auto;padding:16px}h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px}h2{font-size:12px;color:#666;margin-bottom:16px}</style></head><body>
-    <h1>Pre / Post Photo Comparison</h1><h2>${p.customerName} Â· ${p.address} Â· ${new Date().toLocaleDateString()}</h2>${rows}</body></html>`;
+    <h1>Pre / Post Photo Comparison</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${rows}</body></html>`;
 }
 
 export function formPrintHTML(title, p, bodyHTML, sigData, custSig) {
   const sigBlock = sigData === false ? "" : sigData ? `<div style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px"><p style="font-size:11px;color:#666;margin:0 0 4px">Inspector / Technician Signature:</p><img src="${sigData}" style="max-width:280px;height:70px;object-fit:contain"/><p style="font-size:10px;color:#999;margin:4px 0 0">Digitally signed in HES Tracker</p></div>` : `<div style="margin-top:30px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:11px;color:#666">Inspector Signature: _______________________________ &nbsp;&nbsp; Date: _______________</p></div>`;
   const custBlock = custSig ? `<div style="margin-top:16px;border-top:1px solid #ccc;padding-top:12px"><p style="font-size:11px;color:#666;margin:0 0 4px">Customer Signature:</p><img src="${custSig}" style="max-width:280px;height:70px;object-fit:contain"/><p style="font-size:10px;color:#999;margin:4px 0 0">Digitally signed in HES Tracker</p></div>` : `<div style="margin-top:16px;border-top:1px solid #ccc;padding-top:8px"><p style="font-size:11px;color:#666">Customer Signature: _______________________________ &nbsp;&nbsp; Date: _______________</p></div>`;
   return `<!DOCTYPE html><html><head><title>${title}</title><style>@page{margin:.5in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:12px}h1{font-size:18px;border-bottom:2px solid #333;padding-bottom:8px}h2{font-size:12px;color:#666;margin-bottom:16px}.sec{margin-bottom:12px;border:1px solid #ddd;border-radius:6px;padding:10px}.sec h3{font-size:13px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:4px}.row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.pass{color:#16a34a;font-weight:600}.fail{color:#dc2626;font-weight:600}.na{color:#999}</style></head><body>
-    <h1>${title}</h1><h2>${p.customerName} Â· ${p.address} Â· ${new Date().toLocaleDateString()}</h2>${bodyHTML}${sigBlock}${custBlock}</body></html>`;
+    <h1>${title}</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${bodyHTML}${sigBlock}${custBlock}</body></html>`;
 }
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•

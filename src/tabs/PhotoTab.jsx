@@ -72,7 +72,7 @@ export function PhotoTab({p,u,onLog,user,role}) {
           {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€¹</button>}
           {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€º</button>}
         </div>
-        <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} Â· {ph?.at&&new Date(ph.at).toLocaleString()}</div>
+        <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} · {ph?.at&&new Date(ph.at).toLocaleString()}</div>
       </div>
     );
   }
@@ -85,7 +85,7 @@ export function PhotoTab({p,u,onLog,user,role}) {
       <div style={S.phRow}>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:13,color:has?"#22c55e":"#cbd5e1"}}>{has?"âœ“":"â—‹"} {it.l} {arr.length>1?<span style={{fontSize:10,color:"#60A5FA"}}>({arr.length})</span>:""}</div>
-          <div style={{fontSize:10,color:"#64748b"}}>{it.p==="pre"?"ðŸ“‹ Pre":"ðŸ—ï¸ Post"}{has&&arr[0].by?` Â· ${arr[0].by}`:""}</div>
+          <div style={{fontSize:10,color:"#64748b"}}>{it.p==="pre"?"ðŸ“‹ Pre":"ðŸ—ï¸ Post"}{has&&arr[0].by?` · ${arr[0].by}`:""}</div>
         </div>
         <div style={{display:"flex",gap:4,alignItems:"center"}}>
           {arr.map((ph,idx) => <button key={idx} style={S.thBtn} onClick={()=>setPrev({id:it.id,idx})}><img src={ph.d} style={S.th} alt=""/></button>)}
@@ -247,8 +247,8 @@ export function PhotoTab({p,u,onLog,user,role}) {
                 </div>
                 {/* Metadata */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderTop:"1px solid rgba(255,255,255,.04)",fontSize:9,color:"#475569"}}>
-                  <div style={{padding:"3px 8px"}}>{pr.preArr[0]?.by||""}{pr.preArr[0]?.at?` Â· ${new Date(pr.preArr[0].at).toLocaleDateString()}`:""}</div>
-                  <div style={{padding:"3px 8px"}}>{pr.postArr[0]?.by||""}{pr.postArr[0]?.at?` Â· ${new Date(pr.postArr[0].at).toLocaleDateString()}`:""}</div>
+                  <div style={{padding:"3px 8px"}}>{pr.preArr[0]?.by||""}{pr.preArr[0]?.at?` · ${new Date(pr.preArr[0].at).toLocaleDateString()}`:""}</div>
+                  <div style={{padding:"3px 8px"}}>{pr.postArr[0]?.by||""}{pr.postArr[0]?.at?` · ${new Date(pr.postArr[0].at).toLocaleDateString()}`:""}</div>
                 </div>
               </div>
             ))}

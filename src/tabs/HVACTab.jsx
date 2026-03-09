@@ -48,7 +48,7 @@ ${secHdr("FURNACE TUNE-UP")}
 ${row2(1,"Furnace Make",f.make,2,"Furnace Model #",f.model)}
 ${row2(3,"Furnace Serial #",f.serial,4,"Furnace Age",f.age?f.age+" years":"")}
 ${row2(5,"Condition of Heat Exchanger",f.heatExchanger,6,"Inducer Motor Operations & Condition",f.inducerMotor)}
-${row2(7,"Ignitor Condition & OHM Reading",(f.ignitorCond||"")+(f.ignitorOhm?" Â· "+f.ignitorOhm+"Î©":""),8,"Burner Condition & Operations",f.burnerCond)}
+${row2(7,"Ignitor Condition & OHM Reading",(f.ignitorCond||"")+(f.ignitorOhm?" · "+f.ignitorOhm+"Î©":""),8,"Burner Condition & Operations",f.burnerCond)}
 ${row2(9,"Flame Sensor Condition",f.flameSensor,10,"Filter Size",f.filterSize)}
 ${row2(11,"Filter Changed",f.filterChanged,12,"Blower Motor Operations & Condition",f.blowerMotor)}
 ${row2(13,"Control Board Operations & Condition",f.controlBoard,14,"Thermostat Location & Condition",f.thermostat)}
@@ -65,13 +65,13 @@ ${secHdr("A/C TUNE-UP")}
 ${row2(24,"Condenser Make",c.make,25,"Condenser Model #",c.model)}
 ${row2(26,"Condenser Serial #",c.serial,27,"Condenser Age",c.age?c.age+" years":"")}
 ${row2(28,"Condenser Condition",c.condition,29,"Condenser Coils Cleaned",c.coilsCleaned)}
-${row2(30,"Electrical Components, Whip & Disconnect",c.electrical,31,"Refrigerant Pressures",(c.suctionPSI?"Suction: "+c.suctionPSI+" PSI":"")+(c.dischargePSI?" Â· Discharge: "+c.dischargePSI+" PSI":"")+(c.refrigerant?" Â· "+c.refrigerant:""))}
+${row2(30,"Electrical Components, Whip & Disconnect",c.electrical,31,"Refrigerant Pressures",(c.suctionPSI?"Suction: "+c.suctionPSI+" PSI":"")+(c.dischargePSI?" · Discharge: "+c.dischargePSI+" PSI":"")+(c.refrigerant?" · "+c.refrigerant:""))}
 ${row2(32,"Exposed Line Set Condition",c.lineSet,33,"Other Issues (piping, venting, drainage)",c.otherIssues)}
 ${row1(34,"Evaporator Coil Condition",c.evapCoil)}
 
 ${secHdr("WHOLE SYSTEM ASSESSMENT")}
 ${row1(35,"Details, Notes & Recommendations",findingsTags(h.systemNotes)+(h.detailNotes?"<br/><span style='font-size:11px;color:#555'>"+h.detailNotes+"</span>":""))}
-${(h.systemNotes||"").includes("replacement")?`<tr><td colspan="2" style="border:1px solid #999;padding:6px 8px;background:#fff3cd"><b>âš  Replacement Flagged</b> â€” Priority: ${v(h.replacePriority)} Â· Type: ${v(h.replaceType)}</td></tr>`:""}
+${(h.systemNotes||"").includes("replacement")?`<tr><td colspan="2" style="border:1px solid #999;padding:6px 8px;background:#fff3cd"><b>âš  Replacement Flagged</b> â€” Priority: ${v(h.replacePriority)} · Type: ${v(h.replaceType)}</td></tr>`:""}
 </table>
 
 <div style="margin-top:16px;display:flex;justify-content:space-between">
@@ -296,7 +296,7 @@ ${(h.systemNotes||"").includes("replacement")?`<tr><td colspan="2" style="border
           {/* Status display */}
           {h.replaceRequestStatus==="pending" && <div style={{marginTop:6,padding:"8px 12px",background:"rgba(245,158,11,.08)",border:"1px solid rgba(245,158,11,.3)",borderRadius:6}}>
             <div style={{fontSize:11,color:"#fbbf24",fontWeight:600}}>â³ Replacement Request Pending</div>
-            <div style={{fontSize:10,color:"#64748b"}}>Submitted by {h.replaceRequestBy} Â· {h.replaceRequestDate?new Date(h.replaceRequestDate).toLocaleString():""}</div>
+            <div style={{fontSize:10,color:"#64748b"}}>Submitted by {h.replaceRequestBy} · {h.replaceRequestDate?new Date(h.replaceRequestDate).toLocaleString():""}</div>
             {/* Admin approve/deny */}
             {(role==="admin"||role==="scope") && <div style={{marginTop:6,display:"flex",gap:6}}>
               <textarea style={{...S.ta,flex:1,minHeight:30}} value={h._replResp||""} onChange={e=>uhTop("_replResp",e.target.value)} placeholder="Response (internal)..." rows={1}/>
