@@ -1,4 +1,4 @@
-﻿﻿﻿import React, { useState, useRef, useCallback } from "react";
+﻿﻿import React, { useState, useRef, useCallback } from "react";
 import { S } from "../styles/index.js";
 import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM } from "../constants/index.js";
 import { uid, fmts, getPhotos, hasPhoto, photoCount, getResolvedQty, measUnit, calcRtoAdd, calcStage, getAlerts } from "../helpers/index.js";

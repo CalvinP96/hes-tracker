@@ -1,4 +1,4 @@
-﻿import { STAGES, EE_MEASURES, HS_MEASURES, PHOTO_SECTIONS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK } from "../constants/index.js";
+import { STAGES, EE_MEASURES, HS_MEASURES, PHOTO_SECTIONS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK } from "../constants/index.js";
 import { getPhotos, hasPhoto, getResolvedQty, measUnit } from "../helpers/index.js";
 export function savePrint(html) {
   // Create overlay container in React app

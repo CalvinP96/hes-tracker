@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { S } from "../styles/index.js";
 import { STAGES, HVAC_BRANDS, COND_OPTS, YN_OPTS, HVAC_GUIDES, PHOTO_SECTIONS } from "../constants/index.js";
 import { uid, fmts, getPhotos, hasPhoto, photoCount } from "../helpers/index.js";
