@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { S } from "../styles/index.js";
 import { ROLES, PROGRAM } from "../constants/index.js";
-import { uid } from "../helpers/index.js";
+import { uid, calcRtoAdd } from "../helpers/index.js";
 
 export function Rec({type,children}) {
   const colors = {
