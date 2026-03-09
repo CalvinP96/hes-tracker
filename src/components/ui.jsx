@@ -133,25 +133,30 @@ export function Sec({title,children,danger}) {
 
 export function Gr({children}) { return <div className="gr-wrap">{children}</div>; }
 
-export function F({label,value,onChange,type="text",placeholder,num,computed,suffix}) {
+export function F({label,value,onChange,type="text",placeholder,num,computed,suffix,required,error,hint,disabled}) {
+  const hasError = error || (required && !value);
+  const showError = error && typeof error === 'string';
   return <div style={{display:"flex",flexDirection:"column"}}>
-    <label style={S.fl}>{label}</label>
+    <label style={{...S.fl,...(required?{color:"#f59e0b"}:{})}}>{label}{required && <span style={{color:"#ef4444",marginLeft:2}}>*</span>}</label>
     {computed !== undefined ? (
       <div style={{...S.inp,marginTop:"auto",background:"rgba(37,99,235,.08)",color:"#93C5FD"}}>{computed}{suffix && <span style={{fontSize:10,color:"#64748b",marginLeft:4}}>{suffix}</span>}</div>
     ) : (
-      <input style={{...S.inp,marginTop:"auto"}} type={type} inputMode={num?"decimal":undefined} value={value||""} onChange={e=>{
+      <input style={{...S.inp,marginTop:"auto",...(hasError?{borderColor:"rgba(239,68,68,.5)"}:{}),...(disabled?{opacity:.5,pointerEvents:"none"}:{})}} type={type} inputMode={num?"decimal":undefined} value={value||""} onChange={e=>{
         if(num){const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))onChange(v);}
         else onChange(e.target.value);
-      }} placeholder={placeholder}/>
+      }} placeholder={placeholder} disabled={disabled}/>
     )}
+    {showError && <span style={{fontSize:9,color:"#ef4444",marginTop:2}}>{error}</span>}
+    {hint && !showError && <span style={{fontSize:9,color:"#475569",marginTop:2}}>{hint}</span>}
   </div>;
 }
 
-export function Sel({label,value,onChange,opts}) {
+export function Sel({label,value,onChange,opts,required,error,disabled}) {
   const isOther = value && !opts.includes(value) && value !== "";
+  const hasError = error || (required && !value);
   return (
     <div style={{display:"flex",flexDirection:"column"}}>
-      <label style={S.fl}>{label}</label>
+      <label style={{...S.fl,...(required?{color:"#f59e0b"}:{})}}>{label}{required && <span style={{color:"#ef4444",marginLeft:2}}>*</span>}</label>
       <select value={isOther?"__other__":value||""} onChange={e=>{
         if(e.target.value==="__other__") onChange("Other: ");
         else onChange(e.target.value);

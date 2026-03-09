@@ -1,0 +1,306 @@
+/* Batch Operations Component Styles */
+
+/* Select button - entry point to batch mode */
+.selectBtn {
+  padding: 8px 16px;
+  border: 2px solid #2563eb;
+  background: transparent;
+  color: #2563eb;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.selectBtn:hover {
+  background: rgba(37, 99, 235, 0.1);
+  transform: translateY(-2px);
+}
+
+.selectBtn:active {
+  transform: translateY(0);
+}
+
+/* Batch overlay - positioning layer for checkboxes */
+.batchOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 80px;
+  pointer-events: none;
+  z-index: 40;
+}
+
+.projectCardWrapper {
+  position: relative;
+  pointer-events: auto;
+}
+
+/* Checkbox styling */
+.checkbox {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  z-index: 41;
+  accent-color: #2563eb;
+}
+
+.checkboxLarge {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  accent-color: #2563eb;
+}
+
+/* Fixed action bar at bottom */
+.actionBar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(37, 99, 235, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 50;
+  padding: 12px 20px;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.actionBarContent {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.selectionInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #e2e8f0;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.count {
+  font-size: 14px;
+}
+
+.actionButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-wrap: nowrap;
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.actionBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.actionBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Modal styling */
+.modalBackdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: #1a202c;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  padding: 24px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 20px 25px rgba(0, 0, 0, 0.4);
+}
+
+.modal h3 {
+  font-family: "DM Sans", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin-bottom: 20px;
+}
+
+.modal p {
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.formGroup {
+  margin-bottom: 16px;
+}
+
+.formGroup label {
+  display: block;
+  font-family: "DM Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+}
+
+.select,
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  background: #0f1419;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  color: #e2e8f0;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.select:focus,
+.input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.select option {
+  background: #1a202c;
+  color: #e2e8f0;
+}
+
+.modalActions {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.btnPrimary,
+.btnSecondary,
+.btnDanger {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-family: "DM Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btnPrimary {
+  background: #2563eb;
+  color: #e2e8f0;
+}
+
+.btnPrimary:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.btnPrimary:disabled {
+  background: #2563eb;
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnSecondary {
+  background: #374151;
+  color: #e2e8f0;
+}
+
+.btnSecondary:hover {
+  background: #4b5563;
+  transform: translateY(-2px);
+}
+
+.btnDanger {
+  background: #dc2626;
+  color: #e2e8f0;
+}
+
+.btnDanger:hover {
+  background: #b91c1c;
+  transform: translateY(-2px);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .actionBar {
+    bottom: 0;
+    padding: 12px 16px;
+  }
+
+  .actionBarContent {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .selectionInfo {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .actionButtons {
+    width: 100%;
+  }
+
+  .actionBtn {
+    flex: 1;
+    min-width: 70px;
+  }
+
+  .modal {
+    max-width: 90%;
+  }
+}
+
+@media (max-width: 480px) {
+  .actionBtn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .count {
+    font-size: 13px;
+  }
+}

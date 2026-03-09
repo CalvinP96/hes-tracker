@@ -6,6 +6,10 @@ import { S } from "./styles/index.js";
 import { Rec, InsulRec, Sec, Gr, F, Sel, CK, BtnGrp, SigPad, PrintBtn, SI, Hdr, UserMgmt } from "./components/ui.jsx";
 import { savePrint, printScope, photoPageHTML, sideBySideHTML, formPrintHTML } from "./export/savePrint.js";
 import { exportData, exportPhotos, exportProjectPhotos, exportProjectForms } from "./export/exportForms.js";
+import { ToastContainer } from "./components/Toast.jsx";
+import { SkeletonDashboard } from "./components/Skeleton.jsx";
+import { BottomNav } from "./components/BottomNav.jsx";
+import { BatchOps, BatchActionBar } from "./components/BatchOps.jsx";
 import { InfoTab }     from "./tabs/InfoTab.jsx";
 import { SchedTab }    from "./tabs/SchedTab.jsx";
 import { AuditTab }    from "./tabs/AuditTab.jsx";
@@ -39,7 +43,18 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [appSettings, setAppSettings] = useState({});
   const [editUser, setEditUser] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchSelected, setBatchSelected] = useState(new Set());
   const tmr = useRef(null);
+
+  // Toast notification helpers
+  const addToast = (message, type = "info") => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,4);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
+  };
+  const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
 
   const role = curUser?.role || null;
   const userName = curUser?.name || "";
@@ -164,9 +179,11 @@ export default function App() {
 
   // ── Loading ──────────────────────────────────────────────
   if (loading) return (
-    <div style={S.center}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');@keyframes spin{to{transform:rotate(360deg)}}*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}`}</style>
-      <div style={S.spin}/>
+    <div style={S.app}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}*{-webkit-tap-highlight-color:transparent;box-sizing:border-box}`}</style>
+      <div style={{padding:"16px"}}>
+        <SkeletonDashboard />
+      </div>
     </div>
   );
 
@@ -358,6 +375,7 @@ input,select,textarea,button{font-size:inherit}
                 up(prev => [p,...prev]);
                 setSelId(p.id); setView("proj"); setTab("info");
                 setNewName(""); setNewAddr("");
+                addToast(`Lead created: ${newName}`, "success");
               }}>Create Lead</button>
             <button style={{...S.ghost,padding:"10px 16px"}} onClick={()=>{setView("dash");setNewName("");setNewAddr("");}}>Cancel</button>
           </div>
@@ -402,6 +420,7 @@ input,select,textarea,button{font-size:inherit}
                   <button style={{...S.btn,padding:"5px 12px",fontSize:11}} onClick={() => {
                     upP(proj.id, {currentStage:a.stage, stageHistory:[...proj.stageHistory,{s:a.stage,at:new Date().toISOString()}]});
                     addLog(proj.id, `Advanced → ${STAGES[a.stage].label}`);
+                    addToast(`Project advanced to ${STAGES[a.stage].label}`, "success");
                   }}>⬆ {a.msg}</button>
                 ) : (
                   <span style={{fontSize:11,color:a.type==="warn"?"#fbbf24":"#93c5fd"}}>⚠ {a.msg}</span>
@@ -432,6 +451,8 @@ input,select,textarea,button{font-size:inherit}
           {tab==="closeout" && <CloseoutTab p={proj} u={c=>upC(proj.id,c)} onLog={t=>addLog(proj.id,t)}/>}
           {tab==="log" && <LogTab p={proj} onLog={t=>addLog(proj.id,t)}/>}
         </div>
+        <BottomNav tabs={tabs} activeTab={tab} onTabChange={setTab} tabMeta={TAB_META}/>
+        <ToastContainer toasts={toasts} onDismiss={removeToast}/>
       </div>
     );
   }
@@ -1055,6 +1076,8 @@ input,select,textarea,button{font-size:inherit}
       <div className="search-row" style={S.sRow}>
         <input style={S.sInp} placeholder="Search name, address, RISE, ST…" value={search} onChange={e => setSearch(e.target.value)}/>
         {(filter !== "all" || search) && <button style={S.ghost} onClick={() => {setFilter("all");setSearch("");}}>Clear</button>}
+        {role === "admin" && sorted.length > 1 && !batchMode && <button style={{...S.ghost,padding:"6px 10px",fontSize:11}} onClick={()=>setBatchMode(true)}>☑ Select</button>}
+        {batchMode && <button style={{...S.ghost,padding:"6px 10px",fontSize:11,borderColor:"rgba(239,68,68,.3)",color:"#ef4444"}} onClick={()=>{setBatchMode(false);setBatchSelected(new Set());}}>Cancel</button>}
       </div>
 
       {sorted.length === 0 ? (
@@ -1064,13 +1087,24 @@ input,select,textarea,button{font-size:inherit}
         </div>
       ) : (
         <div className="proj-list" style={S.list}>
+          {batchMode && sorted.length > 0 && <div style={{display:"flex",gap:6,padding:"4px 0",marginBottom:4}}>
+            <button style={{...S.ghost,padding:"4px 8px",fontSize:10}} onClick={()=>setBatchSelected(new Set(sorted.map(p=>p.id)))}>Select All ({sorted.length})</button>
+            {batchSelected.size > 0 && <button style={{...S.ghost,padding:"4px 8px",fontSize:10}} onClick={()=>setBatchSelected(new Set())}>Deselect All</button>}
+          </div>}
           {sorted.map(p => {
             const st = STAGES[p.currentStage];
             const al = getAlerts(p);
             return (
-              <button key={p.id} className="proj-card" style={S.card} onClick={() => {setSelId(p.id);setView("proj");setTab(tabs[0]);}}>
+              <button key={p.id} className="proj-card" style={S.card} onClick={() => {
+                if (batchMode) {
+                  setBatchSelected(prev => { const n = new Set(prev); n.has(p.id) ? n.delete(p.id) : n.add(p.id); return n; });
+                } else {
+                  setSelId(p.id);setView("proj");setTab(tabs[0]);
+                }
+              }}>
                 <div style={S.cTop}>
                   <div style={{display:"flex",alignItems:"center",gap:5,flex:1,minWidth:0}}>
+                    {batchMode && <span style={{width:18,height:18,borderRadius:4,border:batchSelected.has(p.id)?"2px solid #2563EB":"2px solid rgba(255,255,255,.2)",background:batchSelected.has(p.id)?"#2563EB":"transparent",display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff",flexShrink:0}}>{batchSelected.has(p.id)?"✓":""}</span>}
                     {p.flagged && <span>⚠️</span>}
                     <span className="c-name" style={S.cName}>{p.customerName}</span>
                   </div>
@@ -1093,6 +1127,37 @@ input,select,textarea,button{font-size:inherit}
           })}
         </div>
       )}
+      {batchMode && batchSelected.size > 0 && (
+        <BatchActionBar
+          count={batchSelected.size}
+          onAdvance={() => {
+            const sel = [...batchSelected];
+            sel.forEach(id => {
+              const p = projects.find(x => x.id === id);
+              if (p) {
+                const ns = calcStage(p);
+                if (ns > p.currentStage) {
+                  upP(id, {currentStage: ns, stageHistory: [...p.stageHistory, {s: ns, at: new Date().toISOString()}]});
+                  addLog(id, `Batch advanced → ${STAGES[ns].label}`);
+                }
+              }
+            });
+            addToast(`${sel.length} project(s) advanced`, "success");
+            setBatchMode(false); setBatchSelected(new Set());
+          }}
+          onExport={() => {
+            const sel = [...batchSelected];
+            sel.forEach(id => {
+              const p = projects.find(x => x.id === id);
+              if (p) exportProjectForms(p);
+            });
+            addToast(`Exporting forms for ${sel.length} project(s)`, "info");
+            setBatchMode(false); setBatchSelected(new Set());
+          }}
+          onCancel={() => { setBatchMode(false); setBatchSelected(new Set()); }}
+        />
+      )}
+      <ToastContainer toasts={toasts} onDismiss={removeToast}/>
     </div>
   );
 }

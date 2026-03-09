@@ -26,7 +26,7 @@ export const TAB_META = {
   closeout:{label:"Close",icon:"📦"}, log:{label:"Log",icon:"📝"},
 };
 
-export const EE_MEASURES = ["Air Sealing","Duct Sealing","Attic Insulation (0-R11)","Attic Insulation (R12-19)","Basement Wall Insulation","Crawl Space Wall Insulation","Knee Wall Insulation","Floor Insulation Above Crawl","Rim Joist Insulation","Injection Foam Walls","Furnace Replacement","Boiler Replacement","Central AC Replacement","Water Heater Replacement","Furnace Tune-Up","Thermostat","Low-e Storm Windows","EC Motor","AC Cover"];
+export const EE_MEASURES = ["Air Sealing","Attic Insulation (0-R11)","Attic Insulation (R12-19)","Basement Wall Insulation","Crawl Space Wall Insulation","Knee Wall Insulation","Floor Insulation Above Crawl","Rim Joist Insulation","Injection Foam Walls","Furnace Replacement","Boiler Replacement","Central AC Replacement","Water Heater Replacement","Furnace Tune-Up","Thermostat","Low-e Storm Windows","EC Motor","AC Cover"];
 export const HS_MEASURES = ["CO Detector (Hardwired)","Smoke Detector (Hardwired)","CO/Smoke Combo","Exhaust Fan","Exhaust Fan w/ Light","Exhaust Fan Vent Kit","Door Sweeps","Weather Stripping","Dryer Vent Kit","Flue Repairs","Gas Mechanical Repairs","Mold Remediation","Electrical Issues","Water/Sewage Issues","Asbestos Abatement","Building Permit","Other Repairs"];
 export const DOCS = ["Assessment Report","Hazardous Conditions Form","Sub-Contractor Estimates","Final Inspection Form (w/ CAZ)","Photos Complete","Final Invoice (w/ sub invoices)","Customer-Signed Scope of Work","Customer Authorization Form","CSAT Leave-Behind"];
 
@@ -36,12 +36,10 @@ export const PHOTO_SECTIONS = {
   "Foundation (Pre)":[{id:"fnd_insul",l:"Insulation opps",p:"pre"},{id:"fnd_plumb",l:"Plumbing DI",p:"pre"},{id:"fnd_dmg",l:"Pre-existing damage",p:"pre"},{id:"fnd_frn",l:"FRN w/ venting",p:"pre"},{id:"fnd_hwt",l:"HWT w/ venting",p:"pre"},{id:"fnd_dryer",l:"Dryer vent/cap",p:"pre"},{id:"fnd_moist",l:"Moisture/mold",p:"pre"}],
   "CAZ (Pre)":[{id:"caz_smoke",l:"Smoke/CO detectors",p:"pre"},{id:"caz_dhw",l:"DHW flue + tag",p:"pre"},{id:"caz_furn",l:"Furnace flue + tag",p:"pre"}],
   "Blower Door (Pre)":[{id:"as_setup",l:"BD setup w/ manometer",p:"pre"},{id:"as_pre",l:"Pre CFM50 manometer",p:"pre"},{id:"as_pen",l:"Common penetrations",p:"pre"}],
-  "Duct (Pre)":[{id:"ds_pre",l:"Pre-CFM manometer",p:"pre"}],
   "Home Exterior (Post)":[{id:"ext_post_front",l:"Front (post)",p:"post"},{id:"ext_post_vents",l:"Vent terminations (post)",p:"post"},{id:"ext_post_ac",l:"AC Condenser (post)",p:"post"}],
   "Attic (Post)":[{id:"att_post",l:"Post insulation (wide)",p:"post"},{id:"att_post_detail",l:"Insulation detail/depth",p:"post"},{id:"att_post_bypass",l:"Bypasses sealed",p:"post"},{id:"att_post_baffle",l:"Baffles installed",p:"post"},{id:"att_post_hatch",l:"Hatch insulated",p:"post"},{id:"att_post_dam",l:"Fire dams/can lights",p:"post"}],
   "Foundation (Post)":[{id:"fnd_post_insul",l:"Foundation insulation",p:"post"},{id:"fnd_post_rim",l:"Rim joist insulation",p:"post"},{id:"fnd_post_seal",l:"Air sealing",p:"post"}],
   "Air Seal (Post)":[{id:"as_post",l:"Post CFM50 manometer",p:"post"},{id:"as_post_pen",l:"Penetrations sealed",p:"post"},{id:"as_post_detail",l:"Air seal detail",p:"post"}],
-  "Duct Seal (Post)":[{id:"ds_mastic",l:"Mastic/tape applied",p:"post"},{id:"ds_post",l:"Post-CFM manometer",p:"post"},{id:"ds_post_detail",l:"Duct seal detail",p:"post"}],
   "CAZ (Post)":[{id:"caz_post_smoke",l:"Smoke/CO detectors (post)",p:"post"},{id:"caz_post_flue",l:"Flue connections (post)",p:"post"},{id:"caz_post_vent",l:"Venting (post)",p:"post"}],
   "ASHRAE Fan (Post)":[{id:"fan_box",l:"Specs box w/ model #",p:"post"},{id:"fan_inst",l:"Fan installed",p:"post"},{id:"fan_sw",l:"Switch",p:"post"},{id:"fan_duct",l:"Fan ducting/termination",p:"post"}],
   "New Products (Post)":[{id:"np_hvac",l:"New HVAC w/ tag",p:"post"},{id:"np_furn",l:"New furnace w/ tag",p:"post"},{id:"np_wh",l:"New WH w/ tag",p:"post"},{id:"np_thermo",l:"Smart thermostat",p:"post"},{id:"np_other",l:"Other new product",p:"post"}],
@@ -63,7 +61,6 @@ export const QAQC_SECTIONS = {
   "Documentation":["Pre/post photos uploaded?","Pre/post CAZ uploaded?","Fan flow rates uploaded?","Assessment form uploaded?","Post invoice uploaded?"],
   "H&S Misc":["Vapor barrier per BPI?","Exhaust terminations per BPI?","Equipment qty matches?","Professional install?","H&S issues addressed?","H&S issues missed?"],
   "Air Sealing":["Min 20% reduction?","Qty matches invoice?","Proper thermal boundary?","Proper materials?","Professional install?","Proper measures (can lights, fire dam)?","All opps identified?"],
-  "Duct Measures":["Pre/post CFM photos?","Program materials in unconditioned?"],
   "Attic Insulation":["Meets standards?","Qty matches?","Proper materials?","Baffles per BPI?","Continuous insulation (hatch)?","Proper boundary?","All opps identified?"],
   "Foundation Insulation":["Meets standards?","Qty matches?","Location matches?","Proper materials?","Professional install?","Proper boundary?","All opps?"],
   "Wall Insulation":["Meets standards?","Qty matches?","Location matches?","Proper type?","Professional install?","Proper boundary?","All opps?"],

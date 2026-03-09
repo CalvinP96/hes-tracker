@@ -44,7 +44,7 @@ export function getResolvedQty(p,m) {
   if(s.dhw?.replaceRec)aq["Water Heater Replacement"]=1;
   if(s.clg?.replaceRec)aq["Central AC Replacement"]=1;
   aq["Air Sealing"]=1;
-  if(s.attic?.ductwork||s.collar?.ductwork||s.fnd?.crawlDuct)aq["Duct Sealing"]=1;
+  // Duct sealing removed from measures per business decision
   if(s.coNeeded&&Number(s.coNeeded)>0)aq["CO Detector (Hardwired)"]=Number(s.coNeeded);
   if(s.smokeNeeded&&Number(s.smokeNeeded)>0)aq["Smoke Detector (Hardwired)"]=Number(s.smokeNeeded);
   if(s.doorSweeps&&Number(s.doorSweeps)>0)aq["Door Sweeps"]=Number(s.doorSweeps);

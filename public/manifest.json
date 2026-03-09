@@ -1,0 +1,16 @@
+{
+  "name": "HES Retrofits Tracker",
+  "short_name": "HES Tracker",
+  "description": "Home Energy Savings Retrofits project management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0e18",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

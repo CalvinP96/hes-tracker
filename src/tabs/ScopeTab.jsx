@@ -949,7 +949,6 @@ export function ScopeTab({p,u,onLog}) {
           const ctVal = s.htg?.cleanTuneOverride!==undefined ? s.htg.cleanTuneOverride : (s.htg?.cleanTune || (Number(s.htg?.year||0) && (new Date().getFullYear()-Number(s.htg.year))>3 && s.htg?.fuel==="Natural Gas" && !s.htg?.replaceRec));
           if(ctVal) aq["Furnace Tune-Up"] = 1;
           aq["Air Sealing"] = 1;
-          if(s.attic?.ductwork || s.collar?.ductwork || s.fnd?.crawlDuct) aq["Duct Sealing"] = 1;
 
           const mq = p.measureQty || {};
           const mu = p.measureUnchecked || {};

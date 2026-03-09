@@ -1405,7 +1405,7 @@ const exportProjectForms = async (proj) => {
           rows: [1,2,3].map(n => { const d=fi["equip"+n]||{}; return [String(n), d.type||"—", d.vent||"—", d.replaced||"—", d.fu||"—"]; })
         }});
         secs.push({ title: "Blower Door", rows: [["Pre CFM50", p.preCFM50||"—"], ["Post CFM50", p.postCFM50||"—"]] });
-        secs.push({ title: "Duct Sealing – Duct Blaster", rows: [["Pre CFM25", fi.preCFM25||"—"], ["Post CFM25", fi.postCFM25||"—"]] });
+        secs.push({ title: "Duct Sealing", rows: [["Pre CFM25", fi.preCFM25||"—"], ["Post CFM25", fi.postCFM25||"—"]] });
         secs.push({ title: "Direct Installs", rows: [["New thermostat installed?", fi.thermostat||"—"]] });
         secs.push({ title: "Follow-up Needed", text: fi.followUpNA?"N/A":(fi.followUp||"None") });
         secs.push({ title: "Contractor Checklist", rows: FI_CONTRACTOR_CK.map(ck => [ck, fi.ck?.[ck]?"☑ Done":"☐", fi.ck?.[ck]?"g":""]) });
@@ -5187,7 +5187,7 @@ function QAQCTab({p,u}) {
     });
     body += `</div>`;
     body += `<div class="sec"><h3>Blower Door</h3><div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||fi.preCFM50||"—"}</span></div><div class="row"><span class="lbl">Post CFM50</span><span class="val">${p.postCFM50||fi.postCFM50||"—"}</span></div></div>`;
-    body += `<div class="sec"><h3>Duct Sealing – Duct Blaster</h3><div class="row"><span class="lbl">Pre CFM25</span><span class="val">${fi.preCFM25||"—"}</span></div><div class="row"><span class="lbl">Post CFM25</span><span class="val">${fi.postCFM25||"—"}</span></div></div>`;
+    body += `<div class="sec"><h3>Duct Sealing</h3><div class="row"><span class="lbl">Pre CFM25</span><span class="val">${fi.preCFM25||"—"}</span></div><div class="row"><span class="lbl">Post CFM25</span><span class="val">${fi.postCFM25||"—"}</span></div></div>`;
     body += `<div class="sec"><h3>Direct Installs</h3><div class="row"><span class="lbl">New thermostat installed</span><span class="val">${fi.thermostat||"—"}</span></div></div>`;
     if(fi.followUp) body += `<div class="sec"><h3>Follow-up Needed</h3><p>${fi.followUp}</p></div>`;
     body += `<div class="sec"><h3>Contractor Checklist</h3>`;
@@ -5291,7 +5291,7 @@ function QAQCTab({p,u}) {
       </Sec>
 
       {/* ── DUCT SEALING ── */}
-      <Sec title="Duct Sealing — Duct Blaster">
+      <Sec title="Duct Sealing">
         <Gr>
           <F label="Pre CFM25" value={fi.preCFM25||""} onChange={v=>ufi("preCFM25",v)} num/>
           <F label="Post CFM25" value={fi.postCFM25||""} onChange={v=>ufi("postCFM25",v)} num/>

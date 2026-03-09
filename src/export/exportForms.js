@@ -493,7 +493,6 @@ export async function exportProjectForms(proj) {
           rows: [1,2,3].map(n => { const d=fi["equip"+n]||{}; return [String(n), d.type||"—", d.vent||"—", d.replaced||"—", d.fu||"—"]; })
         }});
         secs.push({ title: "Blower Door", rows: [["Pre CFM50", p.preCFM50||"—"], ["Post CFM50", p.postCFM50||"—"]] });
-        secs.push({ title: "Duct Sealing – Duct Blaster", rows: [["Pre CFM25", fi.preCFM25||"—"], ["Post CFM25", fi.postCFM25||"—"]] });
         secs.push({ title: "Direct Installs", rows: [["New thermostat installed?", fi.thermostat||"—"]] });
         secs.push({ title: "Follow-up Needed", text: fi.followUpNA?"N/A":(fi.followUp||"None") });
         secs.push({ title: "Contractor Checklist", rows: FI_CONTRACTOR_CK.map(ck => [ck, fi.ck?.[ck]?"☑ Done":"☐", fi.ck?.[ck]?"g":""]) });

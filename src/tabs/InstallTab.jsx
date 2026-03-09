@@ -596,11 +596,8 @@ export function InstallTab({p,u,onLog,user,role,appSettings={}}) {
         <Gr>
           <F label="Pre CFM50" value={p.preCFM50} onChange={v=>u({preCFM50:v})} num/>
           <F label="Post CFM50" value={p.postCFM50} onChange={v=>u({postCFM50:v})} num/>
-          <F label="Pre CFM25" value={p.preCFM25} onChange={v=>u({preCFM25:v})} num/>
-          <F label="Post CFM25" value={p.postCFM25} onChange={v=>u({postCFM25:v})} num/>
         </Gr>
         {red !== null && <div style={S.calc}><span>Air Seal Reduction: <b>{red}%</b></span><span style={{color:red>=25?"#22c55e":"#f59e0b",marginLeft:10}}>{red>=25?"✓ Meets 25%":"⚠ Below 25%"}</span></div>}
-        {p.preCFM25 && p.postCFM25 && (()=>{const r=Math.round((Number(p.preCFM25)-Number(p.postCFM25))/Number(p.preCFM25)*100);return <div style={S.calc}><span>Duct Leakage Reduction: <b>{r}%</b> ({p.preCFM25}→{p.postCFM25} CFM25)</span></div>;})()}
       </Sec>
 
       {/* ── POST-WORK RED CALC ── */}

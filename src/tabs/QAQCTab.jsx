@@ -70,7 +70,6 @@ export function QAQCTab({p,u}) {
     });
     body += `</div>`;
     body += `<div class="sec"><h3>Blower Door</h3><div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||fi.preCFM50||"—"}</span></div><div class="row"><span class="lbl">Post CFM50</span><span class="val">${p.postCFM50||fi.postCFM50||"—"}</span></div></div>`;
-    body += `<div class="sec"><h3>Duct Sealing – Duct Blaster</h3><div class="row"><span class="lbl">Pre CFM25</span><span class="val">${fi.preCFM25||"—"}</span></div><div class="row"><span class="lbl">Post CFM25</span><span class="val">${fi.postCFM25||"—"}</span></div></div>`;
     body += `<div class="sec"><h3>Direct Installs</h3><div class="row"><span class="lbl">New thermostat installed</span><span class="val">${fi.thermostat||"—"}</span></div></div>`;
     if(fi.followUp) body += `<div class="sec"><h3>Follow-up Needed</h3><p>${fi.followUp}</p></div>`;
     body += `<div class="sec"><h3>Contractor Checklist</h3>`;
@@ -170,14 +169,6 @@ export function QAQCTab({p,u}) {
         <Gr>
           <F label="Pre CFM50" computed={p.preCFM50||"—"}/>
           <F label="Post CFM50" computed={p.postCFM50||"—"}/>
-        </Gr>
-      </Sec>
-
-      {/* ── DUCT SEALING ── */}
-      <Sec title="Duct Sealing — Duct Blaster">
-        <Gr>
-          <F label="Pre CFM25" value={fi.preCFM25||""} onChange={v=>ufi("preCFM25",v)} num/>
-          <F label="Post CFM25" value={fi.postCFM25||""} onChange={v=>ufi("postCFM25",v)} num/>
         </Gr>
       </Sec>
 
