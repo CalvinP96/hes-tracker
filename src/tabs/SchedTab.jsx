@@ -1,17 +1,20 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { S } from "../styles/index.js";
-import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM } from "../constants/index.js";
+import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM, HVAC_BRANDS, COND_OPTS, YN_OPTS, HVAC_GUIDES } from "../constants/index.js";
 import { uid, fmts, getPhotos, hasPhoto, photoCount, getResolvedQty, measUnit, calcRtoAdd, calcStage, getAlerts } from "../helpers/index.js";
 import { Rec, InsulRec, Sec, Gr, F, Sel, CK, BtnGrp, SigPad, PrintBtn, SI } from "../components/ui.jsx";
+import { savePrint, printScope, photoPageHTML, sideBySideHTML, formPrintHTML } from "../export/savePrint.js";
+import { exportProjectForms, exportProjectPhotos } from "../export/exportForms.js";
+
 export function SchedTab({p,u,onLog}) {
   const alerts = getAlerts(p).filter(a => a.type === "schedule");
   const showInstall = p.scopeApproved || p.currentStage >= 4;
   return (
     <div>
-      {alerts.length > 0 && <div style={S.alertBox}><span style={{fontSize:18}}>ðŸ””</span><div style={{flex:1}}>{alerts.map((a,i)=><div key={i} style={{fontSize:12,color:"#fde68a"}}>â€¢ {a.msg}</div>)}</div></div>}
+      {alerts.length > 0 && <div style={S.alertBox}><span style={{fontSize:18}}>🔔</span><div style={{flex:1}}>{alerts.map((a,i)=><div key={i} style={{fontSize:12,color:"#fde68a"}}>• {a.msg}</div>)}</div></div>}
       <Sec title="Assessment">
         <F label="Assessment Date" value={p.assessmentDate} onChange={v=>{u({assessmentDate:v,assessmentScheduled:!!v});if(v)onLog(`Assessment scheduled: ${fmts(v)}`);}} type="date"/>
-        <div style={{marginTop:6}}><textarea style={S.ta} value={p.scheduleNotes} onChange={e=>u({scheduleNotes:e.target.value})} rows={2} placeholder="Customer availability, access notesâ€¦"/></div>
+        <div style={{marginTop:6}}><textarea style={S.ta} value={p.scheduleNotes} onChange={e=>u({scheduleNotes:e.target.value})} rows={2} placeholder="Customer availability, access notes…"/></div>
       </Sec>
       {showInstall ? (
         <Sec title="Install Scheduling">
@@ -32,5 +35,3 @@ export function SchedTab({p,u,onLog}) {
     </div>
   );
 }
-
-

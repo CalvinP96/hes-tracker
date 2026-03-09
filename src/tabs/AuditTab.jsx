@@ -1,13 +1,17 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { S } from "../styles/index.js";
-import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM } from "../constants/index.js";
+import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM, HVAC_BRANDS, COND_OPTS, YN_OPTS, HVAC_GUIDES } from "../constants/index.js";
 import { uid, fmts, getPhotos, hasPhoto, photoCount, getResolvedQty, measUnit, calcRtoAdd, calcStage, getAlerts } from "../helpers/index.js";
 import { Rec, InsulRec, Sec, Gr, F, Sel, CK, BtnGrp, SigPad, PrintBtn, SI } from "../components/ui.jsx";
+import { savePrint, printScope, photoPageHTML, sideBySideHTML, formPrintHTML } from "../export/savePrint.js";
+import { exportProjectForms, exportProjectPhotos } from "../export/exportForms.js";
+
 export function AuditTab({p,u,onLog,user}) {
   const a = p.audit || {};
   const sa = (k,v) => u({audit:{...a,[k]:v}});
   const [prev, setPrev] = useState(null); // {id, idx}
-  // Pre Photos
+
+  // ── Pre Photos ──
   const preSections = Object.entries(PHOTO_SECTIONS).filter(([cat]) => cat.includes("(Pre)"));
   const preItems = preSections.flatMap(([cat,items])=>items.map(i=>({...i,cat})));
   const preTaken = preItems.filter(i=>hasPhoto(p.photos,i.id)).length;
@@ -20,7 +24,7 @@ export function AuditTab({p,u,onLog,user}) {
         const existing = getPhotos(p.photos, id);
         const newEntry = {d:e.target.result,at:new Date().toISOString(),by:user};
         u({photos:{...p.photos,[id]:[...existing, newEntry]}});
-        if(onLog) onLog(`ðŸ“¸ ${preItems.find(x=>x.id===id)?.l||id} (${existing.length+1})`);
+        if(onLog) onLog(`📸 ${preItems.find(x=>x.id===id)?.l||id} (${existing.length+1})`);
         return;
       }
       const img = new Image();
@@ -34,7 +38,7 @@ export function AuditTab({p,u,onLog,user}) {
         const existing = getPhotos(p.photos, id);
         const newEntry = {d:c.toDataURL("image/jpeg",0.7),at:new Date().toISOString(),by:user};
         u({photos:{...p.photos,[id]:[...existing, newEntry]}});
-        if(onLog) onLog(`ðŸ“¸ ${preItems.find(x=>x.id===id)?.l||id} (${existing.length+1})`);
+        if(onLog) onLog(`📸 ${preItems.find(x=>x.id===id)?.l||id} (${existing.length+1})`);
       };
       img.src = e.target.result;
     };
@@ -48,18 +52,18 @@ export function AuditTab({p,u,onLog,user}) {
     return (
       <div style={S.camOv}>
         <div style={S.camH}>
-          <button style={{...S.back,fontSize:18}} onClick={()=>setPrev(null)}>â† Back</button>
+          <button style={{...S.back,fontSize:18}} onClick={()=>setPrev(null)}>← Back</button>
           <div style={{flex:1,textAlign:"center",fontWeight:600,fontSize:14}}>{it?.l} {arr.length>1?`(${prev.idx+1}/${arr.length})`:""}</div>
           <button style={{...S.ghost,color:"#ef4444",borderColor:"#ef4444",padding:"4px 10px"}} onClick={()=>{
             const remaining = arr.filter((_,i)=>i!==prev.idx);
             u({photos:{...p.photos,[prev.id]:remaining.length?remaining:undefined}});
-            if(onLog)onLog(`ðŸ—‘ï¸ Removed ${it?.l||prev.id}`);setPrev(null);
+            if(onLog)onLog(`🗑️ Removed ${it?.l||prev.id}`);setPrev(null);
           }}>Delete</button>
         </div>
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#000",padding:8,position:"relative"}}>
           {ph?.d && <img src={ph.d} style={{maxWidth:"100%",maxHeight:"80vh",borderRadius:8}} alt=""/>}
-          {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€¹</button>}
-          {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€º</button>}
+          {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>‹</button>}
+          {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>›</button>}
         </div>
         <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} · {ph?.at&&new Date(ph.at).toLocaleString()}</div>
       </div>
@@ -69,55 +73,55 @@ export function AuditTab({p,u,onLog,user}) {
   const getAuditHTML = () => {
     const body = `
       <div class="sec"><h3>Basic Info</h3><div class="grid">
-        <div class="row"><span class="lbl">Occupants</span><span class="val">${a.occupants||"â€”"}</span></div>
-        <div class="row"><span class="lbl">Tenant Type</span><span class="val">${a.tenantType||"â€”"}</span></div>
-        <div class="row"><span class="lbl">Roof Age</span><span class="val">${a.roofAge||"â€”"}</span></div>
-        <div class="row"><span class="lbl">Thermostat</span><span class="val">${a.thermostatType||"â€”"}</span></div>
-        <div class="row"><span class="lbl">Ceiling</span><span class="val">${a.ceilingCond||"â€”"}</span></div>
-        <div class="row"><span class="lbl">Walls</span><span class="val">${a.wallCond||"â€”"}</span></div>
-        <div class="row"><span class="lbl">Walls Need Insul.</span><span class="val">${a.wallsNeedInsul||"â€”"}</span></div>
+        <div class="row"><span class="lbl">Occupants</span><span class="val">${a.occupants||"—"}</span></div>
+        <div class="row"><span class="lbl">Tenant Type</span><span class="val">${a.tenantType||"—"}</span></div>
+        <div class="row"><span class="lbl">Roof Age</span><span class="val">${a.roofAge||"—"}</span></div>
+        <div class="row"><span class="lbl">Thermostat</span><span class="val">${a.thermostatType||"—"}</span></div>
+        <div class="row"><span class="lbl">Ceiling</span><span class="val">${a.ceilingCond||"—"}</span></div>
+        <div class="row"><span class="lbl">Walls</span><span class="val">${a.wallCond||"—"}</span></div>
+        <div class="row"><span class="lbl">Walls Need Insul.</span><span class="val">${a.wallsNeedInsul||"—"}</span></div>
       </div></div>
       <div class="sec"><h3>Fan Testing</h3><div class="grid">
-        <div class="row"><span class="lbl">Bath Fan 1</span><span class="val">${a.bathFan1||"â€”"} CFM</span></div>
-        <div class="row"><span class="lbl">Bath Fan 2</span><span class="val">${a.bathFan2||"â€”"} CFM</span></div>
-        <div class="row"><span class="lbl">Bath Fan 3</span><span class="val">${a.bathFan3||"â€”"} CFM</span></div>
-        <div class="row"><span class="lbl">Kitchen Fan</span><span class="val">${a.kitchenFan||"â€”"} CFM</span></div>
+        <div class="row"><span class="lbl">Bath Fan 1</span><span class="val">${a.bathFan1||"—"} CFM</span></div>
+        <div class="row"><span class="lbl">Bath Fan 2</span><span class="val">${a.bathFan2||"—"} CFM</span></div>
+        <div class="row"><span class="lbl">Bath Fan 3</span><span class="val">${a.bathFan3||"—"} CFM</span></div>
+        <div class="row"><span class="lbl">Kitchen Fan</span><span class="val">${a.kitchenFan||"—"} CFM</span></div>
       </div></div>
       <div class="sec"><h3>Smoke / CO</h3><div class="grid">
-        <div class="row"><span class="lbl">Smoke Present</span><span class="val">${a.smokePresent||"â€”"}</span></div>
-        <div class="row"><span class="lbl">Smoke to Install</span><span class="val">${a.smokeNeeded||"â€”"}</span></div>
-        <div class="row"><span class="lbl">CO Present</span><span class="val">${a.coPresent||"â€”"}</span></div>
-        <div class="row"><span class="lbl">CO to Install</span><span class="val">${a.coNeeded||"â€”"}</span></div>
+        <div class="row"><span class="lbl">Smoke Present</span><span class="val">${a.smokePresent||"—"}</span></div>
+        <div class="row"><span class="lbl">Smoke to Install</span><span class="val">${a.smokeNeeded||"—"}</span></div>
+        <div class="row"><span class="lbl">CO Present</span><span class="val">${a.coPresent||"—"}</span></div>
+        <div class="row"><span class="lbl">CO to Install</span><span class="val">${a.coNeeded||"—"}</span></div>
       </div></div>
       <div class="sec"><h3>Weatherization</h3><div class="grid">
-        <div class="row"><span class="lbl">Tenmats</span><span class="val">${a.tenmats||"â€”"}</span></div>
-        <div class="row"><span class="lbl">Door Sweeps/WS</span><span class="val">${a.doorSweeps||"â€”"}</span></div>
+        <div class="row"><span class="lbl">Tenmats</span><span class="val">${a.tenmats||"—"}</span></div>
+        <div class="row"><span class="lbl">Door Sweeps/WS</span><span class="val">${a.doorSweeps||"—"}</span></div>
       </div></div>
       <div class="sec"><h3>H&S Conditions</h3>${["Gas Mechanical Repair","Mold Remediation","Water/Sewage Issues","Asbestos Abatement","Electrical Issues","Other"].filter(x=>a.hsConds?.[x]).map(x=>`<span style="display:inline-block;padding:2px 8px;border:1px solid #ddd;border-radius:4px;margin:2px;font-size:11px">${x}</span>`).join("")||"<span style='color:#999'>None</span>"}</div>
-      <div class="sec"><h3>Status</h3><div class="row"><span class="lbl">Deferred?</span><span class="val">${a.deferred||"â€”"}</span></div>${a.additionalNotes?`<p style="margin-top:6px;color:#666">${a.additionalNotes}</p>`:""}</div>`;
+      <div class="sec"><h3>Status</h3><div class="row"><span class="lbl">Deferred?</span><span class="val">${a.deferred||"—"}</span></div>${a.additionalNotes?`<p style="margin-top:6px;color:#666">${a.additionalNotes}</p>`:""}</div>`;
     return formPrintHTML("Data Collection Tool — Assessment", p, body, a.assessorSig);
   };
 
   return (
     <div>
-      {/* â”€â”€ CUSTOMER AUTHORIZATION FORM â”€â”€ */}
-      <Sec title={<span>Customer Authorization Form {a.customerAuthSig ? <span style={{color:"#22c55e",fontSize:11}}>âœ“ Signed</span> : <span style={{color:"#f59e0b",fontSize:11}}>âš  Required</span>}</span>}>
+      {/* ── CUSTOMER AUTHORIZATION FORM ── */}
+      <Sec title={<span>Customer Authorization Form {a.customerAuthSig ? <span style={{color:"#22c55e",fontSize:11}}>✓ Signed</span> : <span style={{color:"#f59e0b",fontSize:11}}>⚠ Required</span>}</span>}>
         {/* Page 1 with signature fields overlaid on the form */}
         <div style={{position:"relative",background:"#fff",borderRadius:6,overflow:"hidden"}}>
           <img src="/auth-form-page1.jpg" alt="Page 1" style={{width:"100%",display:"block"}}/>
-          {/* Overlay: Customer representative signature â€” row at 43.3%-44.9% */}
+          {/* Overlay: Customer representative signature — row at 43.3%-44.9% */}
           <div style={{position:"absolute",top:"43.4%",left:"41.5%",width:"52%",height:"1.4%",cursor:"pointer",display:"flex",alignItems:"center"}} onClick={()=>{if(!a.customerAuthSig){const el=document.getElementById("authSigTrigger");if(el)el.click();}}}>
             {a.customerAuthSig && <img src={a.customerAuthSig} style={{height:"100%",objectFit:"contain"}}/>}
           </div>
-          {/* Overlay: Customer representative printed name â€” row at 44.9%-46.5% */}
+          {/* Overlay: Customer representative printed name — row at 44.9%-46.5% */}
           <div style={{position:"absolute",top:"45%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
             <input style={{width:"100%",height:"100%",border:"none",background:"transparent",fontSize:"1.2vw",fontWeight:600,color:"#000",outline:"none",fontFamily:"Arial,sans-serif",padding:0}} value={a.customerAuthName||p.customerName||""} onChange={e=>sa("customerAuthName",e.target.value)} placeholder=""/>
           </div>
-          {/* Overlay: Date â€” row at 46.5%-48.1% */}
+          {/* Overlay: Date — row at 46.5%-48.1% */}
           <div style={{position:"absolute",top:"46.6%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
             <span style={{fontSize:"1.2vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{a.authDate ? new Date(a.authDate).toLocaleDateString("en-US") : ""}</span>
           </div>
-          {/* Overlay: Property address â€” row at 48.1%-49.6% */}
+          {/* Overlay: Property address — row at 48.1%-49.6% */}
           <div style={{position:"absolute",top:"48.2%",left:"41.5%",width:"52%",height:"1.4%",display:"flex",alignItems:"center"}}>
             <span style={{fontSize:"1.2vw",color:"#000",fontFamily:"Arial,sans-serif"}}>{p.address||""}</span>
           </div>
@@ -145,17 +149,17 @@ export function AuditTab({p,u,onLog,user}) {
 <div style="page-break-before:always"></div>
 <img src="/auth-form-page2.jpg" style="width:100%;display:block"/>
 </div>`);
-          }}>ðŸ–¨ï¸ Print Signed Form</button>
-          <button style={{...S.ghost,padding:"8px 16px",fontSize:12,color:"#ef4444",borderColor:"rgba(239,68,68,.3)"}} onClick={()=>{u({audit:{...a,customerAuthSig:"",authDate:"",customerAuthName:""}});}}>âœ• Clear & Re-sign</button>
+          }}>🖨️ Print Signed Form</button>
+          <button style={{...S.ghost,padding:"8px 16px",fontSize:12,color:"#ef4444",borderColor:"rgba(239,68,68,.3)"}} onClick={()=>{u({audit:{...a,customerAuthSig:"",authDate:"",customerAuthName:""}});}}>✕ Clear & Re-sign</button>
         </div>}
       </Sec>
 
-      <Sec title="ðŸ“‹ Data Collection Tool">
+      <Sec title="📋 Data Collection Tool">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>For use with BLK2GO</p>
           <PrintBtn onClick={()=>savePrint(getAuditHTML())}/>
         </div>
-        <p style={{fontSize:10,color:"#64748b",marginTop:4}}>Customer: <b>{p.customerName}</b> · {p.address} · Assessment: {p.assessmentDate ? fmts(p.assessmentDate) : "â€”"}</p>
+        <p style={{fontSize:10,color:"#64748b",marginTop:4}}>Customer: <b>{p.customerName}</b> · {p.address} · Assessment: {p.assessmentDate ? fmts(p.assessmentDate) : "—"}</p>
       </Sec>
 
       <Sec title="Basic Info">
@@ -185,17 +189,17 @@ export function AuditTab({p,u,onLog,user}) {
           <F label="15. Kitchen Fan CFM" value={a.kitchenFan||""} onChange={v=>sa("kitchenFan",v)} num/>
         </Gr>
         <p style={{fontSize:10,color:"#64748b",marginTop:4}}>Q13-14 only if additional full baths present</p>
-        <p style={{fontSize:10,color:"#f59e0b",marginTop:2}}>âš  If a fan is present but not operational or CFM is unknown, enter 0. Leave blank if no fan exists.</p>
+        <p style={{fontSize:10,color:"#f59e0b",marginTop:2}}>⚠ If a fan is present but not operational or CFM is unknown, enter 0. Leave blank if no fan exists.</p>
       </Sec>
 
       <Sec title="Smoke / CO Detectors">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <F label="16. Smoke â€” present *" value={a.smokePresent||""} onChange={v=>sa("smokePresent",v)} num/>
-          <F label="17. Smoke â€” to install *" value={a.smokeNeeded||""} onChange={v=>sa("smokeNeeded",v)} num/>
+          <F label="16. Smoke — present *" value={a.smokePresent||""} onChange={v=>sa("smokePresent",v)} num/>
+          <F label="17. Smoke — to install *" value={a.smokeNeeded||""} onChange={v=>sa("smokeNeeded",v)} num/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:6}}>
-          <F label="18. CO â€” present *" value={a.coPresent||""} onChange={v=>sa("coPresent",v)} num/>
-          <F label="19. CO â€” to install *" value={a.coNeeded||""} onChange={v=>sa("coNeeded",v)} num/>
+          <F label="18. CO — present *" value={a.coPresent||""} onChange={v=>sa("coPresent",v)} num/>
+          <F label="19. CO — to install *" value={a.coNeeded||""} onChange={v=>sa("coNeeded",v)} num/>
         </div>
       </Sec>
 
@@ -220,7 +224,7 @@ export function AuditTab({p,u,onLog,user}) {
           <F label="BD Location" value={p.bdLoc} onChange={v=>u({bdLoc:v})} placeholder="Front/Side"/>
           <F label="Ext. Temp" value={p.extTemp} onChange={v=>u({extTemp:v})} placeholder="°F" num/>
         </Gr>
-        {p.preCFM50 && p.sqft && <div style={S.calc}><span>Pre CFM50: <b>{p.preCFM50}</b></span><span style={{color:Number(p.preCFM50)>=Number(p.sqft)*1.1?"#22c55e":"#f59e0b",marginLeft:10}}>{Number(p.preCFM50)>=Number(p.sqft)*1.1?"âœ“ â‰¥110% sqft":"âš  <110% sqft"}</span></div>}
+        {p.preCFM50 && p.sqft && <div style={S.calc}><span>Pre CFM50: <b>{p.preCFM50}</b></span><span style={{color:Number(p.preCFM50)>=Number(p.sqft)*1.1?"#22c55e":"#f59e0b",marginLeft:10}}>{Number(p.preCFM50)>=Number(p.sqft)*1.1?"✓ ≥110% sqft":"⚠ <110% sqft"}</span></div>}
       </Sec>
 
       <Sec title="CAZ Testing">
@@ -241,11 +245,11 @@ export function AuditTab({p,u,onLog,user}) {
       <Sec title="Project Status">
         <Sel label="23. Project Deferred? *" value={a.deferred||""} onChange={v=>sa("deferred",v)} opts={["YES","NO"]}/>
         <div style={{height:8}}/>
-        <div><label style={S.fl}>24. Additional Notes</label><textarea style={S.ta} value={a.additionalNotes||""} onChange={e=>sa("additionalNotes",e.target.value)} rows={3} placeholder="Any additional informationâ€¦"/></div>
+        <div><label style={S.fl}>24. Additional Notes</label><textarea style={S.ta} value={a.additionalNotes||""} onChange={e=>sa("additionalNotes",e.target.value)} rows={3} placeholder="Any additional information…"/></div>
         <SigPad label="Assessor Signature" value={a.assessorSig||""} onChange={v=>sa("assessorSig",v)}/>
       </Sec>
 
-      {/* â”€â”€ PRE-INSTALL PHOTOS â”€â”€ */}
+      {/* ── PRE-INSTALL PHOTOS ── */}
       <Sec title={<span>Pre-Install Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{preTaken}/{preItems.length}</span></span>}>
         <div style={S.prog}><div style={{...S.progF,width:`${preItems.length?(preTaken/preItems.length)*100:0}%`,background:"linear-gradient(90deg,#2563EB,#3B82F6)"}}/></div>
         {preSections.map(([cat,items]) => (
@@ -260,11 +264,11 @@ export function AuditTab({p,u,onLog,user}) {
                     <img src={arr[0].d} style={{width:"100%",height:70,objectFit:"cover"}} alt=""/>
                     {arr.length>1 && <span style={{position:"absolute",top:2,right:2,background:"rgba(0,0,0,.7)",color:"#fff",fontSize:9,padding:"1px 4px",borderRadius:4}}>{arr.length}</span>}
                   </div> : <div style={{height:70,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    <label style={{fontSize:10,color:"#64748b",cursor:"pointer",textAlign:"center",padding:4}}>ðŸ“¸ Tap<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>
+                    <label style={{fontSize:10,color:"#64748b",cursor:"pointer",textAlign:"center",padding:4}}>📸 Tap<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>
                   </div>}
                   <div style={{padding:"4px 6px",fontSize:9,color:"#94a3b8",borderTop:"1px solid rgba(255,255,255,.05)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span>{item.l}{has&&" âœ“"}</span>
-                    {has && <label style={{fontSize:10,color:"#60A5FA",cursor:"pointer"}}>ï¼‹<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>}
+                    <span>{item.l}{has&&" ✓"}</span>
+                    {has && <label style={{fontSize:10,color:"#60A5FA",cursor:"pointer"}}>＋<input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>handleFile(item.id,e.target.files?.[0])}/></label>}
                   </div>
                 </div>;
               })}
@@ -275,6 +279,3 @@ export function AuditTab({p,u,onLog,user}) {
     </div>
   );
 }
-
-
-

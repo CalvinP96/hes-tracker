@@ -1,8 +1,11 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { S } from "../styles/index.js";
-import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM } from "../constants/index.js";
+import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM, HVAC_BRANDS, COND_OPTS, YN_OPTS, HVAC_GUIDES } from "../constants/index.js";
 import { uid, fmts, getPhotos, hasPhoto, photoCount, getResolvedQty, measUnit, calcRtoAdd, calcStage, getAlerts } from "../helpers/index.js";
 import { Rec, InsulRec, Sec, Gr, F, Sel, CK, BtnGrp, SigPad, PrintBtn, SI } from "../components/ui.jsx";
+import { savePrint, printScope, photoPageHTML, sideBySideHTML, formPrintHTML } from "../export/savePrint.js";
+import { exportProjectForms, exportProjectPhotos } from "../export/exportForms.js";
+
 export function PhotoTab({p,u,onLog,user,role}) {
   const [prev, setPrev] = useState(null); // {id, idx}
   const [viewMode, setViewMode] = useState("role"); // role | all | compare
@@ -24,7 +27,7 @@ export function PhotoTab({p,u,onLog,user,role}) {
         const newEntry = {d:e.target.result,at:new Date().toISOString(),by:user};
         u({photos:{...p.photos,[id]:[...existing, newEntry]}});
         const it = allItems.find(x=>x.id===id);
-        onLog(`ðŸ“¸ ${it?.l||id} (${existing.length+1})`);
+        onLog(`📸 ${it?.l||id} (${existing.length+1})`);
         return;
       }
       const img = new Image();
@@ -40,7 +43,7 @@ export function PhotoTab({p,u,onLog,user,role}) {
         const newEntry = {d:compressed,at:new Date().toISOString(),by:user};
         u({photos:{...p.photos,[id]:[...existing, newEntry]}});
         const it = allItems.find(x=>x.id===id);
-        onLog(`ðŸ“¸ ${it?.l||id} (${existing.length+1})`);
+        onLog(`📸 ${it?.l||id} (${existing.length+1})`);
       };
       img.src = e.target.result;
     };
@@ -51,7 +54,7 @@ export function PhotoTab({p,u,onLog,user,role}) {
     const arr = getPhotos(p.photos, id).filter((_,i)=>i!==idx);
     const it = allItems.find(x=>x.id===id);
     u({photos:{...p.photos,[id]:arr.length?arr:undefined}});
-    onLog(`ðŸ—‘ï¸ Removed ${it?.l||id}`);
+    onLog(`🗑️ Removed ${it?.l||id}`);
     setPrev(null);
   };
 
@@ -63,38 +66,38 @@ export function PhotoTab({p,u,onLog,user,role}) {
     return (
       <div style={S.camOv}>
         <div style={S.camH}>
-          <button style={{...S.back,fontSize:18}} onClick={()=>setPrev(null)}>â† Back</button>
+          <button style={{...S.back,fontSize:18}} onClick={()=>setPrev(null)}>← Back</button>
           <div style={{flex:1,textAlign:"center",fontWeight:600,fontSize:14}}>{it?.l} {arr.length>1?`(${prev.idx+1}/${arr.length})`:""}</div>
           <button style={{...S.ghost,color:"#ef4444",borderColor:"#ef4444",padding:"4px 10px"}} onClick={()=>deletePhoto(prev.id,prev.idx)}>Delete</button>
         </div>
         <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",background:"#000",padding:8,position:"relative"}}>
           {ph?.d && <img src={ph.d} style={{maxWidth:"100%",maxHeight:"80vh",borderRadius:8}} alt=""/>}
-          {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€¹</button>}
-          {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>â€º</button>}
+          {arr.length > 1 && prev.idx > 0 && <button onClick={()=>setPrev({...prev,idx:prev.idx-1})} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>‹</button>}
+          {arr.length > 1 && prev.idx < arr.length-1 && <button onClick={()=>setPrev({...prev,idx:prev.idx+1})} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,.5)",color:"#fff",border:"none",borderRadius:"50%",width:36,height:36,fontSize:18,cursor:"pointer"}}>›</button>}
         </div>
         <div style={{padding:12,textAlign:"center",fontSize:11,color:"#94a3b8"}}>{ph?.by} · {ph?.at&&new Date(ph.at).toLocaleString()}</div>
       </div>
     );
   }
 
-  // â”€â”€ Photo row helper â”€â”€
+  // ── Photo row helper ──
   const PhotoRow = ({it}) => {
     const arr = getPhotos(p.photos, it.id);
     const has = arr.length > 0;
     return (
       <div style={S.phRow}>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,color:has?"#22c55e":"#cbd5e1"}}>{has?"âœ“":"â—‹"} {it.l} {arr.length>1?<span style={{fontSize:10,color:"#60A5FA"}}>({arr.length})</span>:""}</div>
-          <div style={{fontSize:10,color:"#64748b"}}>{it.p==="pre"?"ðŸ“‹ Pre":"ðŸ—ï¸ Post"}{has&&arr[0].by?` · ${arr[0].by}`:""}</div>
+          <div style={{fontSize:13,color:has?"#22c55e":"#cbd5e1"}}>{has?"✓":"○"} {it.l} {arr.length>1?<span style={{fontSize:10,color:"#60A5FA"}}>({arr.length})</span>:""}</div>
+          <div style={{fontSize:10,color:"#64748b"}}>{it.p==="pre"?"📋 Pre":"🏗️ Post"}{has&&arr[0].by?` · ${arr[0].by}`:""}</div>
         </div>
         <div style={{display:"flex",gap:4,alignItems:"center"}}>
           {arr.map((ph,idx) => <button key={idx} style={S.thBtn} onClick={()=>setPrev({id:it.id,idx})}><img src={ph.d} style={S.th} alt=""/></button>)}
           <label style={S.cBtn} title={has?"Add another":"Take photo"}>
-            {has?"ï¼‹":"ðŸ“·"}
+            {has?"＋":"📷"}
             <input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{compressAndSave(it.id,e.target.files?.[0]);e.target.value="";}}/>
           </label>
           <label style={S.uBtn} title="Upload from gallery">
-            ðŸ“
+            📁
             <input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{compressAndSave(it.id,e.target.files?.[0]);e.target.value="";}}/>
           </label>
         </div>
@@ -102,7 +105,7 @@ export function PhotoTab({p,u,onLog,user,role}) {
     );
   };
 
-  // â”€â”€ Side-by-side comparison pairs â”€â”€
+  // ── Side-by-side comparison pairs ──
   const buildPairs = () => {
     const pairs = [];
     const usedPost = new Set();
@@ -132,7 +135,7 @@ export function PhotoTab({p,u,onLog,user,role}) {
     return pairs;
   };
 
-  // â”€â”€ Tab button style â”€â”€
+  // ── Tab button style ──
   const tabBtn = (mode, label, icon) => ({
     flex:1,padding:"8px 4px",borderRadius:6,border:`1px solid ${viewMode===mode?"rgba(37,99,235,.5)":"rgba(255,255,255,.1)"}`,
     background:viewMode===mode?"rgba(37,99,235,.15)":"transparent",color:viewMode===mode?"#93C5FD":"#64748b",
@@ -141,15 +144,15 @@ export function PhotoTab({p,u,onLog,user,role}) {
 
   return (
     <div>
-      {/* â”€â”€ HEADER â”€â”€ */}
+      {/* ── HEADER ── */}
       <Sec title={<span>Photos <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{totalTaken}/{allItems.length}</span></span>}>
         <div style={S.prog}><div style={{...S.progF,width:`${allItems.length?(totalTaken/allItems.length)*100:0}%`,background:"linear-gradient(90deg,#2563EB,#3B82F6)"}}/></div>
 
         {/* View mode toggle */}
         <div style={{display:"flex",gap:4,marginTop:10}}>
-          <button type="button" onClick={()=>setViewMode("role")} style={tabBtn("role")}>ðŸ“‹ By Role</button>
-          <button type="button" onClick={()=>setViewMode("all")} style={tabBtn("all")}>ðŸ“‚ All</button>
-          <button type="button" onClick={()=>setViewMode("compare")} style={tabBtn("compare")}>â†” Side-by-Side</button>
+          <button type="button" onClick={()=>setViewMode("role")} style={tabBtn("role")}>📋 By Role</button>
+          <button type="button" onClick={()=>setViewMode("all")} style={tabBtn("all")}>📂 All</button>
+          <button type="button" onClick={()=>setViewMode("compare")} style={tabBtn("compare")}>↔ Side-by-Side</button>
         </div>
 
         {/* Print / Compile buttons */}
@@ -157,14 +160,14 @@ export function PhotoTab({p,u,onLog,user,role}) {
           <PrintBtn label="Print Pre" onClick={()=>savePrint(photoPageHTML("Pre-Install Photos",p.photos,allItems.filter(i=>i.p==="pre"),p))}/>
           <PrintBtn label="Print Post" onClick={()=>savePrint(photoPageHTML("Post-Install Photos",p.photos,allItems.filter(i=>i.p==="post"),p))}/>
           <PrintBtn label="Print Side-by-Side" onClick={()=>savePrint(sideBySideHTML(p.photos,allItems,p))}/>
-          <PrintBtn label="Print All" onClick={()=>savePrint(photoPageHTML("All Photos â€” Complete",p.photos,allItems,p))}/>
+          <PrintBtn label="Print All" onClick={()=>savePrint(photoPageHTML("All Photos — Complete",p.photos,allItems,p))}/>
         </div>
       </Sec>
 
-      {/* â•â•â• VIEW: BY ROLE â•â•â• */}
+      {/* ═══ VIEW: BY ROLE ═══ */}
       {viewMode === "role" && <>
-        {/* ASSESSOR â€” Pre Photos */}
-        <Sec title={<span style={{color:"#2563EB"}}>ðŸ“‹ Assessor â€” Pre-Install <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{preTaken}/{preItems.length}</span></span>}>
+        {/* ASSESSOR — Pre Photos */}
+        <Sec title={<span style={{color:"#2563EB"}}>📋 Assessor — Pre-Install <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{preTaken}/{preItems.length}</span></span>}>
           <div style={S.prog}><div style={{...S.progF,width:`${preItems.length?(preTaken/preItems.length)*100:0}%`,background:"linear-gradient(90deg,#2563EB,#3B82F6)"}}/></div>
           {preSections.map(([cat,items]) => {
             const cd = items.filter(i=>hasPhoto(p.photos,i.id)).length;
@@ -179,8 +182,8 @@ export function PhotoTab({p,u,onLog,user,role}) {
           })}
         </Sec>
 
-        {/* INSTALL CREW â€” Post Photos */}
-        <Sec title={<span style={{color:"#f97316"}}>ðŸ—ï¸ Install Crew â€” Post-Install <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{postTaken}/{postItems.length}</span></span>}>
+        {/* INSTALL CREW — Post Photos */}
+        <Sec title={<span style={{color:"#f97316"}}>🏗️ Install Crew — Post-Install <span style={{fontWeight:400,color:"#94a3b8",fontFamily:"'JetBrains Mono',monospace"}}>{postTaken}/{postItems.length}</span></span>}>
           <div style={S.prog}><div style={{...S.progF,width:`${postItems.length?(postTaken/postItems.length)*100:0}%`,background:"linear-gradient(90deg,#f97316,#eab308)"}}/></div>
           {postSections.map(([cat,items]) => {
             const cd = items.filter(i=>hasPhoto(p.photos,i.id)).length;
@@ -196,7 +199,7 @@ export function PhotoTab({p,u,onLog,user,role}) {
         </Sec>
       </>}
 
-      {/* â•â•â• VIEW: ALL â•â•â• */}
+      {/* ═══ VIEW: ALL ═══ */}
       {viewMode === "all" && Object.entries(PHOTO_SECTIONS).map(([cat,items]) => {
         const cd = items.filter(i=>hasPhoto(p.photos,i.id)).length;
         return (
@@ -206,7 +209,7 @@ export function PhotoTab({p,u,onLog,user,role}) {
         );
       })}
 
-      {/* â•â•â• VIEW: SIDE-BY-SIDE â•â•â• */}
+      {/* ═══ VIEW: SIDE-BY-SIDE ═══ */}
       {viewMode === "compare" && (() => {
         const pairs = buildPairs();
         if (pairs.length === 0) return <Sec title="Side-by-Side Comparison"><p style={{color:"#64748b",fontSize:12,textAlign:"center",padding:20}}>No photos to compare yet. Take pre and post photos to see side-by-side.</p></Sec>;
@@ -214,16 +217,16 @@ export function PhotoTab({p,u,onLog,user,role}) {
         const grouped = {};
         pairs.forEach(pr => { if (!grouped[pr.preCat]) grouped[pr.preCat] = []; grouped[pr.preCat].push(pr); });
         return Object.entries(grouped).map(([catBase, catPairs]) => (
-          <Sec key={catBase} title={<span>â†” {catBase}</span>}>
+          <Sec key={catBase} title={<span>↔ {catBase}</span>}>
             {catPairs.map((pr, pi) => (
               <div key={pi} style={{marginBottom:12,border:"1px solid rgba(255,255,255,.08)",borderRadius:8,overflow:"hidden"}}>
                 {/* Labels */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",borderBottom:"1px solid rgba(255,255,255,.06)"}}>
                   <div style={{padding:"6px 8px",background:"rgba(37,99,235,.08)",fontSize:10,fontWeight:700,color:"#60A5FA",textAlign:"center"}}>
-                    ðŸ“‹ PRE â€” {pr.preIt?.l || "â€”"}
+                    📋 PRE — {pr.preIt?.l || "—"}
                   </div>
                   <div style={{padding:"6px 8px",background:"rgba(249,115,22,.08)",fontSize:10,fontWeight:700,color:"#f97316",textAlign:"center"}}>
-                    ðŸ—ï¸ POST â€” {pr.postIt?.l || "â€”"}
+                    🏗️ POST — {pr.postIt?.l || "—"}
                   </div>
                 </div>
                 {/* Images */}
@@ -258,5 +261,3 @@ export function PhotoTab({p,u,onLog,user,role}) {
     </div>
   );
 }
-
-

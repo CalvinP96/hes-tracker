@@ -1,8 +1,11 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { S } from "../styles/index.js";
-import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM } from "../constants/index.js";
+import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM, HVAC_BRANDS, COND_OPTS, YN_OPTS, HVAC_GUIDES } from "../constants/index.js";
 import { uid, fmts, getPhotos, hasPhoto, photoCount, getResolvedQty, measUnit, calcRtoAdd, calcStage, getAlerts } from "../helpers/index.js";
 import { Rec, InsulRec, Sec, Gr, F, Sel, CK, BtnGrp, SigPad, PrintBtn, SI } from "../components/ui.jsx";
+import { savePrint, printScope, photoPageHTML, sideBySideHTML, formPrintHTML } from "../export/savePrint.js";
+import { exportProjectForms, exportProjectPhotos } from "../export/exportForms.js";
+
 export function QAQCTab({p,u}) {
   const q = p.qaqc || {};
   const uq = (k,v) => u({qaqc:{...q,[k]:v}});
@@ -37,49 +40,49 @@ export function QAQCTab({p,u}) {
 
   const getFIhtml = () => {
     let body = `<div class="sec"><h3>Final Inspection Info</h3>
-      <div class="row"><span class="lbl">Homeowner</span><span class="val">${p.customerName||"â€”"}</span></div>
-      <div class="row"><span class="lbl">Address</span><span class="val">${p.address||"â€”"}</span></div>
-      <div class="row"><span class="lbl">Date</span><span class="val">${fi.date||"â€”"}</span></div>
+      <div class="row"><span class="lbl">Homeowner</span><span class="val">${p.customerName||"—"}</span></div>
+      <div class="row"><span class="lbl">Address</span><span class="val">${p.address||"—"}</span></div>
+      <div class="row"><span class="lbl">Date</span><span class="val">${fi.date||"—"}</span></div>
       <div class="row"><span class="lbl">Installation Contractor</span><span class="val">${fi.contractor||"Assured Energy Solutions"}</span></div></div>`;
     body += `<div class="sec"><h3>Health &amp; Safety</h3>`;
     FI_SAFETY.forEach(item => {
       const d = fi[item.k]||{};
       const pfCls = d.pf==="P"?"pass":d.pf==="F"?"fail":"na";
-      body += `<div class="row"><span class="lbl">${item.sub?"&nbsp;&nbsp;&nbsp;&nbsp;":""}${item.l}${d.reading?" ("+d.reading+" "+(item.u||"")+")":""}${item.yn?" â€” "+(d.yn||"â€”"):""}</span><span class="${pfCls}">${d.pf||"â€”"}</span><span style="font-size:10px;color:#999;margin-left:8px">F/U: ${d.fu||"â€”"}</span></div>`;
+      body += `<div class="row"><span class="lbl">${item.sub?"&nbsp;&nbsp;&nbsp;&nbsp;":""}${item.l}${d.reading?" ("+d.reading+" "+(item.u||"")+")":""}${item.yn?" — "+(d.yn||"—"):""}</span><span class="${pfCls}">${d.pf||"—"}</span><span style="font-size:10px;color:#999;margin-left:8px">F/U: ${d.fu||"—"}</span></div>`;
     });
-    body += `<div class="row"><span class="lbl">Smoke detectors installed</span><span class="val">${fi.smokeQty||"â€”"}</span></div>`;
-    body += `<div class="row"><span class="lbl">CO detectors installed</span><span class="val">${fi.coQty||"â€”"}</span></div>`;
-    body += `<div class="row"><span class="lbl">Required ventilation (ASHRAE 62.2)</span><span class="val">${fi.ventCFM||"â€”"} CFM</span></div>`;
-    body += `<div class="row"><span class="lbl">New exhaust fan installed</span><span class="val">${fi.newFan||"â€”"}</span></div>`;
-    body += `<div class="row"><span class="lbl">All H&amp;S issues addressed</span><span class="${fi.hsAddressed==="Y"?"pass":"fail"}">${fi.hsAddressed||"â€”"}</span></div>`;
+    body += `<div class="row"><span class="lbl">Smoke detectors installed</span><span class="val">${fi.smokeQty||"—"}</span></div>`;
+    body += `<div class="row"><span class="lbl">CO detectors installed</span><span class="val">${fi.coQty||"—"}</span></div>`;
+    body += `<div class="row"><span class="lbl">Required ventilation (ASHRAE 62.2)</span><span class="val">${fi.ventCFM||"—"} CFM</span></div>`;
+    body += `<div class="row"><span class="lbl">New exhaust fan installed</span><span class="val">${fi.newFan||"—"}</span></div>`;
+    body += `<div class="row"><span class="lbl">All H&amp;S issues addressed</span><span class="${fi.hsAddressed==="Y"?"pass":"fail"}">${fi.hsAddressed||"—"}</span></div>`;
     if(fi.hsWhyNot) body += `<div class="row"><span class="lbl">If no, why not</span><span class="val">${fi.hsWhyNot}</span></div>`;
     body += `</div>`;
     body += `<div class="sec"><h3>Insulation</h3>`;
     FI_INSUL.forEach(ins => {
       const d = fi[ins.k]||{};
-      body += `<div class="row"><span class="lbl"><b>${ins.l}</b> â€” Pre: R-${d.preR||"?"} â†’ Post: R-${d.postR||"?"} â€” Insulated: ${d.done||"â€”"}</span></div>`;
+      body += `<div class="row"><span class="lbl"><b>${ins.l}</b> — Pre: R-${d.preR||"?"} → Post: R-${d.postR||"?"} — Insulated: ${d.done||"—"}</span></div>`;
     });
     body += `</div>`;
-    body += `<div class="sec"><h3>Combustion Appliances (not including oven/stove) â€” Space Heating &amp; DHW</h3>`;
+    body += `<div class="sec"><h3>Combustion Appliances (not including oven/stove) — Space Heating &amp; DHW</h3>`;
     [1,2,3].forEach(n => {
       const d = fi[`equip${n}`]||{};
-      if(d.type) body += `<div class="row"><span class="lbl">${n}. ${d.type} â€” ${d.vent||""} â€” Replaced: ${d.replaced||"â€”"} â€” F/U: ${d.fu||"â€”"}</span></div>`;
+      if(d.type) body += `<div class="row"><span class="lbl">${n}. ${d.type} — ${d.vent||""} — Replaced: ${d.replaced||"—"} — F/U: ${d.fu||"—"}</span></div>`;
     });
     body += `</div>`;
-    body += `<div class="sec"><h3>Blower Door</h3><div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||fi.preCFM50||"â€”"}</span></div><div class="row"><span class="lbl">Post CFM50</span><span class="val">${p.postCFM50||fi.postCFM50||"â€”"}</span></div></div>`;
-    body += `<div class="sec"><h3>Duct Sealing â€“ Duct Blaster</h3><div class="row"><span class="lbl">Pre CFM25</span><span class="val">${fi.preCFM25||"â€”"}</span></div><div class="row"><span class="lbl">Post CFM25</span><span class="val">${fi.postCFM25||"â€”"}</span></div></div>`;
-    body += `<div class="sec"><h3>Direct Installs</h3><div class="row"><span class="lbl">New thermostat installed</span><span class="val">${fi.thermostat||"â€”"}</span></div></div>`;
+    body += `<div class="sec"><h3>Blower Door</h3><div class="row"><span class="lbl">Pre CFM50</span><span class="val">${p.preCFM50||fi.preCFM50||"—"}</span></div><div class="row"><span class="lbl">Post CFM50</span><span class="val">${p.postCFM50||fi.postCFM50||"—"}</span></div></div>`;
+    body += `<div class="sec"><h3>Duct Sealing – Duct Blaster</h3><div class="row"><span class="lbl">Pre CFM25</span><span class="val">${fi.preCFM25||"—"}</span></div><div class="row"><span class="lbl">Post CFM25</span><span class="val">${fi.postCFM25||"—"}</span></div></div>`;
+    body += `<div class="sec"><h3>Direct Installs</h3><div class="row"><span class="lbl">New thermostat installed</span><span class="val">${fi.thermostat||"—"}</span></div></div>`;
     if(fi.followUp) body += `<div class="sec"><h3>Follow-up Needed</h3><p>${fi.followUp}</p></div>`;
     body += `<div class="sec"><h3>Contractor Checklist</h3>`;
-    FI_CONTRACTOR_CK.forEach(ck => { body += `<div class="row"><span class="lbl">${ck}</span><span class="${fi.ck?.[ck]?"pass":"na"}">${fi.ck?.[ck]?"â˜‘":"â˜"}</span></div>`; });
+    FI_CONTRACTOR_CK.forEach(ck => { body += `<div class="row"><span class="lbl">${ck}</span><span class="${fi.ck?.[ck]?"pass":"na"}">${fi.ck?.[ck]?"☑":"☐"}</span></div>`; });
     body += `</div>`;
-    return formPrintHTML("Home Energy Savings â€“ Retrofits Final Inspection Form", p, body, fi.inspectorSig, fi.custSig);
+    return formPrintHTML("Home Energy Savings – Retrofits Final Inspection Form", p, body, fi.inspectorSig, fi.custSig);
   };
 
   return (
     <div>
-      {/* â”€â”€ FINAL INSPECTION FORM â”€â”€ */}
-      <Sec title="ðŸ“‹ Home Energy Savings â€“ Retrofits Final Inspection Form">
+      {/* ── FINAL INSPECTION FORM ── */}
+      <Sec title="📋 Home Energy Savings – Retrofits Final Inspection Form">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Appendix F</p>
           <PrintBtn onClick={()=>savePrint(getFIhtml())}/>
@@ -88,8 +91,8 @@ export function QAQCTab({p,u}) {
 
       <Sec title="Inspection Info">
         <Gr>
-          <F label="Homeowner Name" computed={p.customerName||"â€”"}/>
-          <F label="Home Address" computed={p.address||"â€”"}/>
+          <F label="Homeowner Name" computed={p.customerName||"—"}/>
+          <F label="Home Address" computed={p.address||"—"}/>
         </Gr>
         <Gr>
           <F label="Date of Final Inspection" value={fi.date||""} onChange={v=>ufi("date",v)} type="date"/>
@@ -98,12 +101,12 @@ export function QAQCTab({p,u}) {
         <SigPad label="Customer Signature" value={fi.custSig||""} onChange={v=>ufi("custSig",v)}/>
       </Sec>
 
-      {/* â”€â”€ INSTALLATION CONTRACTOR CHECKLIST â”€â”€ */}
+      {/* ── INSTALLATION CONTRACTOR CHECKLIST ── */}
       <Sec title="Installation Contractor Checklist">
         <p style={{fontSize:10,color:"#94a3b8",margin:0}}>Complete all sections below</p>
       </Sec>
 
-      {/* â”€â”€ HEALTH & SAFETY â”€â”€ */}
+      {/* ── HEALTH & SAFETY ── */}
       <Sec title="Health & Safety">
         {FI_SAFETY.map(item => <PFRow key={item.k} item={item}/>)}
 
@@ -123,7 +126,7 @@ export function QAQCTab({p,u}) {
         </div>
       </Sec>
 
-      {/* â”€â”€ INSULATION â”€â”€ */}
+      {/* ── INSULATION ── */}
       <Sec title="Insulation">
         {FI_INSUL.map(ins => {
           const d = fi[ins.k]||{};
@@ -141,8 +144,8 @@ export function QAQCTab({p,u}) {
         })}
       </Sec>
 
-      {/* â”€â”€ SPACE HEATING & DHW â”€â”€ */}
-      <Sec title="Combustion Appliances (not including oven/stove) â€” Space Heating and DHW">
+      {/* ── SPACE HEATING & DHW ── */}
+      <Sec title="Combustion Appliances (not including oven/stove) — Space Heating and DHW">
         {[1,2,3].map(n => {
           const d = fi[`equip${n}`]||{};
           const ud = (f,v) => ufi(`equip${n}`,{...d,[f]:v});
@@ -162,59 +165,59 @@ export function QAQCTab({p,u}) {
         })}
       </Sec>
 
-      {/* â”€â”€ BLOWER DOOR â”€â”€ */}
+      {/* ── BLOWER DOOR ── */}
       <Sec title="Blower Door">
         <Gr>
-          <F label="Pre CFM50" computed={p.preCFM50||"â€”"}/>
-          <F label="Post CFM50" computed={p.postCFM50||"â€”"}/>
+          <F label="Pre CFM50" computed={p.preCFM50||"—"}/>
+          <F label="Post CFM50" computed={p.postCFM50||"—"}/>
         </Gr>
       </Sec>
 
-      {/* â”€â”€ DUCT SEALING â”€â”€ */}
-      <Sec title="Duct Sealing â€” Duct Blaster">
+      {/* ── DUCT SEALING ── */}
+      <Sec title="Duct Sealing — Duct Blaster">
         <Gr>
           <F label="Pre CFM25" value={fi.preCFM25||""} onChange={v=>ufi("preCFM25",v)} num/>
           <F label="Post CFM25" value={fi.postCFM25||""} onChange={v=>ufi("postCFM25",v)} num/>
         </Gr>
       </Sec>
 
-      {/* â”€â”€ DIRECT INSTALLS â”€â”€ */}
+      {/* ── DIRECT INSTALLS ── */}
       <Sec title="Direct Installs">
         <Sel label="Was a new thermostat installed?" value={fi.thermostat||""} onChange={v=>ufi("thermostat",v)} opts={["Yes","No"]}/>
       </Sec>
 
-      {/* â”€â”€ FOLLOW-UP â”€â”€ */}
+      {/* ── FOLLOW-UP ── */}
       <Sec title="Follow-up Needed">
         <CK checked={fi.followUpNA} onChange={v=>ufi("followUpNA",v)} label="N/A"/>
-        {!fi.followUpNA && <textarea style={{...S.ta,marginTop:6}} value={fi.followUp||""} onChange={e=>ufi("followUp",e.target.value)} rows={3} placeholder="Please list any follow-up needed for this customer's homeâ€¦"/>}
+        {!fi.followUpNA && <textarea style={{...S.ta,marginTop:6}} value={fi.followUp||""} onChange={e=>ufi("followUp",e.target.value)} rows={3} placeholder="Please list any follow-up needed for this customer's home…"/>}
       </Sec>
 
-      {/* â”€â”€ CONTRACTOR CHECKLIST â”€â”€ */}
+      {/* ── CONTRACTOR CHECKLIST ── */}
       <Sec title="Contractor Checklist">
         <p style={{fontSize:10,color:"#64748b",marginBottom:6,fontStyle:"italic"}}>To be completed by the contractor:</p>
         {FI_CONTRACTOR_CK.map(ck => <CK key={ck} checked={fi.ck?.[ck]} onChange={v=>ufi("ck",{...(fi.ck||{}),[ck]:v})} label={ck}/>)}
       </Sec>
 
-      {/* â”€â”€ INSPECTOR SIGNATURE â”€â”€ */}
+      {/* ── INSPECTOR SIGNATURE ── */}
       <Sec title="Inspector Sign-off">
         <SigPad label="Inspector Signature" value={fi.inspectorSig||""} onChange={v=>ufi("inspectorSig",v)}/>
       </Sec>
 
-      {/* â”€â”€ QAQC OBSERVATION FORM (Appendix G) â”€â”€ */}
-      <Sec title="ðŸ”Ž QAQC Observation Form">
+      {/* ── QAQC OBSERVATION FORM (Appendix G) ── */}
+      <Sec title="🔎 QAQC Observation Form">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Per Appendix G â€” post-installation observation</p>
+          <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Per Appendix G — post-installation observation</p>
           <PrintBtn onClick={()=>{
-            let body = `<div class="sec"><h3>Info</h3><div class="row"><span class="lbl">Date</span><span class="val">${q.date||"â€”"}</span></div><div class="row"><span class="lbl">Inspector</span><span class="val">${q.inspector||"â€”"}</span></div></div>`;
+            let body = `<div class="sec"><h3>Info</h3><div class="row"><span class="lbl">Date</span><span class="val">${q.date||"—"}</span></div><div class="row"><span class="lbl">Inspector</span><span class="val">${q.inspector||"—"}</span></div></div>`;
             Object.entries(QAQC_SECTIONS).forEach(([cat,items]) => {
               const rows = items.map((item,i) => {
                 const r = q.results?.[`${cat}-${i}`]||{};
                 const cls = r.v==="Y"?"pass":r.v==="N"?"fail":"na";
-                return `<div class="row"><span class="lbl">${i+1}. ${item}</span><span class="${cls}">${r.v||"â€”"}</span></div>`;
+                return `<div class="row"><span class="lbl">${i+1}. ${item}</span><span class="${cls}">${r.v||"—"}</span></div>`;
               }).join("");
               body += `<div class="sec"><h3>${cat}</h3>${rows}</div>`;
             });
-            body += `<div class="sec"><h3>Result</h3><div class="row"><span class="lbl">Overall</span><span class="${q.passed===true?"pass":"fail"}">${q.passed===true?"PASS":q.passed===false?"FAIL":"â€”"}</span></div>${q.notes?`<p style="margin-top:6px;color:#666">${q.notes}</p>`:""}</div>`;
+            body += `<div class="sec"><h3>Result</h3><div class="row"><span class="lbl">Overall</span><span class="${q.passed===true?"pass":"fail"}">${q.passed===true?"PASS":q.passed===false?"FAIL":"—"}</span></div>${q.notes?`<p style="margin-top:6px;color:#666">${q.notes}</p>`:""}</div>`;
             savePrint(formPrintHTML("QAQC Observation Form", p, body, q.inspectorSig, q.custSig));
           }}/>
         </div>
@@ -232,7 +235,7 @@ export function QAQCTab({p,u}) {
                 <div style={{fontSize:12,color:"#e2e8f0",marginBottom:6}}>{i+1}. {item}</div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
                   <BtnGrp value={r.v||""} onChange={v=>sr(cat,i,"v",v)} opts={[{v:"Y",l:"Yes",c:"#22c55e"},{v:"N",l:"No",c:"#ef4444"},{v:"NA",l:"N/A",c:"#64748b"}]}/>
-                  <input style={{...S.inp,flex:1,fontSize:11,minWidth:0}} value={r.c||""} onChange={e=>sr(cat,i,"c",e.target.value)} placeholder="Commentâ€¦"/>
+                  <input style={{...S.inp,flex:1,fontSize:11,minWidth:0}} value={r.c||""} onChange={e=>sr(cat,i,"c",e.target.value)} placeholder="Comment…"/>
                 </div>
               </div>
             );
@@ -241,11 +244,9 @@ export function QAQCTab({p,u}) {
       ))}
       <Sec title="Overall Result">
         <Sel label="Result" value={q.passed===true?"pass":q.passed===false?"fail":""} onChange={v=>uq("passed",v==="pass"?true:v==="fail"?false:null)} opts={["pass","fail"]}/>
-        <textarea style={{...S.ta,marginTop:8}} value={q.notes||""} onChange={e=>uq("notes",e.target.value)} rows={3} placeholder="Overall notesâ€¦"/>
+        <textarea style={{...S.ta,marginTop:8}} value={q.notes||""} onChange={e=>uq("notes",e.target.value)} rows={3} placeholder="Overall notes…"/>
         <SigPad label="QAQC Inspector Signature" value={q.inspectorSig||""} onChange={v=>uq("inspectorSig",v)}/>
       </Sec>
     </div>
   );
 }
-
-

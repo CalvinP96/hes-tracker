@@ -1,8 +1,11 @@
-﻿import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { S } from "../styles/index.js";
-import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM } from "../constants/index.js";
+import { STAGES, ROLES, EE_MEASURES, HS_MEASURES, DOCS, PHOTO_SECTIONS, CAZ_ITEMS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK, PROGRAM, HVAC_BRANDS, COND_OPTS, YN_OPTS, HVAC_GUIDES } from "../constants/index.js";
 import { uid, fmts, getPhotos, hasPhoto, photoCount, getResolvedQty, measUnit, calcRtoAdd, calcStage, getAlerts } from "../helpers/index.js";
 import { Rec, InsulRec, Sec, Gr, F, Sel, CK, BtnGrp, SigPad, PrintBtn, SI } from "../components/ui.jsx";
+import { savePrint, printScope, photoPageHTML, sideBySideHTML, formPrintHTML } from "../export/savePrint.js";
+import { exportProjectForms, exportProjectPhotos } from "../export/exportForms.js";
+
 export function ScopeTab({p,u,onLog}) {
   const s = p.scope2026 || {};
   const a = p.audit || {};
@@ -18,9 +21,9 @@ export function ScopeTab({p,u,onLog}) {
     const nested = {};
     // Roof age
     if (a.roofAge) updates.roofAge = a.roofAge;
-    // Tenant type (map: Ownedâ†’Own, Rentedâ†’Rent)
+    // Tenant type (map: Owned→Own, Rented→Rent)
     if (a.tenantType) updates.tenantType = a.tenantType === "Owned" ? "Own" : a.tenantType === "Rented" ? "Rent" : a.tenantType;
-    // Thermostat (map: Non-programmableâ†’Manual)
+    // Thermostat (map: Non-programmable→Manual)
     if (a.thermostatType) {
       nested.htg = {...(s.htg||{}), thermostat: a.thermostatType === "Non-programmable" ? "Manual" : a.thermostatType};
     }
@@ -30,7 +33,7 @@ export function ScopeTab({p,u,onLog}) {
     if (a.wallsNeedInsul) updates.wallsNeedInsul = a.wallsNeedInsul;
     // Bedrooms
     if (a.bedrooms) updates.bedrooms = a.bedrooms;
-    // Fan flows â†’ ASHRAE
+    // Fan flows → ASHRAE
     const ash = s.ashrae || {};
     const ashUp = {};
     if (a.bathFan1) ashUp.bath1CFM = a.bathFan1;
@@ -56,21 +59,21 @@ export function ScopeTab({p,u,onLog}) {
   }, []);
 
   const getScopeHTML = () => {
-    const yn = v => v===true?"Yes":v===false?"No":"â€”";
-    const v = k => s[k]||"â€”";
-    const nv = (sec,k) => s[sec]?.[k]||"â€”";
-    const nyn = (sec,k) => s[sec]?.[k]===true?"Yes":s[sec]?.[k]===false?"No":"â€”";
+    const yn = v => v===true?"Yes":v===false?"No":"—";
+    const v = k => s[k]||"—";
+    const nv = (sec,k) => s[sec]?.[k]||"—";
+    const nyn = (sec,k) => s[sec]?.[k]===true?"Yes":s[sec]?.[k]===false?"No":"—";
 
     const mq = p.measureQty||{};
-    const measTable = p.measures.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#f0fdf4;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.measures.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"â€”"}</td><td style="padding:3px 6px;border:1px solid #ddd">${measUnit(m)}</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
-    const hsTable = p.healthSafety.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#fffbeb;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.healthSafety.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"â€”"}</td><td style="padding:3px 6px;border:1px solid #ddd">ea</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
+    const measTable = p.measures.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#f0fdf4;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.measures.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:3px 6px;border:1px solid #ddd">${measUnit(m)}</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
+    const hsTable = p.healthSafety.length ? `<table style="width:100%;border-collapse:collapse;font-size:10px;margin-top:4px">\n<tr style="background:#fffbeb;"><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Measure</th><th style="text-align:right;padding:3px 6px;border:1px solid #ccc">Qty</th><th style="text-align:left;padding:3px 6px;border:1px solid #ccc">Unit</th></tr>\n${p.healthSafety.map(m=>`<tr><td style="padding:3px 6px;border:1px solid #ddd">${m}</td><td style="text-align:right;padding:3px 6px;border:1px solid #ddd">${getResolvedQty(p,m)||"—"}</td><td style="padding:3px 6px;border:1px solid #ddd">ea</td></tr>`).join("")}\n</table>` : "<span style='color:#999'>None selected</span>";
 
-    const chk = b => b===true?"â˜‘":b===false?"â˜":"â€”";
+    const chk = b => b===true?"☑":b===false?"☐":"—";
     const htg = s.htg||{}; const clg = s.clg||{}; const dhw = s.dhw||{};
     const int2 = s.int||{}; const exh = s.exh||{}; const att = s.attic||{};
     const col = s.collar||{}; const oc = s.outerCeiling||{}; const kw = s.kneeWall||{};
     const ew1 = s.extWall1||{}; const ew2 = s.extWall2||{}; const fnd = s.fnd||{};
-    const afue = htg.btuIn && htg.btuOut ? (Number(htg.btuOut)/Number(htg.btuIn)*100).toFixed(1)+"%" : "â€”";
+    const afue = htg.btuIn && htg.btuOut ? (Number(htg.btuOut)/Number(htg.btuIn)*100).toFixed(1)+"%" : "—";
 
     // Build ASHRAE HTML first (avoid nested template literals)
     const ashraeHTML = (() => {
@@ -263,28 +266,28 @@ export function ScopeTab({p,u,onLog}) {
 
 
 
-    const html = `<!DOCTYPE html><html><head><title>HEA/IE Retrofit Form â€” ${p.customerName}</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:11px}h1{font-size:16px;border-bottom:2px solid #333;padding-bottom:6px}h2{font-size:11px;color:#666;margin-bottom:12px}.sec{margin-bottom:10px;border:1px solid #ddd;border-radius:5px;padding:8px}.sec h3{font-size:12px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:3px}.row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}</style></head><body>
-      <h1>2026 HEA / IE Retrofit Form</h1><h2>${p.customerName} · ${p.address} · RISE: ${p.riseId||"â€”"} · ${new Date().toLocaleDateString()}</h2>${body}</body></html>`;
+    const html = `<!DOCTYPE html><html><head><title>HEA/IE Retrofit Form — ${p.customerName}</title><style>@page{margin:.4in}body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:16px;font-size:11px}h1{font-size:16px;border-bottom:2px solid #333;padding-bottom:6px}h2{font-size:11px;color:#666;margin-bottom:12px}.sec{margin-bottom:10px;border:1px solid #ddd;border-radius:5px;padding:8px}.sec h3{font-size:12px;margin:0 0 6px;border-bottom:1px solid #eee;padding-bottom:3px}.row{display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #f5f5f5}.lbl{color:#666}.val{font-weight:600}.grid{display:grid;grid-template-columns:1fr 1fr;gap:2px 16px}</style></head><body>
+      <h1>2026 HEA / IE Retrofit Form</h1><h2>${p.customerName} · ${p.address} · RISE: ${p.riseId||"—"} · ${new Date().toLocaleDateString()}</h2>${body}</body></html>`;
     return html;
   };
 
   return (
     <div id="scope-print-content">
-      <Sec title="ðŸ“‹ 2026 HEA/IE Retrofit Form">
+      <Sec title="📋 2026 HEA/IE Retrofit Form">
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Scope of Work â€” submit to RISE for approval</p>
+          <p style={{fontSize:11,color:"#94a3b8",margin:0}}>Scope of Work — submit to RISE for approval</p>
           <div style={{display:"flex",gap:6}}>
             <button type="button" style={{...S.ghost,padding:"4px 10px",fontSize:10,color:"#60A5FA",borderColor:"rgba(37,99,235,.3)"}} onClick={()=>{
               const conf = confirm("Re-fill scope fields from assessment data? This will overwrite current values.");
               if(conf){setFilled(false);}
-            }}>â†» Sync from Assessment</button>
+            }}>↻ Sync from Assessment</button>
             <PrintBtn onClick={()=>printScope(p,s)}/>
           </div>
         </div>
-        {!filled && <div style={{fontSize:10,color:"#22c55e",marginTop:4}}>âœ“ Auto-filled empty fields from assessment data</div>}
+        {!filled && <div style={{fontSize:10,color:"#22c55e",marginTop:4}}>✓ Auto-filled empty fields from assessment data</div>}
       </Sec>
 
-      {/* â•â• PAGE 1: BUILDING PROPERTY TYPE â•â• */}
+      {/* ══ PAGE 1: BUILDING PROPERTY TYPE ══ */}
       <Sec title="Building Property Type">
         <Gr>
           <Sel label="Style" value={s.style||""} onChange={v=>ss("style",v)} opts={["Single Family, Detached","Townhouse, Single Unit","Duplex, Single Unit","Multi-Family (Any Type), Multiple Units","Mobile Home","Multi-Family 3+ Units, Single Tenant Unit","Condo 3+ Units, Single Unit","Condo 3+ Units, Common Area","2-Flat","Apartment","Manufactured Home"]}/>
@@ -293,8 +296,8 @@ export function ScopeTab({p,u,onLog}) {
           <F label="Bedrooms" value={s.bedrooms||""} onChange={v=>ss("bedrooms",v)} num/>
           <F label="Occupants" value={p.occupants} onChange={v=>u({occupants:v})} num/>
           <F label="Sq Footage" value={p.sqft} onChange={v=>u({sqft:v})} num/>
-          <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>Volume</label><div style={{...S.inp,background:"rgba(37,99,235,.08)",color:"#93C5FD",display:"flex",alignItems:"center",marginTop:"auto"}}>{Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() : "â€”"}<span style={{fontSize:10,color:"#64748b",marginLeft:6}}>ft³ (sqft Ã— 8)</span></div></div>
-          <F label="Home Age" computed={p.yearBuilt ? (new Date().getFullYear() - Number(p.yearBuilt)) + " yrs" : "â€”"} suffix="auto"/>
+          <div style={{display:"flex",flexDirection:"column"}}><label style={S.fl}>Volume</label><div style={{...S.inp,background:"rgba(37,99,235,.08)",color:"#93C5FD",display:"flex",alignItems:"center",marginTop:"auto"}}>{Number(p.sqft) ? (Number(p.sqft)*8).toLocaleString() : "—"}<span style={{fontSize:10,color:"#64748b",marginLeft:6}}>ft³ (sqft × 8)</span></div></div>
+          <F label="Home Age" computed={p.yearBuilt ? (new Date().getFullYear() - Number(p.yearBuilt)) + " yrs" : "—"} suffix="auto"/>
           <Sel label="Tenant Type" value={s.tenantType||""} onChange={v=>ss("tenantType",v)} opts={["Own","Rent"]}/>
         </Gr>
         <div style={{marginTop:8,fontSize:11,fontWeight:600,color:"#60A5FA",marginBottom:4,textTransform:"uppercase",letterSpacing:".05em"}}>Gutters</div>
@@ -314,10 +317,10 @@ export function ScopeTab({p,u,onLog}) {
           <CK checked={s.highRoofVent} onChange={v=>ss("highRoofVent",v)} label="High Roof Venting"/>
           {s.highRoofVent && <div style={{width:140}}><Sel label="Vent Type" value={s.ventType||""} onChange={v=>ss("ventType",v)} opts={["Static","Ridge"]}/></div>}
         </div>
-        <textarea style={{...S.ta,marginTop:8}} value={s.propNotes||""} onChange={e=>ss("propNotes",e.target.value)} rows={2} placeholder="Building property notesâ€¦"/>
+        <textarea style={{...S.ta,marginTop:8}} value={s.propNotes||""} onChange={e=>ss("propNotes",e.target.value)} rows={2} placeholder="Building property notes…"/>
       </Sec>
 
-      {/* â•â• INTERIOR CONDITIONS (from assessment) â•â• */}
+      {/* ══ INTERIOR CONDITIONS (from assessment) ══ */}
       <Sec title={<span>Interior Conditions {a.ceilingCond && <span style={{fontSize:9,color:"#60A5FA",fontWeight:400}}> · assessment values auto-filled</span>}</span>}>
         <Gr>
           <Sel label="Ceiling Conditions" value={s.ceilingCond||""} onChange={v=>ss("ceilingCond",v)} opts={["Good","Poor"]}/>
@@ -326,15 +329,15 @@ export function ScopeTab({p,u,onLog}) {
         </Gr>
       </Sec>
 
-      {/* â•â• SMOKE / CO / WEATHERIZATION â•â• */}
+      {/* ══ SMOKE / CO / WEATHERIZATION ══ */}
       <Sec title="Smoke / CO / Weatherization">
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <F label="Smoke â€” present" value={s.smokePresent||""} onChange={v=>ss("smokePresent",v)} num/>
-          <F label="Smoke â€” to install" value={s.smokeNeeded||""} onChange={v=>ss("smokeNeeded",v)} num/>
+          <F label="Smoke — present" value={s.smokePresent||""} onChange={v=>ss("smokePresent",v)} num/>
+          <F label="Smoke — to install" value={s.smokeNeeded||""} onChange={v=>ss("smokeNeeded",v)} num/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:6}}>
-          <F label="CO â€” present" value={s.coPresent||""} onChange={v=>ss("coPresent",v)} num/>
-          <F label="CO â€” to install" value={s.coNeeded||""} onChange={v=>ss("coNeeded",v)} num/>
+          <F label="CO — present" value={s.coPresent||""} onChange={v=>ss("coPresent",v)} num/>
+          <F label="CO — to install" value={s.coNeeded||""} onChange={v=>ss("coNeeded",v)} num/>
         </div>
         <div style={{marginTop:8}}><Gr>
           <F label="Tenmats Needed" value={s.tenmats||""} onChange={v=>ss("tenmats",v)} num/>
@@ -342,7 +345,7 @@ export function ScopeTab({p,u,onLog}) {
         </Gr></div>
       </Sec>
 
-      {/* â•â• PAGE 2: HEATING SYSTEM â•â• */}
+      {/* ══ PAGE 2: HEATING SYSTEM ══ */}
       <Sec title="Heating System Info">
         <Gr>
           <Sel label="Thermostat" value={s.htg?.thermostat||""} onChange={v=>sn("htg","thermostat",v)} opts={["Manual","Programmable","Smart"]}/>
@@ -353,13 +356,13 @@ export function ScopeTab({p,u,onLog}) {
         <div style={{marginTop:8}}><Gr>
           <F label="Manufacturer" value={s.htg?.mfg||""} onChange={v=>sn("htg","mfg",v)}/>
           <F label="Install Year" value={s.htg?.year||""} onChange={v=>sn("htg","year",v)} num/>
-          <F label="Age" computed={s.htg?.year ? (new Date().getFullYear()-Number(s.htg.year))+" yrs" : "â€”"}/>
+          <F label="Age" computed={s.htg?.year ? (new Date().getFullYear()-Number(s.htg.year))+" yrs" : "—"}/>
           <F label="Condition" value={s.htg?.condition||""} onChange={v=>sn("htg","condition",v)}/>
         </Gr></div>
         <div style={{marginTop:8}}><Gr>
           <F label="BTU Input" value={s.htg?.btuIn||""} onChange={v=>sn("htg","btuIn",v)} num/>
           <F label="BTU Output" value={s.htg?.btuOut||""} onChange={v=>sn("htg","btuOut",v)} num/>
-          <F label="AFUE" computed={s.htg?.btuIn && s.htg?.btuOut ? (Number(s.htg.btuOut)/Number(s.htg.btuIn)*100).toFixed(1)+"%" : "â€”"} suffix="auto"/>
+          <F label="AFUE" computed={s.htg?.btuIn && s.htg?.btuOut ? (Number(s.htg.btuOut)/Number(s.htg.btuIn)*100).toFixed(1)+"%" : "—"} suffix="auto"/>
           <F label="Draft" value={s.htg?.draft||""} onChange={v=>sn("htg","draft",v)} num/>
         </Gr></div>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:"0px 8px"}}>
@@ -374,37 +377,37 @@ export function ScopeTab({p,u,onLog}) {
             return <div style={{display:"flex",alignItems:"center",gap:4}}>
               <CK checked={val} onChange={v=>{u({scope2026:{...s,htg:{...(s.htg||{}),cleanTune:v,cleanTuneOverride:v}}});}} label="Clean & Tune"/>
               {autoOn && s.htg?.cleanTuneOverride===undefined && <span style={{fontSize:8,color:"#60A5FA"}}>auto</span>}
-              {s.htg?.cleanTuneOverride!==undefined && autoOn && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{u({scope2026:{...s,htg:{...(s.htg||{}),cleanTuneOverride:undefined,cleanTune:true}}});}}>â†» auto</span>}
+              {s.htg?.cleanTuneOverride!==undefined && autoOn && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{u({scope2026:{...s,htg:{...(s.htg||{}),cleanTuneOverride:undefined,cleanTune:true}}});}}>↻ auto</span>}
             </div>;
           })()}
         </div>
-        <textarea style={{...S.ta,marginTop:8}} value={s.htg?.notes||""} onChange={e=>sn("htg","notes",e.target.value)} rows={2} placeholder="Heating notesâ€¦"/>
+        <textarea style={{...S.ta,marginTop:8}} value={s.htg?.notes||""} onChange={e=>sn("htg","notes",e.target.value)} rows={2} placeholder="Heating notes…"/>
         {(()=>{
           const recs = [];
           const afue = s.htg?.btuIn && s.htg?.btuOut ? Number(s.htg.btuOut)/Number(s.htg.btuIn)*100 : null;
           const fuel = s.htg?.fuel; const sys = s.htg?.system;
-          if(fuel==="Electric") recs.push({t:"rec",m:"Electric resistance heat â†’ eligible for heat pump replacement regardless of age/condition (ComEd)."});
-          if(afue && afue < PROGRAM.furnaceMinAFUE && fuel==="Natural Gas") recs.push({t:"info",m:`AFUE ${afue.toFixed(1)}% â€” below ${PROGRAM.furnaceMinAFUE}% min for new furnace. Replacement only if failed/H&S risk and repair >$${PROGRAM.furnaceRepairCap}.`});
-          if(afue && afue >= PROGRAM.furnaceMinAFUE) recs.push({t:"rec",m:`AFUE ${afue.toFixed(1)}% meets â‰¥${PROGRAM.furnaceMinAFUE}% program standard.`});
-          if(sys==="Boiler" && afue && afue < PROGRAM.boilerMinAFUE) recs.push({t:"info",m:`Boiler AFUE ${afue.toFixed(1)}% â€” new boiler must be â‰¥${PROGRAM.boilerMinAFUE}%. Emergency replacement only.`});
+          if(fuel==="Electric") recs.push({t:"rec",m:"Electric resistance heat → eligible for heat pump replacement regardless of age/condition (ComEd)."});
+          if(afue && afue < PROGRAM.furnaceMinAFUE && fuel==="Natural Gas") recs.push({t:"info",m:`AFUE ${afue.toFixed(1)}% — below ${PROGRAM.furnaceMinAFUE}% min for new furnace. Replacement only if failed/H&S risk and repair >$${PROGRAM.furnaceRepairCap}.`});
+          if(afue && afue >= PROGRAM.furnaceMinAFUE) recs.push({t:"rec",m:`AFUE ${afue.toFixed(1)}% meets ≥${PROGRAM.furnaceMinAFUE}% program standard.`});
+          if(sys==="Boiler" && afue && afue < PROGRAM.boilerMinAFUE) recs.push({t:"info",m:`Boiler AFUE ${afue.toFixed(1)}% — new boiler must be ≥${PROGRAM.boilerMinAFUE}%. Emergency replacement only.`});
           const furnAge = Number(s.htg?.year||0) ? new Date().getFullYear() - Number(s.htg.year) : 0;
-          if(furnAge > 3 && fuel==="Natural Gas" && !s.htg?.replaceRec) recs.push({t:"rec",m:`Furnace is ${furnAge} yrs old (>3 yrs) â†’ Clean & Tune auto-selected per program rules.`});
+          if(furnAge > 3 && fuel==="Natural Gas" && !s.htg?.replaceRec) recs.push({t:"rec",m:`Furnace is ${furnAge} yrs old (>3 yrs) → Clean & Tune auto-selected per program rules.`});
           if(s.htg?.cleanTune && fuel==="Natural Gas") recs.push({t:"info",m:`Furnace tune-up: must not have had tune-up within last 3 years.`});
-          if(s.htg?.replaceRec && sys==="Boiler") recs.push({t:"rec",m:"System is Boiler â†’ Boiler Replacement will be auto-selected in measures (not Furnace Replacement)."});
-          if(s.htg?.replaceRec && sys!=="Boiler") recs.push({t:"rec",m:"System is Forced Air â†’ Furnace Replacement will be auto-selected in measures. New furnace must be â‰¥95% AFUE."});
-          if(sys==="Boiler" && p.measures.includes("Furnace Replacement")) recs.push({t:"flag",m:"âš  Furnace Replacement is checked but system is Boiler â€” should be Boiler Replacement."});
-          if(sys!=="Boiler" && sys && p.measures.includes("Boiler Replacement")) recs.push({t:"flag",m:"âš  Boiler Replacement is checked but system is not a Boiler â€” should be Furnace Replacement."});
+          if(s.htg?.replaceRec && sys==="Boiler") recs.push({t:"rec",m:"System is Boiler → Boiler Replacement will be auto-selected in measures (not Furnace Replacement)."});
+          if(s.htg?.replaceRec && sys!=="Boiler") recs.push({t:"rec",m:"System is Forced Air → Furnace Replacement will be auto-selected in measures. New furnace must be ≥95% AFUE."});
+          if(sys==="Boiler" && p.measures.includes("Furnace Replacement")) recs.push({t:"flag",m:"⚠ Furnace Replacement is checked but system is Boiler — should be Boiler Replacement."});
+          if(sys!=="Boiler" && sys && p.measures.includes("Boiler Replacement")) recs.push({t:"flag",m:"⚠ Boiler Replacement is checked but system is not a Boiler — should be Furnace Replacement."});
           return recs.map((r,i)=><Rec key={i} type={r.t}>{r.m}</Rec>);
         })()}
       </Sec>
 
-      {/* â•â• PAGE 2: COOLING SYSTEM â•â• */}
+      {/* ══ PAGE 2: COOLING SYSTEM ══ */}
       <Sec title="Cooling System Info">
         <Gr>
           <Sel label="Type" value={s.clg?.type||""} onChange={v=>sn("clg","type",v)} opts={["Central Air","Window Units","Mini Split","Heat Pump","None"]}/>
           <F label="Manufacturer" value={s.clg?.mfg||""} onChange={v=>sn("clg","mfg",v)}/>
           <F label="Install Year" value={s.clg?.year||""} onChange={v=>sn("clg","year",v)} num/>
-          <F label="Age" computed={s.clg?.year ? (new Date().getFullYear()-Number(s.clg.year))+" yrs" : (s.clg?.age ? s.clg.age+" yrs" : "â€”")}/>
+          <F label="Age" computed={s.clg?.year ? (new Date().getFullYear()-Number(s.clg.year))+" yrs" : (s.clg?.age ? s.clg.age+" yrs" : "—")}/>
           <F label="SEER" value={s.clg?.seer||""} onChange={v=>sn("clg","seer",v)} num/>
           <F label="Condition" value={s.clg?.condition||""} onChange={v=>sn("clg","condition",v)}/>
           <Sel label="BTU Size" value={s.clg?.btu||""} onChange={v=>sn("clg","btu",v)} opts={["2 Ton (24k)","2.5 Ton (30k)","3 Ton (36k)","3.5 Ton (42k)"]}/>
@@ -413,14 +416,14 @@ export function ScopeTab({p,u,onLog}) {
         {s.clg?.replaceRec && <div style={{marginTop:4}}><F label="Reason" value={s.clg?.replaceReason||""} onChange={v=>sn("clg","replaceReason",v)}/></div>}
       </Sec>
 
-      {/* â•â• PAGE 2: DOMESTIC HOT WATER â•â• */}
+      {/* ══ PAGE 2: DOMESTIC HOT WATER ══ */}
       <Sec title="Domestic Hot Water Info">
         <Gr>
           <Sel label="Fuel" value={s.dhw?.fuel||""} onChange={v=>sn("dhw","fuel",v)} opts={["Natural Gas","Electric","Propane","Other"]}/>
           <Sel label="System Type" value={s.dhw?.system||""} onChange={v=>sn("dhw","system",v)} opts={["On Demand","Storage Tank","Indirect","Heat Pump","Other"]}/>
           <F label="Manufacturer" value={s.dhw?.mfg||""} onChange={v=>sn("dhw","mfg",v)}/>
           <F label="Install Year" value={s.dhw?.year||""} onChange={v=>sn("dhw","year",v)} num/>
-          <F label="Age" computed={s.dhw?.year ? (new Date().getFullYear()-Number(s.dhw.year))+" yrs" : (s.dhw?.age ? s.dhw.age+" yrs" : "â€”")}/>
+          <F label="Age" computed={s.dhw?.year ? (new Date().getFullYear()-Number(s.dhw.year))+" yrs" : (s.dhw?.age ? s.dhw.age+" yrs" : "—")}/>
           <F label="Condition" value={s.dhw?.condition||""} onChange={v=>sn("dhw","condition",v)}/>
           <F label="Input BTU" value={s.dhw?.btuIn||""} onChange={v=>sn("dhw","btuIn",v)} num/>
           {(()=>{
@@ -429,20 +432,20 @@ export function ScopeTab({p,u,onLog}) {
             const btuIn = Number(s.dhw?.btuIn);
             const autoOut = eff && btuIn ? Math.round(btuIn * eff / 100) : null;
             return <>
-              <F label="Output BTU" computed={autoOut ? autoOut.toLocaleString() : "â€”"} suffix={eff ? `${eff}% avg` : "select fuel+type"}/>
-              <F label="Efficiency" computed={eff ? eff+"%" : "â€”"} suffix={eff ? `${s.dhw?.fuel} ${s.dhw?.system}` : "auto"}/>
+              <F label="Output BTU" computed={autoOut ? autoOut.toLocaleString() : "—"} suffix={eff ? `${eff}% avg` : "select fuel+type"}/>
+              <F label="Efficiency" computed={eff ? eff+"%" : "—"} suffix={eff ? `${s.dhw?.fuel} ${s.dhw?.system}` : "auto"}/>
             </>;
           })()}
         </Gr>
         {(()=>{
           const recs = [];
           const fuel = s.dhw?.fuel; const sys = s.dhw?.system;
-          if(fuel==="Electric" && sys!=="Heat Pump") recs.push({t:"rec",m:"Electric resistance â†’ eligible for Heat Pump WH replacement regardless of age/condition (ComEd). Must be Energy Star rated."});
-          if(fuel==="Electric" && sys==="Heat Pump") recs.push({t:"info",m:"Heat Pump WH already installed â€” no replacement needed."});
+          if(fuel==="Electric" && sys!=="Heat Pump") recs.push({t:"rec",m:"Electric resistance → eligible for Heat Pump WH replacement regardless of age/condition (ComEd). Must be Energy Star rated."});
+          if(fuel==="Electric" && sys==="Heat Pump") recs.push({t:"info",m:"Heat Pump WH already installed — no replacement needed."});
           const key = `${fuel||""}|${sys||""}`;
           const eff = PROGRAM.dhwEff[key];
-          if(fuel==="Natural Gas" && eff && eff/100 < PROGRAM.dhwMinEF) recs.push({t:"warn",m:`Avg efficiency ${eff}% (EF ~${(eff/100).toFixed(2)}) is below program minimum EF â‰¥0.67. If failed/H&S risk and repair >$650 â†’ eligible for replacement.`});
-          if(fuel==="Natural Gas" && eff && eff/100 >= PROGRAM.dhwMinEF) recs.push({t:"info",m:`Avg efficiency meets program minimum EF â‰¥0.67. Replacement only if failed/H&S and repair >$650.`});
+          if(fuel==="Natural Gas" && eff && eff/100 < PROGRAM.dhwMinEF) recs.push({t:"warn",m:`Avg efficiency ${eff}% (EF ~${(eff/100).toFixed(2)}) is below program minimum EF ≥0.67. If failed/H&S risk and repair >$650 → eligible for replacement.`});
+          if(fuel==="Natural Gas" && eff && eff/100 >= PROGRAM.dhwMinEF) recs.push({t:"info",m:`Avg efficiency meets program minimum EF ≥0.67. Replacement only if failed/H&S and repair >$650.`});
           return recs.map((r,i)=><Rec key={i} type={r.t}>{r.m}</Rec>);
         })()}
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
@@ -454,7 +457,7 @@ export function ScopeTab({p,u,onLog}) {
         {s.dhw?.replaceRec && <div style={{marginTop:6}}><F label="Reason" value={s.dhw?.replaceReason||""} onChange={v=>sn("dhw","replaceReason",v)}/></div>}
       </Sec>
 
-      {/* â•â• PAGE 3: INTERIOR INSPECTION â•â• */}
+      {/* ══ PAGE 3: INTERIOR INSPECTION ══ */}
       <Sec title="Interior Inspection">
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.int?.mold} onChange={v=>sn("int","mold",v)} label="Mold"/>
@@ -482,18 +485,18 @@ export function ScopeTab({p,u,onLog}) {
           <CK checked={s.int?.smokeDetector} onChange={v=>sn("int","smokeDetector",v)} label="Smoke Detector"/>
         </div>
         {s.int?.recessedLight && <div style={{marginTop:6}}><F label="Recessed Lighting Location" value={s.int?.recessedLoc||""} onChange={v=>sn("int","recessedLoc",v)}/></div>}
-        {s.int?.knobTube && <Rec type="flag">LIVE KNOB & TUBE â€” insulation CANNOT proceed in affected areas until remediated by licensed electrician.</Rec>}
-        {s.int?.vermiculite && <Rec type="flag">VERMICULITE/ASBESTOS â€” do NOT disturb. Abatement required before insulation. May use estimated blower door only.</Rec>}
-        {s.int?.mold && <Rec type="flag">MOLD PRESENT â€” mold remediation must be completed before insulation work can begin.</Rec>}
-        {s.htg?.asbestosPipes && <Rec type="flag">ASBESTOS-WRAPPED PIPES â€” do not disturb. Abatement may be required.</Rec>}
+        {s.int?.knobTube && <Rec type="flag">LIVE KNOB & TUBE — insulation CANNOT proceed in affected areas until remediated by licensed electrician.</Rec>}
+        {s.int?.vermiculite && <Rec type="flag">VERMICULITE/ASBESTOS — do NOT disturb. Abatement required before insulation. May use estimated blower door only.</Rec>}
+        {s.int?.mold && <Rec type="flag">MOLD PRESENT — mold remediation must be completed before insulation work can begin.</Rec>}
+        {s.htg?.asbestosPipes && <Rec type="flag">ASBESTOS-WRAPPED PIPES — do not disturb. Abatement may be required.</Rec>}
       </Sec>
 
-      {/* â•â• PAGE 3: DOOR TYPES / EXHAUST VENTING â•â• */}
+      {/* ══ PAGE 3: DOOR TYPES / EXHAUST VENTING ══ */}
       <Sec title="Door Types / Exhaust Venting">
         <div style={{fontSize:11,fontWeight:600,color:"#60A5FA",marginBottom:6,textTransform:"uppercase",letterSpacing:".05em"}}>Weather Strips / Door Sweeps</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:"0px 8px"}}>
           {["Front","Back","Basement","Attic"].map(d=>(
-            <CK key={d} checked={s.doors?.[d]} onChange={v=>sn("doors",d,v)} label={`${d} â€” Existing`}/>
+            <CK key={d} checked={s.doors?.[d]} onChange={v=>sn("doors",d,v)} label={`${d} — Existing`}/>
           ))}
         </div>
         <div style={{maxWidth:200}}><F label="Total Strips/Sweeps Needed" value={s.totalSweeps||""} onChange={v=>ss("totalSweeps",v)}/></div>
@@ -510,18 +513,18 @@ export function ScopeTab({p,u,onLog}) {
           <F label="Blower Door In" value={s.exh?.bdIn||""} onChange={v=>sn("exh","bdIn",v)}/>
           <F label="Blower Door Out" value={s.exh?.bdOut||""} onChange={v=>sn("exh","bdOut",v)}/>
         </Gr></div>
-        <div style={{marginTop:6}}><CK checked={s.exh?.noBD} onChange={v=>sn("exh","noBD",v)} label="No blower door â€” estimated (asbestos/vermiculite ONLY)"/></div>
-        <textarea style={{...S.ta,marginTop:6}} value={s.exh?.notes||""} onChange={e=>sn("exh","notes",e.target.value)} rows={2} placeholder="Notesâ€¦"/>
+        <div style={{marginTop:6}}><CK checked={s.exh?.noBD} onChange={v=>sn("exh","noBD",v)} label="No blower door — estimated (asbestos/vermiculite ONLY)"/></div>
+        <textarea style={{...S.ta,marginTop:6}} value={s.exh?.notes||""} onChange={e=>sn("exh","notes",e.target.value)} rows={2} placeholder="Notes…"/>
       </Sec>
 
-      {/* â•â• PAGE 4: ATTIC â•â• */}
+      {/* ══ PAGE 4: ATTIC ══ */}
       <Sec title="Attic">
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:"0px 8px",marginBottom:8}}>
           <CK checked={s.attic?.finished} onChange={v=>sn("attic","finished",v)} label="Finished"/>
           <CK checked={s.attic?.unfinished} onChange={v=>sn("attic","unfinished",v)} label="Unfinished"/>
           <CK checked={s.attic?.flat} onChange={v=>sn("attic","flat",v)} label="Flat"/>
         </div>
-        <Gr><F label="Sq Footage" value={s.attic?.sqft||""} onChange={v=>sn("attic","sqft",v)} num/><F label="Existing R-Value" value={s.attic?.preR||""} onChange={v=>sn("attic","preR",v)} num/><F label="R-Value to Add" value={s.attic?.addR||""} onChange={v=>sn("attic","addR",v)} num/><F label="Total R" computed={s.attic?.preR||s.attic?.addR ? "R-"+(Number(s.attic?.preR||0)+Number(s.attic?.addR||0)) : "â€”"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Footage" value={s.attic?.sqft||""} onChange={v=>sn("attic","sqft",v)} num/><F label="Existing R-Value" value={s.attic?.preR||""} onChange={v=>sn("attic","preR",v)} num/><F label="R-Value to Add" value={s.attic?.addR||""} onChange={v=>sn("attic","addR",v)} num/><F label="Total R" computed={s.attic?.preR||s.attic?.addR ? "R-"+(Number(s.attic?.preR||0)+Number(s.attic?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:8}}><Gr>
           <F label="Recessed Lighting Qty" value={s.attic?.recessQty||""} onChange={v=>sn("attic","recessQty",v)}/>
           <F label="Storage Created" value={s.attic?.storage||""} onChange={v=>sn("attic","storage",v)} num/>
@@ -539,18 +542,18 @@ export function ScopeTab({p,u,onLog}) {
           <F label="Needed Ventilation" value={s.attic?.needVent||""} onChange={v=>sn("attic","needVent",v)}/>
           <F label="Access Location" value={s.attic?.accessLoc||""} onChange={v=>sn("attic","accessLoc",v)}/>
         </Gr></div>
-        <textarea style={{...S.ta,marginTop:6}} value={s.attic?.notes||""} onChange={e=>sn("attic","notes",e.target.value)} rows={2} placeholder="Attic notesâ€¦"/>
+        <textarea style={{...S.ta,marginTop:6}} value={s.attic?.notes||""} onChange={e=>sn("attic","notes",e.target.value)} rows={2} placeholder="Attic notes…"/>
         <InsulRec section="attic" preR={s.attic?.preR} addR={s.attic?.addR}/>
-        {s.attic?.ceilingCond==="Poor" && <Rec type="warn">Poor ceiling condition â€” consider fiberglass instead of cellulose (cellulose weighs ~2x fiberglass for same R-value).</Rec>}
-        {s.attic?.floorBoards && <Rec type="info">Floor boards present â€” dense pack at 3.5 lbs/ft³ unless homeowner agrees to remove flooring and blow to R-49.</Rec>}
-        {s.attic?.knobTube && <Rec type="flag">KNOB & TUBE in attic â€” insulation CANNOT proceed until remediated by licensed electrician.</Rec>}
-        {s.attic?.vermPresent && <Rec type="flag">VERMICULITE in attic â€” do NOT disturb. Abatement required before insulation.</Rec>}
-        {s.attic?.moldPresent && <Rec type="flag">MOLD in attic â€” remediation required before insulation work.</Rec>}
+        {s.attic?.ceilingCond==="Poor" && <Rec type="warn">Poor ceiling condition — consider fiberglass instead of cellulose (cellulose weighs ~2x fiberglass for same R-value).</Rec>}
+        {s.attic?.floorBoards && <Rec type="info">Floor boards present — dense pack at 3.5 lbs/ft³ unless homeowner agrees to remove flooring and blow to R-49.</Rec>}
+        {s.attic?.knobTube && <Rec type="flag">KNOB & TUBE in attic — insulation CANNOT proceed until remediated by licensed electrician.</Rec>}
+        {s.attic?.vermPresent && <Rec type="flag">VERMICULITE in attic — do NOT disturb. Abatement required before insulation.</Rec>}
+        {s.attic?.moldPresent && <Rec type="flag">MOLD in attic — remediation required before insulation work.</Rec>}
       </Sec>
 
-      {/* â•â• PAGE 4: COLLAR BEAM â•â• */}
+      {/* ══ PAGE 4: COLLAR BEAM ══ */}
       <Sec title="Collar Beam">
-        <Gr><F label="Sq Footage" value={s.collar?.sqft||""} onChange={v=>sn("collar","sqft",v)} num/><F label="Pre-Existing R" value={s.collar?.preR||""} onChange={v=>sn("collar","preR",v)} num/><F label="R-Value to Add" value={s.collar?.addR||""} onChange={v=>sn("collar","addR",v)} num/><F label="Total R" computed={s.collar?.preR||s.collar?.addR ? "R-"+(Number(s.collar?.preR||0)+Number(s.collar?.addR||0)) : "â€”"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Footage" value={s.collar?.sqft||""} onChange={v=>sn("collar","sqft",v)} num/><F label="Pre-Existing R" value={s.collar?.preR||""} onChange={v=>sn("collar","preR",v)} num/><F label="R-Value to Add" value={s.collar?.addR||""} onChange={v=>sn("collar","addR",v)} num/><F label="Total R" computed={s.collar?.preR||s.collar?.addR ? "R-"+(Number(s.collar?.preR||0)+Number(s.collar?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.collar?.accessible} onChange={v=>sn("collar","accessible",v)} label="Accessible"/>
           <CK checked={s.collar?.cutIn} onChange={v=>sn("collar","cutIn",v)} label="Cut In Needed"/>
@@ -560,9 +563,9 @@ export function ScopeTab({p,u,onLog}) {
         <InsulRec section="collar" preR={s.collar?.preR} addR={s.collar?.addR}/>
       </Sec>
 
-      {/* â•â• PAGE 4: OUTER CEILING JOISTS â•â• */}
+      {/* ══ PAGE 4: OUTER CEILING JOISTS ══ */}
       <Sec title="Outer Ceiling Joists">
-        <Gr><F label="Sq Ft" value={s.outerCeiling?.sqft||""} onChange={v=>sn("outerCeiling","sqft",v)} num/><F label="Pre-Existing R" value={s.outerCeiling?.preR||""} onChange={v=>sn("outerCeiling","preR",v)} num/><F label="R to Add" value={s.outerCeiling?.addR||""} onChange={v=>sn("outerCeiling","addR",v)} num/><F label="Total R" computed={s.outerCeiling?.preR||s.outerCeiling?.addR ? "R-"+(Number(s.outerCeiling?.preR||0)+Number(s.outerCeiling?.addR||0)) : "â€”"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Ft" value={s.outerCeiling?.sqft||""} onChange={v=>sn("outerCeiling","sqft",v)} num/><F label="Pre-Existing R" value={s.outerCeiling?.preR||""} onChange={v=>sn("outerCeiling","preR",v)} num/><F label="R to Add" value={s.outerCeiling?.addR||""} onChange={v=>sn("outerCeiling","addR",v)} num/><F label="Total R" computed={s.outerCeiling?.preR||s.outerCeiling?.addR ? "R-"+(Number(s.outerCeiling?.preR||0)+Number(s.outerCeiling?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.outerCeiling?.accessible} onChange={v=>sn("outerCeiling","accessible",v)} label="Accessible"/>
           <CK checked={s.outerCeiling?.cutIn} onChange={v=>sn("outerCeiling","cutIn",v)} label="Cut In"/>
@@ -574,7 +577,7 @@ export function ScopeTab({p,u,onLog}) {
       </Sec>
 
       <Sec title="Knee Walls">
-        <Gr><F label="Sq Ft" value={s.kneeWall?.sqft||""} onChange={v=>sn("kneeWall","sqft",v)} num/><F label="Pre-Existing R" value={s.kneeWall?.preR||""} onChange={v=>sn("kneeWall","preR",v)} num/><F label="R to Add" value={s.kneeWall?.addR||""} onChange={v=>sn("kneeWall","addR",v)} num/><F label="Total R" computed={s.kneeWall?.preR||s.kneeWall?.addR ? "R-"+(Number(s.kneeWall?.preR||0)+Number(s.kneeWall?.addR||0)) : "â€”"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Ft" value={s.kneeWall?.sqft||""} onChange={v=>sn("kneeWall","sqft",v)} num/><F label="Pre-Existing R" value={s.kneeWall?.preR||""} onChange={v=>sn("kneeWall","preR",v)} num/><F label="R to Add" value={s.kneeWall?.addR||""} onChange={v=>sn("kneeWall","addR",v)} num/><F label="Total R" computed={s.kneeWall?.preR||s.kneeWall?.addR ? "R-"+(Number(s.kneeWall?.preR||0)+Number(s.kneeWall?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.kneeWall?.densePack} onChange={v=>sn("kneeWall","densePack",v)} label="Dense Pack"/>
           <CK checked={s.kneeWall?.rigidFoam} onChange={v=>sn("kneeWall","rigidFoam",v)} label="Rigid Foam Board"/>
@@ -588,7 +591,7 @@ export function ScopeTab({p,u,onLog}) {
       </Sec>
 
       <Sec title="Exterior Walls — 1st Floor">
-        <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)} num/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.16) : "â€”"}/><F label="Total R" computed={s.extWall1?.preR||s.extWall1?.addR ? "R-"+(Number(s.extWall1?.preR||0)+Number(s.extWall1?.addR||0)) : "â€”"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Ft" value={s.extWall1?.sqft||""} onChange={v=>sn("extWall1","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall1?.preR||""} onChange={v=>sn("extWall1","preR",v)} num/><F label="R to Add" value={s.extWall1?.addR||""} onChange={v=>sn("extWall1","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall1?.sqft ? Math.round(Number(s.extWall1.sqft)*0.16) : "—"}/><F label="Total R" computed={s.extWall1?.preR||s.extWall1?.addR ? "R-"+(Number(s.extWall1?.preR||0)+Number(s.extWall1?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall1?.densePack} onChange={v=>sn("extWall1","densePack",v)} label="Dense Pack"/>
           <CK checked={s.extWall1?.phenolic} onChange={v=>sn("extWall1","phenolic",v)} label="Phenolic Foam"/>
@@ -606,7 +609,7 @@ export function ScopeTab({p,u,onLog}) {
       </Sec>
 
       <Sec title="Exterior Walls — 2nd Floor">
-        <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)} num/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.14) : "â€”"}/><F label="Total R" computed={s.extWall2?.preR||s.extWall2?.addR ? "R-"+(Number(s.extWall2?.preR||0)+Number(s.extWall2?.addR||0)) : "â€”"} suffix="auto"/></Gr>
+        <Gr><F label="Sq Ft" value={s.extWall2?.sqft||""} onChange={v=>sn("extWall2","sqft",v)} num/><F label="Pre-Existing R" value={s.extWall2?.preR||""} onChange={v=>sn("extWall2","preR",v)} num/><F label="R to Add" value={s.extWall2?.addR||""} onChange={v=>sn("extWall2","addR",v)} num/><F label="Win/Door SqFt" computed={s.extWall2?.sqft ? Math.round(Number(s.extWall2.sqft)*0.14) : "—"}/><F label="Total R" computed={s.extWall2?.preR||s.extWall2?.addR ? "R-"+(Number(s.extWall2?.preR||0)+Number(s.extWall2?.addR||0)) : "—"} suffix="auto"/></Gr>
         <div style={{marginTop:6,display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:"0px 8px"}}>
           <CK checked={s.extWall2?.densePack} onChange={v=>sn("extWall2","densePack",v)} label="Dense Pack"/>
           <CK checked={s.extWall2?.phenolic} onChange={v=>sn("extWall2","phenolic",v)} label="Phenolic Foam"/>
@@ -656,12 +659,12 @@ export function ScopeTab({p,u,onLog}) {
         </Gr></div>}
         <div style={{marginTop:6}}><CK checked={s.fnd?.crawlWallsObstructed} onChange={v=>sn("fnd","crawlWallsObstructed",v)} label="Crawl walls insulated or obstructed already"/></div>
         <InsulRec section="fnd" preR={s.fnd?.preR} addR={null}/>
-        {s.fnd?.preR && Number(s.fnd.preR) === 0 && <Rec type="rec">No existing basement wall insulation â†’ eligible. Bring to min R-10/13. Rigid foam board or batt insulation.</Rec>}
-        {s.fnd?.preR && Number(s.fnd.preR) >= 10 && <Rec type="info">Existing R-{s.fnd.preR} â€” basement wall insulation not needed.</Rec>}
-        {s.fnd?.bandAccess && Number(s.fnd?.bandR||0) === 0 && <Rec type="rec">Rim joist has no insulation â†’ insulate to min R-10. Batt insulation NOT allowed for rim joist.</Rec>}
-        {s.fnd?.vaporBarrier && s.fnd?.crawlFloor==="Dirt/Gravel" && <Rec type="rec">Dirt/gravel crawl floor â€” vapor barrier (min 6 mil) required before wall insulation.</Rec>}
-        {s.fnd?.crawlR !== undefined && Number(s.fnd?.crawlR||0) === 0 && <Rec type="rec">Crawlspace walls â†’ insulate to R-15/19 with rigid foam board or 2-part spray foam. No fibrous insulation on crawl walls.</Rec>}
-        {s.fnd?.waterIssues && <Rec type="flag">Water issues present â€” must be resolved before insulation work can proceed.</Rec>}
+        {s.fnd?.preR && Number(s.fnd.preR) === 0 && <Rec type="rec">No existing basement wall insulation → eligible. Bring to min R-10/13. Rigid foam board or batt insulation.</Rec>}
+        {s.fnd?.preR && Number(s.fnd.preR) >= 10 && <Rec type="info">Existing R-{s.fnd.preR} — basement wall insulation not needed.</Rec>}
+        {s.fnd?.bandAccess && Number(s.fnd?.bandR||0) === 0 && <Rec type="rec">Rim joist has no insulation → insulate to min R-10. Batt insulation NOT allowed for rim joist.</Rec>}
+        {s.fnd?.vaporBarrier && s.fnd?.crawlFloor==="Dirt/Gravel" && <Rec type="rec">Dirt/gravel crawl floor — vapor barrier (min 6 mil) required before wall insulation.</Rec>}
+        {s.fnd?.crawlR !== undefined && Number(s.fnd?.crawlR||0) === 0 && <Rec type="rec">Crawlspace walls → insulate to R-15/19 with rigid foam board or 2-part spray foam. No fibrous insulation on crawl walls.</Rec>}
+        {s.fnd?.waterIssues && <Rec type="flag">Water issues present — must be resolved before insulation work can proceed.</Rec>}
       </Sec>
 
       <Sec title="Diagnostics">
@@ -671,14 +674,14 @@ export function ScopeTab({p,u,onLog}) {
           const recs = [];
           if(cfm && sqft) {
             const pct = cfm / sqft;
-            if(pct >= PROGRAM.airSealMinCFM50pct) recs.push({t:"rec",m:`CFM50 ${cfm} is â‰¥110% of ${sqft} sqft (${(pct*100).toFixed(0)}%). Air sealing eligible.`});
-            else recs.push({t:"warn",m:`CFM50 ${cfm} is ${(pct*100).toFixed(0)}% of sqft â€” below 110% threshold. Air sealing may not be eligible.`});
+            if(pct >= PROGRAM.airSealMinCFM50pct) recs.push({t:"rec",m:`CFM50 ${cfm} is ≥110% of ${sqft} sqft (${(pct*100).toFixed(0)}%). Air sealing eligible.`});
+            else recs.push({t:"warn",m:`CFM50 ${cfm} is ${(pct*100).toFixed(0)}% of sqft — below 110% threshold. Air sealing may not be eligible.`});
             const target25 = Math.round(cfm * 0.75);
-            recs.push({t:"info",m:`25% reduction goal: post-CFM50 target â‰¤${target25}. Need to reduce by â‰¥${cfm - target25} CFM50.`});
+            recs.push({t:"info",m:`25% reduction goal: post-CFM50 target ≤${target25}. Need to reduce by ≥${cfm - target25} CFM50.`});
           }
           return recs.map((r,i)=><Rec key={i} type={r.t}>{r.m}</Rec>);
         })()}
-        <textarea style={{...S.ta,marginTop:6}} value={s.diagNotes||""} onChange={e=>ss("diagNotes",e.target.value)} rows={2} placeholder="Diagnostics notesâ€¦"/>
+        <textarea style={{...S.ta,marginTop:6}} value={s.diagNotes||""} onChange={e=>ss("diagNotes",e.target.value)} rows={2} placeholder="Diagnostics notes…"/>
       </Sec>
 
       <Sec title="ASHRAE 62.2-2016 Ventilation">
@@ -716,19 +719,19 @@ export function ScopeTab({p,u,onLog}) {
           const b2Win = s.ashrae?.b2Win || false;
           const b3Win = s.ashrae?.b3Win || false;
 
-          /* â•â• ASHRAE 62.2-2016 CALCULATIONS â•â•
-             Section 4.1.1 â€” Total Required Ventilation Rate
-             Qtot = 0.03 Ã— Afl + 7.5 Ã— (Nbr + 1)
+          /* ══ ASHRAE 62.2-2016 CALCULATIONS ══
+             Section 4.1.1 — Total Required Ventilation Rate
+             Qtot = 0.03 × Afl + 7.5 × (Nbr + 1)
              (Nbr = number of bedrooms, Nocc = Nbr + 1)
              
              Infiltration Credit
-             Qinf = 0.052 Ã— Q50 Ã— wsf Ã— (H / 8.2)^0.4
+             Qinf = 0.052 × Q50 × wsf × (H / 8.2)^0.4
              
-             Local Ventilation â€” Alternative Compliance:
+             Local Ventilation — Alternative Compliance:
              Intermittent exhaust rates: Kitchen 100 CFM, Bath 50 CFM
              Deficit = max(0, required - measured). Window = 20 CFM credit.
              Blank = no fan = no requirement.
-             Alternative compliance supplement = totalDeficit Ã— 0.25
+             Alternative compliance supplement = totalDeficit × 0.25
              (converts intermittent deficit to continuous equivalent)
              
              Qfan = Qtot + supplement - Qinf
@@ -740,7 +743,7 @@ export function ScopeTab({p,u,onLog}) {
           // Qtot (Eq 4.1a)
           const Qtot = (Afl > 0) ? 0.03 * Afl + 7.5 * (Nbr + 1) : 0;
 
-          // Local ventilation deficits â€” Alternative Compliance
+          // Local ventilation deficits — Alternative Compliance
           // Intermittent rates: Kitchen 100 CFM, Bath 50 CFM
           // Window = 20 CFM credit. Blank = no fan = no requirement.
           const kReq = kPresent ? 100 : 0;
@@ -753,10 +756,10 @@ export function ScopeTab({p,u,onLog}) {
           const b3Def = !b3Present ? 0 : Math.max(0, b3Req - (b3Win ? 20 : b3));
           const totalDef = kDef + b1Def + b2Def + b3Def;
 
-          // Alternative compliance supplement (intermittent â†’ continuous: Ã—0.25)
+          // Alternative compliance supplement (intermittent → continuous: ×0.25)
           const supplement = totalDef * 0.25;
 
-          // Infiltration credit â€” existing: FULL credit
+          // Infiltration credit — existing: FULL credit
           const Qinf_credit = Qinf_eff;
 
           // Required mechanical ventilation rate
@@ -782,7 +785,7 @@ export function ScopeTab({p,u,onLog}) {
 
           return (
             <div>
-              {/* â•â• CONFIGURATION â•â• */}
+              {/* ══ CONFIGURATION ══ */}
               <div style={hdr}>Configuration</div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 16px",fontSize:12}}>
                 <div style={row}><span style={lbl}>Construction</span><span style={val}>Existing</span></div>
@@ -793,13 +796,13 @@ export function ScopeTab({p,u,onLog}) {
                 <div style={row}><span style={lbl}>wsf [1/hr]</span><span style={{...val,color:"#60A5FA"}}>{wsf}</span></div>
               </div>
 
-              {/* â•â• BUILDING INPUTS â•â• */}
+              {/* ══ BUILDING INPUTS ══ */}
               <div style={hdr}>Building Inputs</div>
               <div className="ashrae-inputs" style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
-                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ft²]</div><div style={autoBox}>{Afl||"â€”"}</div><div style={autoSub}>{finBasement > 0 ? `${baseSqft} + ${finBasement} fin. bsmt` : "â† Sq Footage"}</div></div>
+                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Floor area [ft²]</div><div style={autoBox}>{Afl||"—"}</div><div style={autoSub}>{finBasement > 0 ? `${baseSqft} + ${finBasement} fin. bsmt` : "← Sq Footage"}</div></div>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Nocc (occupants)</div><div style={autoBox}>{Nbr + 1}</div><div style={autoSub}>{Nbr} bedrooms + 1 = {Nbr + 1}</div></div>
                 <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Height [ft]</div><div style={autoBox}>{H}</div><div style={autoSub}>{st>=2?"2-story":"1"+(st>=1.5?".5":"")+"-story"}</div></div>
-                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Q50 [CFM] â€” est. post</div><div style={{...autoBox,color:canAirSeal?"#f59e0b":"#e2e8f0"}}>{Q50||"â€”"}</div><div style={autoSub}>{canAirSeal ? `${preQ50} Ã— 0.75 (25% reduction)` : `${preQ50} (no air seal)`}</div>
+                <div><div style={{fontSize:10,color:"#94a3b8",marginBottom:3}}>Q50 [CFM] — est. post</div><div style={{...autoBox,color:canAirSeal?"#f59e0b":"#e2e8f0"}}>{Q50||"—"}</div><div style={autoSub}>{canAirSeal ? `${preQ50} × 0.75 (25% reduction)` : `${preQ50} (no air seal)`}</div>
                   <label style={{display:"flex",alignItems:"center",gap:4,marginTop:4,fontSize:10,color:canAirSeal?"#f59e0b":"#64748b",cursor:"pointer",justifyContent:"center"}}>
                     <input type="checkbox" checked={!!canAirSeal} onChange={e=>sn("ashrae","canAirSeal",e.target.checked)} style={{accentColor:"#2563EB",width:13,height:13}}/>
                     Air seal eligible
@@ -807,10 +810,10 @@ export function ScopeTab({p,u,onLog}) {
                 </div>
               </div>
 
-              {/* â•â• LOCAL VENTILATION â•â• */}
-              <div style={hdr}>Local Ventilation â€” Alternative Compliance</div>
+              {/* ══ LOCAL VENTILATION ══ */}
+              <div style={hdr}>Local Ventilation — Alternative Compliance</div>
               <div style={{fontSize:9,color:"#64748b",marginBottom:2}}>Blank = no fan = no requirement. Openable window = 20 CFM credit. Kitchen: 100 CFM · Bath: 50 CFM (intermittent rates)</div>
-              <div style={{fontSize:9,color:"#f59e0b",marginBottom:6}}>âš  If a fan is present but not operational or CFM is unknown, enter 0.</div>
+              <div style={{fontSize:9,color:"#f59e0b",marginBottom:6}}>⚠ If a fan is present but not operational or CFM is unknown, enter 0.</div>
               <div className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",fontSize:11,alignItems:"center"}}>
                 <span style={{fontWeight:600,color:"#64748b"}}></span>
                 <span style={{fontWeight:600,color:"#64748b",textAlign:"center"}}>Fan Flow [CFM]</span>
@@ -828,8 +831,8 @@ export function ScopeTab({p,u,onLog}) {
                   <span style={{fontSize:12,color:"#cbd5e1"}}>{f.n}</span>
                   <input style={{...S.inp,textAlign:"center",fontSize:12}} value={s.ashrae?.[f.k]??a[f.ak]??""} onChange={e=>sn("ashrae",f.k,e.target.value)} placeholder="blank = none"/>
                   <div style={{textAlign:"center"}}><input type="checkbox" checked={f.w} onChange={e=>sn("ashrae",f.wk,e.target.checked)} style={{accentColor:"#60A5FA"}}/></div>
-                  <div style={{textAlign:"center",fontSize:11,color:f.present?"#64748b":"#475569"}}>{f.present?f.r:"â€”"}</div>
-                  <div style={{textAlign:"center",fontSize:13,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:!f.present?"#475569":f.d>0?"#f59e0b":"#22c55e"}}>{f.present?f.d:"â€”"}</div>
+                  <div style={{textAlign:"center",fontSize:11,color:f.present?"#64748b":"#475569"}}>{f.present?f.r:"—"}</div>
+                  <div style={{textAlign:"center",fontSize:13,fontWeight:700,fontFamily:"'JetBrains Mono',monospace",color:!f.present?"#475569":f.d>0?"#f59e0b":"#22c55e"}}>{f.present?f.d:"—"}</div>
                 </div>
               ))}
               <div className="ashrae-grid" style={{display:"grid",gridTemplateColumns:"80px 1fr 60px 50px 55px",gap:"2px 6px",borderTop:"1px solid rgba(255,255,255,.1)",paddingTop:4,marginTop:4}}>
@@ -838,35 +841,35 @@ export function ScopeTab({p,u,onLog}) {
                 <div style={{textAlign:"center",fontSize:14,fontWeight:800,fontFamily:"'JetBrains Mono',monospace",color:totalDef>0?"#f59e0b":"#22c55e"}}>{Ri(totalDef)}</div>
               </div>
 
-              {/* â•â• RESULTS â•â• */}
+              {/* ══ RESULTS ══ */}
               <div style={resultBox}>
                 <div style={{fontSize:13,fontWeight:700,color:"#3B82F6",marginBottom:4}}>Dwelling-Unit Ventilation Results</div>
-                <div style={{fontSize:9,color:canAirSeal?"#f59e0b":"#64748b",marginBottom:8}}>Using {canAirSeal ? `estimated post Q50: ${preQ50} Ã— 0.75 = ${Q50} CFM` : `pre-work Q50: ${preQ50} CFM (no air seal)`}</div>
+                <div style={{fontSize:9,color:canAirSeal?"#f59e0b":"#64748b",marginBottom:8}}>Using {canAirSeal ? `estimated post Q50: ${preQ50} × 0.75 = ${Q50} CFM` : `pre-work Q50: ${preQ50} CFM (no air seal)`}</div>
 
                 <div style={row}><span style={lbl}>Infiltration credit, Qinf [CFM]</span><span style={val}>{R(Qinf_eff)}</span></div>
-                <div style={eq}>= 0.052 Ã— Q50 Ã— wsf Ã— (H / 8.2)^0.4<br/>= 0.052 Ã— {Q50} Ã— {wsf} Ã— ({H} / 8.2)^0.4</div>
+                <div style={eq}>= 0.052 × Q50 × wsf × (H / 8.2)^0.4<br/>= 0.052 × {Q50} × {wsf} × ({H} / 8.2)^0.4</div>
 
                 <div style={row}><span style={lbl}>Total required ventilation rate, Qtot [CFM]</span><span style={val}>{R(Qtot)}</span></div>
-                <div style={eq}>= 0.03 Ã— Afl + 7.5 Ã— (Nbr + 1)<br/>= 0.03 Ã— {Afl} + 7.5 Ã— ({Nbr} + 1)<br/>= {R(0.03*Afl)} + {R(7.5*(Nbr+1))}</div>
+                <div style={eq}>= 0.03 × Afl + 7.5 × (Nbr + 1)<br/>= 0.03 × {Afl} + 7.5 × ({Nbr} + 1)<br/>= {R(0.03*Afl)} + {R(7.5*(Nbr+1))}</div>
 
                 <div style={row}><span style={lbl}>Total local ventilation deficit [CFM]</span><span style={val}>{Ri(totalDef)}</span></div>
-                <div style={eq}>= Î£ max(0, req âˆ’ measured) per fan<br/>Kitchen {kReq} âˆ’ {kCFM} = {kDef} · Bath1 {b1Req} âˆ’ {b1} = {b1Def} · Bath2 {b2Req} âˆ’ {b2} = {b2Def} · Bath3 {b3Req} âˆ’ {b3} = {b3Def}</div>
+                <div style={eq}>= Σ max(0, req − measured) per fan<br/>Kitchen {kReq} − {kCFM} = {kDef} · Bath1 {b1Req} − {b1} = {b1Def} · Bath2 {b2Req} − {b2} = {b2Def} · Bath3 {b3Req} − {b3} = {b3Def}</div>
 
                 <div style={row}><span style={lbl}>Alternative compliance supplement [CFM]</span><span style={val}>{R(supplement)}</span></div>
-                <div style={eq}>= totalDeficit Ã— 0.25 (intermittent â†’ continuous)<br/>= {Ri(totalDef)} Ã— 0.25</div>
+                <div style={eq}>= totalDeficit × 0.25 (intermittent → continuous)<br/>= {Ri(totalDef)} × 0.25</div>
 
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0 4px",borderTop:"2px solid rgba(37,99,235,.4)",marginTop:8}}>
                   <span style={{fontWeight:700,color:"#e2e8f0",fontSize:13}}>Required mech. ventilation, Qfan [CFM]</span>
                   <span style={{fontWeight:800,color:Qfan < PROGRAM.fanMinCFM ? "#22c55e" : "#3B82F6",fontSize:18,fontFamily:"'JetBrains Mono',monospace"}}>{R(Qfan)}</span>
                 </div>
-                <div style={eq}>= Qtot + supplement âˆ’ Qinf<br/>= {R(Qtot)} + {R(supplement)} âˆ’ {R(Qinf_credit)}</div>
-                {Qfan < PROGRAM.fanMinCFM && <div style={{marginTop:6,padding:"8px 12px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.3)",borderRadius:6,fontSize:12,color:"#22c55e",fontWeight:600}}>âœ“ Qfan below {PROGRAM.fanMinCFM} CFM â€” no mechanical ventilation fan required</div>}
+                <div style={eq}>= Qtot + supplement − Qinf<br/>= {R(Qtot)} + {R(supplement)} − {R(Qinf_credit)}</div>
+                {Qfan < PROGRAM.fanMinCFM && <div style={{marginTop:6,padding:"8px 12px",background:"rgba(34,197,94,.1)",border:"1px solid rgba(34,197,94,.3)",borderRadius:6,fontSize:12,color:"#22c55e",fontWeight:600}}>✓ Qfan below {PROGRAM.fanMinCFM} CFM — no mechanical ventilation fan required</div>}
               </div>
 
-              {/* â•â• DWELLING-UNIT VENTILATION RUN-TIME SOLVER â•â• */}
+              {/* ══ DWELLING-UNIT VENTILATION RUN-TIME SOLVER ══ */}
               {Qfan >= PROGRAM.fanMinCFM && <div style={solverBox("37,99,235")}>
                 <div style={{fontSize:12,fontWeight:700,color:"#60A5FA",marginBottom:6}}>Dwelling-Unit Ventilation Run-Time Solver</div>
-                <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Select fan setting. Recommended = lowest setting â‰¥ Qfan ({R(Qfan)} CFM). All fans run continuous.</div>
+                <div style={{fontSize:10,color:"#94a3b8",marginBottom:8}}>Select fan setting. Recommended = lowest setting ≥ Qfan ({R(Qfan)} CFM). All fans run continuous.</div>
                 <div style={{display:"flex",gap:8,marginBottom:10}}>
                   {FAN_SETTINGS.map(cfm => {
                     const meets = cfm >= Qfan && Qfan > 0;
@@ -880,7 +883,7 @@ export function ScopeTab({p,u,onLog}) {
                     }}>
                       <div style={{fontSize:18,fontWeight:700}}>{cfm}</div>
                       <div style={{fontSize:10}}>CFM</div>
-                      {isRec && <div style={{fontSize:9,marginTop:2,color:"#22c55e",fontWeight:600}}>âœ“ REC</div>}
+                      {isRec && <div style={{fontSize:9,marginTop:2,color:"#22c55e",fontWeight:600}}>✓ REC</div>}
                       {!meets && Qfan > 0 && <div style={{fontSize:9,marginTop:2,color:"#ef4444"}}>Below Qfan</div>}
                     </button>;
                   })}
@@ -897,9 +900,9 @@ export function ScopeTab({p,u,onLog}) {
                       <span style={{fontSize:12,color:"#cbd5e1"}}>Min. run-time per hour</span>
                       <span style={{fontSize:14,fontWeight:700,color:"#60A5FA",fontFamily:"'JetBrains Mono',monospace"}}>{minPerHr} min/hr</span>
                     </div>
-                    <div style={eq}>= Qfan ÷ fan capacity Ã— 60<br/>= {R(Qfan)} ÷ {fan} Ã— 60 = {minPerHr} min/hr</div>
+                    <div style={eq}>= Qfan ÷ fan capacity × 60<br/>= {R(Qfan)} ÷ {fan} × 60 = {minPerHr} min/hr</div>
                     <div style={{marginTop:6,fontSize:10,color:fan >= Qfan ? "#22c55e" : "#f59e0b",fontWeight:600}}>
-                      {fan >= Qfan ? `âœ“ Continuous (60 min/hr) exceeds minimum ${minPerHr} min/hr` : `âš  Fan setting below Qfan â€” does not meet requirement`}
+                      {fan >= Qfan ? `✓ Continuous (60 min/hr) exceeds minimum ${minPerHr} min/hr` : `⚠ Fan setting below Qfan — does not meet requirement`}
                     </div>
                   </div>;
                 })()}
@@ -913,7 +916,7 @@ export function ScopeTab({p,u,onLog}) {
 
       <Sec title={`Energy Efficiency Measures (${p.measures.length})`}>
         {(()=>{
-          // Auto-calculate quantities from scope data â€” keyed off R to Add
+          // Auto-calculate quantities from scope data — keyed off R to Add
           const aq = {};
           const atticAdd = Number(s.attic?.addR||0);
           const atticPre = Number(s.attic?.preR||0);
@@ -980,7 +983,7 @@ export function ScopeTab({p,u,onLog}) {
                   <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:autoQty?"rgba(37,99,235,.08)":"",color:autoQty?"#93C5FD":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
                   <span style={{fontSize:9,color:"#64748b",minWidth:28}}>{unit(m)}</span>
                   {autoQty && <span style={{fontSize:8,color:"#60A5FA"}}>auto</span>}
-                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">â†» auto</span>}
+                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
                 </div>}
               </div>;
             })}
@@ -1022,7 +1025,7 @@ export function ScopeTab({p,u,onLog}) {
                   <input style={{...S.inp,width:70,textAlign:"center",fontSize:11,background:autoQty?"rgba(37,99,235,.08)":"",color:autoQty?"#93C5FD":""}} inputMode="decimal" value={q} onChange={e=>{const v=e.target.value;if(v===""||/^-?\d*\.?\d*$/.test(v))setQ(m,v);}} placeholder="qty"/>
                   <span style={{fontSize:9,color:"#64748b",minWidth:20}}>ea</span>
                   {autoQty && <span style={{fontSize:8,color:"#60A5FA"}}>auto</span>}
-                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">â†» auto</span>}
+                  {!autoQty && aq[m]!==undefined && <span style={{fontSize:8,color:"#60A5FA",cursor:"pointer",textDecoration:"underline"}} onClick={()=>{const nq={...mq};delete nq[m];u({measureQty:nq});}} title="Reset to auto-calculated value">↻ auto</span>}
                 </div>}
               </div>;
             })}
@@ -1031,43 +1034,40 @@ export function ScopeTab({p,u,onLog}) {
       </Sec>
 
       <Sec title="Notes on Work">
-        <textarea style={S.ta} value={p.measureNotes} onChange={e=>u({measureNotes:e.target.value})} rows={2} placeholder="Notes on work to be performedâ€¦"/>
+        <textarea style={S.ta} value={p.measureNotes} onChange={e=>u({measureNotes:e.target.value})} rows={2} placeholder="Notes on work to be performed…"/>
       </Sec>
       <Sec title="Notes on Health & Safety">
-        <textarea style={S.ta} value={s.hsNotes||""} onChange={e=>ss("hsNotes",e.target.value)} rows={2} placeholder="H&S notesâ€¦"/>
+        <textarea style={S.ta} value={s.hsNotes||""} onChange={e=>ss("hsNotes",e.target.value)} rows={2} placeholder="H&S notes…"/>
       </Sec>
 
       <Sec title="Insulation Quantities">
         <Gr>{["Attic (0-R11)","Attic (R12-19)","Basement Wall","Crawl Space Wall","Knee Wall","Floor Above Crawl","Rim Joist","Injection Foam Walls"].map(m =>
           <F key={m} label={`${m} ${m.includes("Rim Joist")?"LnFt":"SqFt"}`} value={s.insulQty?.[m]||""} onChange={v=>ss("insulQty",{...(s.insulQty||{}),[m]:v})}/>
         )}</Gr>
-        <textarea style={{...S.ta,marginTop:6}} value={s.insulNotes||""} onChange={e=>ss("insulNotes",e.target.value)} rows={2} placeholder="Insulation notesâ€¦"/>
+        <textarea style={{...S.ta,marginTop:6}} value={s.insulNotes||""} onChange={e=>ss("insulNotes",e.target.value)} rows={2} placeholder="Insulation notes…"/>
       </Sec>
 
       <Sec title="Scope Variances">
-        <textarea style={S.ta} value={p.scopeVariances} onChange={e=>u({scopeVariances:e.target.value})} rows={2} placeholder="Scope variancesâ€¦"/>
+        <textarea style={S.ta} value={p.scopeVariances} onChange={e=>u({scopeVariances:e.target.value})} rows={2} placeholder="Scope variances…"/>
       </Sec>
 
       <Sec title="RISE Submission">
         <Gr>
-          <Sel label="RISE Status" value={p.riseStatus} onChange={v=>{u({riseStatus:v});onLog(`RISE â†’ ${v}`);}} opts={["pending","approved","corrections"]}/>
+          <Sel label="RISE Status" value={p.riseStatus} onChange={v=>{u({riseStatus:v});onLog(`RISE → ${v}`);}} opts={["pending","approved","corrections"]}/>
           <F label="Approval Date" value={p.scopeDate} onChange={v=>u({scopeDate:v})} type="date"/>
         </Gr>
         <div style={{marginTop:8}}><CK checked={p.scopeApproved} onChange={v=>{u({scopeApproved:v});if(v)onLog("Scope approved");}} label="Scope Approved"/></div>
-        <div style={{marginTop:8}}><textarea style={S.ta} value={p.scopeNotes} onChange={e=>u({scopeNotes:e.target.value})} rows={2} placeholder="Conditions, correctionsâ€¦"/></div>
+        <div style={{marginTop:8}}><textarea style={S.ta} value={p.scopeNotes} onChange={e=>u({scopeNotes:e.target.value})} rows={2} placeholder="Conditions, corrections…"/></div>
       </Sec>
       <Sec title="Mechanical Replacement">
         <CK checked={p.mechNeeded} onChange={v=>u({mechNeeded:v})} label="Replacement needed (Decision Tree)"/>
         {p.mechNeeded && (
           <div style={{marginTop:8}}>
-            <Gr><Sel label="Status" value={p.mechStatus} onChange={v=>{u({mechStatus:v});onLog(`Mech â†’ ${v}`);}} opts={["requested","approved","denied"]}/><F label="Date" value={p.mechDate} onChange={v=>u({mechDate:v})} type="date"/></Gr>
-            <textarea style={{...S.ta,marginTop:6}} value={p.mechNotes} onChange={e=>u({mechNotes:e.target.value})} rows={2} placeholder="Notesâ€¦"/>
+            <Gr><Sel label="Status" value={p.mechStatus} onChange={v=>{u({mechStatus:v});onLog(`Mech → ${v}`);}} opts={["requested","approved","denied"]}/><F label="Date" value={p.mechDate} onChange={v=>u({mechDate:v})} type="date"/></Gr>
+            <textarea style={{...S.ta,marginTop:6}} value={p.mechNotes} onChange={e=>u({mechNotes:e.target.value})} rows={2} placeholder="Notes…"/>
           </div>
         )}
       </Sec>
     </div>
   );
 }
-
-
-

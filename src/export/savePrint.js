@@ -1,5 +1,3 @@
-import { STAGES, EE_MEASURES, HS_MEASURES, PHOTO_SECTIONS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK } from "../constants/index.js";
-import { getPhotos, hasPhoto, getResolvedQty, measUnit } from "../helpers/index.js";
 export function savePrint(html) {
   // Create overlay container in React app
   const overlay = document.createElement("div");
@@ -11,11 +9,11 @@ export function savePrint(html) {
   toolbar.style.cssText = "display:flex;gap:8px;padding:8px 12px;background:#0f172a;justify-content:flex-end;align-items:center;flex-shrink:0";
 
   const printBtn = document.createElement("button");
-  printBtn.textContent = "ðŸ’¾ Save as PDF / Print";
+  printBtn.textContent = "💾 Save as PDF / Print";
   printBtn.style.cssText = "padding:8px 16px;background:#1E3A8A;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif";
 
   const closeBtn = document.createElement("button");
-  closeBtn.textContent = "âœ• Close";
+  closeBtn.textContent = "✕ Close";
   closeBtn.style.cssText = "padding:8px 16px;background:#64748b;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-family:Arial,sans-serif";
 
   toolbar.appendChild(printBtn);
@@ -303,7 +301,7 @@ export function sideBySideHTML(photos, allItems, p) {
     const postImg = postArr.length ? postArr.map(ph=>`<img src="${ph.d}" style="width:100%;max-height:300px;object-fit:contain;margin-bottom:2px"/>`).join("") : `<div style="height:150px;display:flex;align-items:center;justify-content:center;color:#ccc;background:#f9f9f9">No photo</div>`;
     const label = (pre?.cat || post?.cat || "").replace(/ \(Pre\)| \(Post\)/g,"");
     return `<div style="break-inside:avoid;margin-bottom:14px;border:1px solid #ddd;border-radius:6px;overflow:hidden">
-      <div style="padding:6px 10px;background:#f5f5f5;font-size:12px;font-weight:600">${label} â€” ${pre?.l||""} / ${post?.l||""}</div>
+      <div style="padding:6px 10px;background:#f5f5f5;font-size:12px;font-weight:600">${label} — ${pre?.l||""} / ${post?.l||""}</div>
       <table style="width:100%;border-collapse:collapse;table-layout:fixed"><tr>
         <td style="width:50%;vertical-align:top;border-right:1px solid #eee;padding:4px;text-align:center"><div style="font-size:10px;font-weight:700;padding:2px;background:#DBEAFE;color:#1E3A8A">PRE</div>${preImg}</td>
         <td style="width:50%;vertical-align:top;padding:4px;text-align:center"><div style="font-size:10px;font-weight:700;padding:2px;background:#dcfce7;color:#166534">POST</div>${postImg}</td>
@@ -320,7 +318,5 @@ export function formPrintHTML(title, p, bodyHTML, sigData, custSig) {
     <h1>${title}</h1><h2>${p.customerName} · ${p.address} · ${new Date().toLocaleDateString()}</h2>${bodyHTML}${sigBlock}${custBlock}</body></html>`;
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ═══════════════════════════════════════════════════════════════
 // MAIN APP
-
-

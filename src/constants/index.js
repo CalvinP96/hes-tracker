@@ -1,6 +1,3 @@
-// ═══════════════════════════════════════════════════════════════
-// CONSTANTS
-// ═══════════════════════════════════════════════════════════════
 export const STAGES = [
   { id:0, label:"Intake", icon:"📥", color:"#DC2626" },
   { id:1, label:"Schedule", icon:"📅", color:"#E97451" },
@@ -86,14 +83,12 @@ export const FI_SAFETY = [
   {k:"dryer",l:"Is dryer properly vented to outside?",yn:true},
   {k:"combust_vent",l:"Are combustion appliances properly vented to the outside?",yn:true}
 ];
-
 export const FI_INSUL = [
   {k:"walls",l:"Walls",q:"Were walls insulated?"},
   {k:"attic",l:"Attic",q:"Was attic(s) insulated?"},
   {k:"foundation",l:"Foundation Walls (Basement/Crawlspace)",q:"Were walls insulated?"},
   {k:"rim",l:"Rim Joist",q:"Was rim joist insulated?"}
 ];
-
 export const FI_CONTRACTOR_CK = [
   "Upload energy audit document to the Data Collection Tool",
   "Upload invoice to the Data Collection Tool",
@@ -101,19 +96,11 @@ export const FI_CONTRACTOR_CK = [
   "Upload project pictures, or link to pictures, to the Data Collection Tool"
 ];
 
-export const DEFAULT_USERS = [
-  { id:"u1", name:"Admin", username:"admin", pin:"1234", role:"admin" },
-  { id:"u2", name:"Scheduler", username:"scheduler", pin:"1234", role:"scheduler" },
-  { id:"u3", name:"Assessor", username:"assessor", pin:"1234", role:"assessor" },
-  { id:"u4", name:"Scope Lead", username:"scope", pin:"1234", role:"scope" },
-  { id:"u5", name:"Installer", username:"installer", pin:"1234", role:"installer" },
-  { id:"u6", name:"HVAC Tech", username:"hvac", pin:"1234", role:"hvac" },
-];
-
 // ═══════════════════════════════════════════════════════════════
 // PROGRAM RULES — HES Retrofits 2026
 // ═══════════════════════════════════════════════════════════════
 export const PROGRAM = {
+  // Insulation targets
   attic: { threshold: 19, target: 49, label: "Attic insulation when existing ≤R19 → bring to R-49" },
   collar: { threshold: 19, target: 49, label: "Collar beam → R-49" },
   outerCeiling: { threshold: 19, target: 49, label: "Outer ceiling joists → R-49" },
@@ -124,14 +111,16 @@ export const PROGRAM = {
   rimJoist: { threshold: 0, target: 10, label: "Rim joist → min R-10" },
   floorAboveCrawl: { threshold: 0, target: 20, label: "Floor above crawl → min R-20" },
   crawlCeiling: { threshold: 0, target: 30, label: "Crawlspace ceiling → R-30" },
+  // Mechanical thresholds
   furnaceMinAFUE: 95,
   boilerMinAFUE: 95,
   dhwMinEF: 0.67,
   furnaceRepairCap: 950,
   dhwRepairCap: 650,
-  airSealGoal: 25,
-  airSealMinCFM50pct: 1.1,
-  fanMinCFM: 15,
+  airSealGoal: 25, // % reduction
+  airSealMinCFM50pct: 1.1, // ≥110% of sqft
+  fanMinCFM: 15, // Qfan below this = no fan needed
+  // DHW efficiency by type (fuel + system → avg efficiency %)
   dhwEff: {
     "Natural Gas|Storage Tank": 60,
     "Natural Gas|On Demand": 82,
@@ -145,34 +134,63 @@ export const PROGRAM = {
   },
 };
 
-export const HVAC_BRANDS = ["","Carrier","Lennox","Trane","Goodman","Rheem","Bryant","York","Amana","Coleman","Ruud","Heil","Tempstar","Comfortmaker","Armstrong","ADP","Keeprite","Ducane","Gibson","Westinghouse","Payne","Day & Night","Arcoaire","Clare","Totaline","Grandaire","Comfort Saver","Allied","Intercity","ICP","Luxaire","Fraser-Johnston","Bohn","Climatrol","Commander","Evcon","Other"];
-export const COND_OPTS = ["","Good - no issues","Fair - minor wear","Poor - significant wear","Needs repair","Needs replacement","N/A"];
+export const DEFAULT_USERS = [
+  { id:"u1", name:"Admin", username:"admin", pin:"1234", role:"admin" },
+  { id:"u2", name:"Scheduler", username:"scheduler", pin:"1234", role:"scheduler" },
+  { id:"u3", name:"Assessor", username:"assessor", pin:"1234", role:"assessor" },
+  { id:"u4", name:"Scope Lead", username:"scope", pin:"1234", role:"scope" },
+  { id:"u5", name:"Installer", username:"installer", pin:"1234", role:"installer" },
+  { id:"u6", name:"HVAC Tech", username:"hvac", pin:"1234", role:"hvac" },
+];
+
+export const HVAC_BRANDS = ["","Carrier","Lennox","Trane","Goodman","Rheem","Bryant","York","Amana","Coleman","Ruud","Daikin","Heil","Payne","Tempstar","Comfortmaker","American Standard","Other"];
+export const COND_OPTS = ["","Good — no issues","Fair — minor wear","Poor — significant wear","Needs repair","Needs replacement","N/A"];
 export const YN_OPTS = ["","Yes","No","N/A"];
 
 export const HVAC_GUIDES = {
   furnace: {
-    heatExchanger: ["","No cracks/corrosion (Pass)","Minor surface rust (Monitor)","Crack found (Fail — replace)","Heavy corrosion (Fail — replace)","Unable to inspect"],
-    inducerMotor: ["","Runs smoothly (Pass)","Minor noise (Monitor)","Loud/bearing noise (Fail)","Not running (Fail)","N/A — natural draft"],
-    ignitorCond: ["","Good (Pass)","Cracked/worn (Replace)","Failed (Replace)","HSI — Good","HSI — Cracked (Replace)","Pilot light — good","Pilot light — weak"],
-    burnerCond: ["","Clean, even flame (Pass)","Dirty — needs cleaning","Uneven flame (Adjust)","Cracked/damaged (Replace)","N/A"],
-    flameSensor: ["","Clean (Pass)","Dirty — cleaned","Weak signal (Replace)","Failed (Replace)","N/A"],
-    blowerMotor: ["","Runs smoothly (Pass)","Minor noise (Monitor)","Loud/bearing noise (Fail)","Not running (Fail)","Belt-drive — good","Belt-drive — worn (Replace belt)"],
-    controlBoard: ["","No issues (Pass)","Warning light present","Error codes logged","Burn marks/damage (Replace)","N/A"],
-    thermostat: ["","Programable — good","Smart — good","Non-programable — replace recommended","Not working (Replace)"],
-    filterChanged: ["","Yes — new filter installed","No — customer to replace","Not accessible","Filter not present"],
-    findings: ["","No issues found","Minor issues — noted","Significant issues — COR needed","Replacement recommended","Safety concern — immediate action"],
+    title:"🔥 Furnace Tune-Up Guide",
+    tips:[
+      "Check heat exchanger for cracks — shine flashlight through burner ports and look for light on the other side",
+      "Listen to inducer motor for 10+ seconds — any grinding, rattling, or vibration = flag it",
+      "OHM reading on ignitor: silicon nitride 10-200Ω is normal, silicon carbide 40-90Ω is normal. Outside range = failing",
+      "Blue/even flame = good. Yellow/orange/lifting/rolling = bad burners or cracked HX",
+      "Flame sensor: clean with fine steel wool or emery cloth. Microamp reading should be 2-6μA",
+      "ALWAYS check for CO at register with combustion analyzer after tune-up"
+    ]
   },
   waterHeater: {
-    condition: ["","Good (Pass)","Fair — minor wear","Poor — corrosion present","Leaking (Replace)","Very old — replace recommended"],
-    venting: ["","Properly vented (Pass)","Minor disconnection — repaired","Improper venting (Fail — repair)","No draft hood (Replace)","Power vent — good","Power vent — failed"],
-    burners: ["","Clean, good flame (Pass)","Dirty — needs cleaning","Uneven flame","Pilot out — relit","Pilot won't stay lit (Replace)","N/A — electric"],
-    findings: ["","No issues found","Minor issues — noted","Significant issues — COR needed","Replacement recommended","Safety concern"],
+    title:"🚿 Water Heater Check-Up Guide",
+    tips:[
+      "Check for rust/water stains at base — indicates tank leaking internally",
+      "Venting: look for corrosion, disconnected joints, proper pitch (¼″ per foot upward)",
+      "Look for white residue around T&P valve — indicates relief valve has been releasing",
+      "Check flue draft with match/lighter near draft hood after 5 min of operation",
+      "Sediment: flush a few gallons from drain valve into bucket — if heavy sediment, flag it",
+      "Water heater age over 12 years = flag for replacement consideration"
+    ]
   },
   condenser: {
-    condition: ["","Good — no issues","Fair — minor wear","Poor — significant wear","Coil damage present","Refrigerant leak suspected","Needs replacement"],
-    electrical: ["","Good (Pass)","Disconnect needs replacement","Wiring issues found","Disconnect missing (Fail)","N/A"],
-    lineSet: ["","Good (Pass)","Insulation worn — re-insulated","Kinked/damaged (Replace)","N/A"],
-    evapCoil: ["","Good (Pass)","Dirty — needs cleaning","Corrosion present","Leaking (Replace)","Not accessible"],
-    findings: ["","No issues found","Minor issues — noted","Significant issues — COR needed","Replacement recommended","N/A"],
+    title:"❄️ A/C Tune-Up Guide",
+    tips:[
+      "Clean condenser coils with garden hose from INSIDE out — never pressure wash",
+      "Check disconnect for burn marks, corrosion, or loose connections",
+      "Contactor: check for pitting on contact points. Chattering = replace",
+      "Check capacitor for bulging top — bulged = failing",
+      "Refrigerant: check pressures against manufacturer specs for current outdoor temp",
+      "Line set: check insulation on suction line (larger line). Missing insulation = efficiency loss",
+      "Listen for compressor noise — grinding/knocking = compressor failing"
+    ]
   },
+  replacement: {
+    title:"🔄 When to Recommend Replacement",
+    tips:[
+      "Furnace: age 15+ years, cracked heat exchanger, AFUE < 80%, repeated repairs",
+      "A/C: age 12+ years, R-22 refrigerant, compressor failure, SEER < 13",
+      "Water heater: age 12+ years, tank leaking, heavy sediment, repeated pilot issues",
+      "ALWAYS document current condition with photos BEFORE recommending replacement",
+      "If recommending replacement, note the existing equipment info (make/model/serial) for scope team",
+      "Flag for replacement in the Findings section — Scope team handles the rest"
+    ]
+  }
 };

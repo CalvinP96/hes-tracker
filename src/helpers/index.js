@@ -1,21 +1,59 @@
 import { PROGRAM, EE_MEASURES } from '../constants/index.js';
 
-// ═══════════════════════════════════════════════════════════════
-// PURE HELPERS
-// ═══════════════════════════════════════════════════════════════
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
 export const fmts = (d) => d ? new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric"}) : "";
 
-// Multi-photo helpers — backward compatible (old {d,at,by} → new [{d,at,by},...])
 export function getPhotos(photos, id) {
   const v = photos?.[id];
   if (!v) return [];
   if (Array.isArray(v)) return v;
-  if (v.d) return [v]; // old single format
+  if (v.d) return [v];
   return [];
 }
 export function hasPhoto(photos, id) { return getPhotos(photos, id).length > 0; }
 export function photoCount(photos, id) { return getPhotos(photos, id).length; }
+
+export function calcRtoAdd(section, preR) {
+  const rule = PROGRAM[section];
+  if (!rule) return null;
+  const pre = Number(preR) || 0;
+  if (pre > rule.threshold && section !== "kneeWall" && section !== "extWall1" && section !== "extWall2" && section !== "fnd") return null;
+  if (section === "kneeWall" && pre >= 20) return null;
+  if ((section === "extWall1" || section === "extWall2") && pre > 0) return null;
+  if (section === "fnd" && pre >= 10) return null;
+  return Math.max(0, rule.target - pre);
+}
+
+// Get resolved qty for a measure (override or auto-calculated)
+export function getResolvedQty(p,m) {
+  const s = p.scope2026 || {};
+  const aq = {};
+  const atticAdd=Number(s.attic?.addR||0),atticPre=Number(s.attic?.preR||0);
+  if(atticAdd>0&&s.attic?.sqft){if(atticPre<=11)aq["Attic Insulation (0-R11)"]=Number(s.attic.sqft);else if(atticPre<=19)aq["Attic Insulation (R12-19)"]=Number(s.attic.sqft);}
+  if(Number(s.fnd?.addR||0)>0||(s.fnd?.preR!==undefined&&Number(s.fnd.preR||0)===0&&(Number(s.fnd?.aboveSqft||0)+Number(s.fnd?.belowSqft||0))>0)){const b=(Number(s.fnd?.aboveSqft||0)+Number(s.fnd?.belowSqft||0));if(b>0)aq["Basement Wall Insulation"]=b;}
+  if(s.fnd?.crawlR!==undefined&&Number(s.fnd.crawlR||0)===0){const c=(Number(s.fnd?.crawlAbove||0)+Number(s.fnd?.crawlBelow||0));if(c>0)aq["Crawl Space Wall Insulation"]=c;}
+  if(Number(s.kneeWall?.addR||0)>0&&s.kneeWall?.sqft)aq["Knee Wall Insulation"]=Number(s.kneeWall.sqft);
+  const w1=Number(s.extWall1?.addR||0)>0&&s.extWall1?.sqft?Math.round(Number(s.extWall1.sqft)*0.84):0;
+  const w2=Number(s.extWall2?.addR||0)>0&&s.extWall2?.sqft?Math.round(Number(s.extWall2.sqft)*0.86):0;
+  if(w1+w2>0)aq["Injection Foam Walls"]=w1+w2;
+  if(s.fnd?.bandAccess&&Number(s.fnd?.bandR||0)===0&&s.fnd?.bandLnft)aq["Rim Joist Insulation"]=Number(s.fnd.bandLnft);
+  if(s.fnd?.crawlBandAccess&&Number(s.fnd?.crawlBandR||0)===0&&s.fnd?.crawlBandLnft)aq["Rim Joist Insulation"]=(aq["Rim Joist Insulation"]||0)+Number(s.fnd.crawlBandLnft);
+  if(Number(s.collar?.addR||0)>0&&s.collar?.sqft)aq["Attic Insulation (R12-19)"]=(aq["Attic Insulation (R12-19)"]||0)+Number(s.collar.sqft);
+  if(Number(s.outerCeiling?.addR||0)>0&&s.outerCeiling?.sqft)aq["Attic Insulation (R12-19)"]=(aq["Attic Insulation (R12-19)"]||0)+Number(s.outerCeiling.sqft);
+  if(s.htg?.replaceRec)aq[s.htg?.system==="Boiler"?"Boiler Replacement":"Furnace Replacement"]=1;
+  if(s.dhw?.replaceRec)aq["Water Heater Replacement"]=1;
+  if(s.clg?.replaceRec)aq["Central AC Replacement"]=1;
+  aq["Air Sealing"]=1;
+  if(s.attic?.ductwork||s.collar?.ductwork||s.fnd?.crawlDuct)aq["Duct Sealing"]=1;
+  if(s.coNeeded&&Number(s.coNeeded)>0)aq["CO Detector (Hardwired)"]=Number(s.coNeeded);
+  if(s.smokeNeeded&&Number(s.smokeNeeded)>0)aq["Smoke Detector (Hardwired)"]=Number(s.smokeNeeded);
+  if(s.doorSweeps&&Number(s.doorSweeps)>0)aq["Door Sweeps"]=Number(s.doorSweeps);
+  
+  if(s.dhw?.flueRepair)aq["Flue Repairs"]=1;
+  const mq=p.measureQty||{};
+  return mq[m]!==undefined?mq[m]:(aq[m]!==undefined?String(aq[m]):"");
+}
+export function measUnit(m){if(m.includes("Insulation")&&!m.includes("Rim"))return"sqft";if(m.includes("Rim Joist"))return"lnft";if(m.includes("Foam Walls"))return"sqft";return"ea";}
 
 export function blank() {
   return {
@@ -67,7 +105,7 @@ export function calcStage(p) {
 export function getAlerts(p) {
   const a = [];
   const cs = calcStage(p);
-  if (cs > p.currentStage) a.push({ type:"advance", msg:`Ready → Stage ${cs}`, stage:cs });
+  if (cs > p.currentStage) a.push({ type:"advance", msg:`Ready → ${STAGES[cs].label}`, stage:cs });
   if (p.customerName && p.address && !p.assessmentScheduled && !p.assessmentDate && p.currentStage < 2) a.push({ type:"schedule", msg:"Needs assessment scheduling" });
   if (p.scopeApproved && !p.installScheduled && !p.installDate && p.currentStage < 5) a.push({ type:"schedule", msg:"Needs install scheduling" });
   if (p.riseStatus === "corrections") a.push({ type:"warn", msg:"RISE corrections requested" });
@@ -81,47 +119,4 @@ export function getAlerts(p) {
   const pendingCO = (p.changeOrders||[]).filter(c=>c.status==="pending").length;
   if (pendingCO > 0) a.push({ type:"co", msg:`${pendingCO} COR${pendingCO>1?"s":""} pending` });
   return a;
-}
-
-// Get resolved qty for a measure (override or auto-calculated)
-export function getResolvedQty(p,m) {
-  const s = p.scope2026 || {};
-  const aq = {};
-  const atticAdd=Number(s.attic?.addR||0),atticPre=Number(s.attic?.preR||0);
-  if(atticAdd>0&&s.attic?.sqft){if(atticPre<=11)aq["Attic Insulation (0-R11)"]=Number(s.attic.sqft);else if(atticPre<=19)aq["Attic Insulation (R12-19)"]=Number(s.attic.sqft);}
-  if(Number(s.fnd?.addR||0)>0||(s.fnd?.preR!==undefined&&Number(s.fnd.preR||0)===0&&(Number(s.fnd?.aboveSqft||0)+Number(s.fnd?.belowSqft||0))>0)){const b=(Number(s.fnd?.aboveSqft||0)+Number(s.fnd?.belowSqft||0));if(b>0)aq["Basement Wall Insulation"]=b;}
-  if(s.fnd?.crawlR!==undefined&&Number(s.fnd.crawlR||0)===0){const c=(Number(s.fnd?.crawlAbove||0)+Number(s.fnd?.crawlBelow||0));if(c>0)aq["Crawl Space Wall Insulation"]=c;}
-  if(Number(s.kneeWall?.addR||0)>0&&s.kneeWall?.sqft)aq["Knee Wall Insulation"]=Number(s.kneeWall.sqft);
-  const w1=Number(s.extWall1?.addR||0)>0&&s.extWall1?.sqft?Math.round(Number(s.extWall1.sqft)*0.84):0;
-  const w2=Number(s.extWall2?.addR||0)>0&&s.extWall2?.sqft?Math.round(Number(s.extWall2.sqft)*0.86):0;
-  if(w1+w2>0)aq["Injection Foam Walls"]=w1+w2;
-  if(s.fnd?.bandAccess&&Number(s.fnd?.bandR||0)===0&&s.fnd?.bandLnft)aq["Rim Joist Insulation"]=Number(s.fnd.bandLnft);
-  if(s.fnd?.crawlBandAccess&&Number(s.fnd?.crawlBandR||0)===0&&s.fnd?.crawlBandLnft)aq["Rim Joist Insulation"]=(aq["Rim Joist Insulation"]||0)+Number(s.fnd.crawlBandLnft);
-  if(Number(s.collar?.addR||0)>0&&s.collar?.sqft)aq["Attic Insulation (R12-19)"]=(aq["Attic Insulation (R12-19)"]||0)+Number(s.collar.sqft);
-  if(Number(s.outerCeiling?.addR||0)>0&&s.outerCeiling?.sqft)aq["Attic Insulation (R12-19)"]=(aq["Attic Insulation (R12-19)"]||0)+Number(s.outerCeiling.sqft);
-  if(s.htg?.replaceRec)aq[s.htg?.system==="Boiler"?"Boiler Replacement":"Furnace Replacement"]=1;
-  if(s.dhw?.replaceRec)aq["Water Heater Replacement"]=1;
-  if(s.clg?.replaceRec)aq["Central AC Replacement"]=1;
-  aq["Air Sealing"]=1;
-  if(s.attic?.ductwork||s.collar?.ductwork||s.fnd?.crawlDuct)aq["Duct Sealing"]=1;
-  if(s.coNeeded&&Number(s.coNeeded)>0)aq["CO Detector (Hardwired)"]=Number(s.coNeeded);
-  if(s.smokeNeeded&&Number(s.smokeNeeded)>0)aq["Smoke Detector (Hardwired)"]=Number(s.smokeNeeded);
-  if(s.doorSweeps&&Number(s.doorSweeps)>0)aq["Door Sweeps"]=Number(s.doorSweeps);
-  if(s.dhw?.flueRepair)aq["Flue Repairs"]=1;
-  const mq=p.measureQty||{};
-  return mq[m]!==undefined?mq[m]:(aq[m]!==undefined?String(aq[m]):"");
-}
-
-export function measUnit(m){if(m.includes("Insulation")&&!m.includes("Rim"))return"sqft";if(m.includes("Rim Joist"))return"lnft";if(m.includes("Foam Walls"))return"sqft";return"ea";}
-
-// Auto-calc R to Add based on program rules
-export function calcRtoAdd(section, preR) {
-  const rule = PROGRAM[section];
-  if (!rule) return null;
-  const pre = Number(preR) || 0;
-  if (pre > rule.threshold && section !== "kneeWall" && section !== "extWall1" && section !== "extWall2" && section !== "fnd") return null;
-  if (section === "kneeWall" && pre >= 20) return null;
-  if ((section === "extWall1" || section === "extWall2") && pre > 0) return null;
-  if (section === "fnd" && pre >= 10) return null;
-  return Math.max(0, rule.target - pre);
 }

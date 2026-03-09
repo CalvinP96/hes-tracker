@@ -1,65 +1,67 @@
 import { STAGES, EE_MEASURES, HS_MEASURES, PHOTO_SECTIONS, QAQC_SECTIONS, FI_SAFETY, FI_INSUL, FI_CONTRACTOR_CK } from "../constants/index.js";
 import { getPhotos, hasPhoto, getResolvedQty, measUnit } from "../helpers/index.js";
+import { formPrintHTML, savePrint } from "../export/savePrint.js";
 
 export function exportData(projects) {
-  const data = JSON.stringify(projects, null, 2);
-  const blob = new Blob([data], {type:"application/json"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `hes-retrofits-export-${new Date().toISOString().slice(0,10)}.json`;
-  a.click(); URL.revokeObjectURL(url);
-}
+    const data = JSON.stringify(projects, null, 2);
+    const blob = new Blob([data], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `hes-retrofits-export-${new Date().toISOString().slice(0,10)}.json`;
+    a.click(); URL.revokeObjectURL(url);
+  }
 
 export async function exportPhotos(projects) {
-  if (typeof JSZip === "undefined") { alert("JSZip not loaded"); return; }
-  const zip = new window.JSZip();
-  let count = 0;
-  projects.forEach(p => {
-    const name = (p.customerName||"unnamed").replace(/[^a-zA-Z0-9]/g,"_");
-    const folder = zip.folder(`${name}_${p.id.slice(0,6)}`);
-    Object.entries(p.photos||{}).forEach(([key, val]) => {
+    if (typeof JSZip === "undefined") { alert("JSZip not loaded"); return; }
+    const zip = new window.JSZip();
+    let count = 0;
+    projects.forEach(p => {
+      const name = (p.customerName||"unnamed").replace(/[^a-zA-Z0-9]/g,"_");
+      const folder = zip.folder(`${name}_${p.id.slice(0,6)}`);
+      Object.entries(p.photos||{}).forEach(([key, val]) => {
+        const arr = Array.isArray(val) ? val : (val ? [val] : []);
+        arr.forEach((ph, i) => {
+          const d = ph?.d || ph;
+          if (!d || typeof d !== "string" || !d.startsWith("data:")) return;
+          const ext = d.startsWith("data:image/png") ? "png" : d.startsWith("data:image/gif") ? "gif" : "jpg";
+          const b64 = d.split(",")[1];
+          if (b64) { folder.file(`${key}${arr.length>1?`_${i+1}`:""}.${ext}`, b64, {base64:true}); count++; }
+        });
+      });
+    });
+    if (count === 0) { alert("No photos to export"); return; }
+    const blob = await zip.generateAsync({type:"blob"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `hes-photos-${new Date().toISOString().slice(0,10)}.zip`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
+export async function exportProjectPhotos(proj) {
+    if (typeof JSZip === "undefined") { alert("JSZip not loaded"); return; }
+    const zip = new window.JSZip();
+    const name = (proj.customerName||"unnamed").replace(/[^a-zA-Z0-9]/g,"_");
+    let count = 0;
+    Object.entries(proj.photos||{}).forEach(([key, val]) => {
       const arr = Array.isArray(val) ? val : (val ? [val] : []);
       arr.forEach((ph, i) => {
         const d = ph?.d || ph;
         if (!d || typeof d !== "string" || !d.startsWith("data:")) return;
         const ext = d.startsWith("data:image/png") ? "png" : d.startsWith("data:image/gif") ? "gif" : "jpg";
         const b64 = d.split(",")[1];
-        if (b64) { folder.file(`${key}${arr.length>1?`_${i+1}`:""}.${ext}`, b64, {base64:true}); count++; }
+        if (b64) { zip.file(`${key}${arr.length>1?`_${i+1}`:""}.${ext}`, b64, {base64:true}); count++; }
       });
     });
-  });
-  if (count === 0) { alert("No photos to export"); return; }
-  const blob = await zip.generateAsync({type:"blob"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `hes-photos-${new Date().toISOString().slice(0,10)}.zip`;
-  a.click(); URL.revokeObjectURL(url);
-}
+    if (count === 0) { alert("No photos in this project"); return; }
+    const blob = await zip.generateAsync({type:"blob"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `${name}_photos.zip`;
+    a.click(); URL.revokeObjectURL(url);
+  }
 
-export async function exportProjectPhotos(proj) {
-  if (typeof JSZip === "undefined") { alert("JSZip not loaded"); return; }
-  const zip = new window.JSZip();
-  const name = (proj.customerName||"unnamed").replace(/[^a-zA-Z0-9]/g,"_");
-  let count = 0;
-  Object.entries(proj.photos||{}).forEach(([key, val]) => {
-    const arr = Array.isArray(val) ? val : (val ? [val] : []);
-    arr.forEach((ph, i) => {
-      const d = ph?.d || ph;
-      if (!d || typeof d !== "string" || !d.startsWith("data:")) return;
-      const ext = d.startsWith("data:image/png") ? "png" : d.startsWith("data:image/gif") ? "gif" : "jpg";
-      const b64 = d.split(",")[1];
-      if (b64) { zip.file(`${key}${arr.length>1?`_${i+1}`:""}.${ext}`, b64, {base64:true}); count++; }
-    });
-  });
-  if (count === 0) { alert("No photos in this project"); return; }
-  const blob = await zip.generateAsync({type:"blob"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = `${name}_photos.zip`;
-  a.click(); URL.revokeObjectURL(url);
-}
 export async function exportProjectForms(proj) {
-    if (typeof JSZip === "undefined" || typeof jspdf === "undefined") { alert("Libraries not loaded â€” refresh"); return; }
+    if (typeof JSZip === "undefined" || typeof jspdf === "undefined") { alert("Libraries not loaded — refresh"); return; }
     const zip = new window.JSZip();
     const nm = (proj.customerName||"unnamed").replace(/[^a-zA-Z0-9]/g,"_");
     const p = proj;
@@ -67,11 +69,11 @@ export async function exportProjectForms(proj) {
     // Status
     const overlay = document.createElement("div");
     overlay.style.cssText = "position:fixed;inset:0;background:#0f172a;z-index:99999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;font-family:Arial;color:#e2e8f0";
-    overlay.innerHTML = '<div style="font-size:16px;font-weight:bold">Generating PDFsâ€¦</div><div id="pdf-step" style="font-size:13px;color:#94a3b8"></div>';
+    overlay.innerHTML = '<div style="font-size:16px;font-weight:bold">Generating PDFs…</div><div id="pdf-step" style="font-size:13px;color:#94a3b8"></div>';
     document.body.appendChild(overlay);
     const stepEl = overlay.querySelector("#pdf-step");
 
-    // Pure jsPDF text-based PDF builder â€” no html2canvas
+    // Pure jsPDF text-based PDF builder — no html2canvas
     const { jsPDF } = window.jspdf;
 
     function buildPDF(title, sections) {
@@ -119,7 +121,7 @@ export async function exportProjectForms(proj) {
             cx = ML;
             row.forEach((cell, ci) => {
               const isObj = cell && typeof cell === "object";
-              const txt = String(isObj ? (cell.t||"â€”") : (cell!=null ? cell : "â€”"));
+              const txt = String(isObj ? (cell.t||"—") : (cell!=null ? cell : "—"));
               if (isObj && cell.c === "g") doc.setTextColor(...green);
               else if (isObj && cell.c === "r") doc.setTextColor(...red);
               else doc.setTextColor(...black);
@@ -137,8 +139,8 @@ export async function exportProjectForms(proj) {
           sec.rows.forEach(row => {
             checkPage(16);
             doc.setFont("helvetica","normal"); doc.setTextColor(...gray);
-            const lbl = String(row[0]!=null ? row[0] : "â€”");
-            const val = String(row[1]!=null ? row[1] : "â€”");
+            const lbl = String(row[0]!=null ? row[0] : "—");
+            const val = String(row[1]!=null ? row[1] : "—");
             doc.text(lbl, ML, y + 10, { maxWidth: CW * 0.55 });
             // Color
             if (row[2] === "g") doc.setTextColor(...green);
@@ -175,8 +177,8 @@ export async function exportProjectForms(proj) {
       const fi = p.qaqc?.fi || {};
       const q = p.qaqc || {};
 
-      // 1. Customer Auth â€” use image overlay approach with jsPDF addImage
-      stepEl.textContent = "1/8 Customer Authorizationâ€¦";
+      // 1. Customer Auth — use image overlay approach with jsPDF addImage
+      stepEl.textContent = "1/8 Customer Authorization…";
       if (a.customerAuthSig) {
         // For auth form, load the page images and overlay sig
         const loadImg = (src) => new Promise((res, rej) => {
@@ -205,8 +207,8 @@ export async function exportProjectForms(proj) {
       }
 
       // 2. Assessment
-      stepEl.textContent = "2/8 Assessmentâ€¦";
-      zip.file(nm+"_assessment.pdf", buildPDF("Data Collection Tool â€” Assessment", [
+      stepEl.textContent = "2/8 Assessment…";
+      zip.file(nm+"_assessment.pdf", buildPDF("Data Collection Tool — Assessment", [
         { title: "Project Info", rows: [
           ["RISE PID", p.riseId], ["Stage", STAGES[p.currentStage]?.label],
           ["Bedrooms", a.bedrooms], ["Bathrooms", a.bathrooms],
@@ -221,7 +223,7 @@ export async function exportProjectForms(proj) {
       ]));
 
       // 3. Scope
-      stepEl.textContent = "3/8 Scopeâ€¦";
+      stepEl.textContent = "3/8 Scope…";
       {
         const s2 = p.scope2026 || {};
         const htg = s2.htg||{}; const clg = s2.clg||{}; const dhw = s2.dhw||{};
@@ -383,7 +385,7 @@ export async function exportProjectForms(proj) {
       }
 
       // 4. Pre-Work Scope of Work (customer signed)
-      stepEl.textContent = "4/8 Pre-Work Scopeâ€¦";
+      stepEl.textContent = "4/8 Pre-Work Scope…";
       {
         const s2 = p.scope2026 || {};
         const iq2 = s2.insulQty||{};
@@ -412,7 +414,7 @@ export async function exportProjectForms(proj) {
       }
 
       // 5. Post-Work Scope of Work (customer signed, with approved COs)
-      stepEl.textContent = "5/8 Post-Work Scopeâ€¦";
+      stepEl.textContent = "5/8 Post-Work Scope…";
       {
         const s2 = p.scope2026 || {};
         const iq2 = s2.insulQty||{};
@@ -455,7 +457,7 @@ export async function exportProjectForms(proj) {
       }
 
       // 6. Final Inspection
-      stepEl.textContent = "6/8 Final Inspectionâ€¦";
+      stepEl.textContent = "6/8 Final Inspection…";
       {
         const secs = [];
         secs.push({ title: "Inspection Info", rows: [
@@ -468,49 +470,49 @@ export async function exportProjectForms(proj) {
             const d = fi[item.k]||{};
             return [
               (item.sub?"   ":"")+item.l,
-              d.reading ? d.reading+" "+(item.u||"") : (d.yn||"â€”"),
+              d.reading ? d.reading+" "+(item.u||"") : (d.yn||"—"),
               { t: d.pf==="P"?"Pass":d.pf==="F"?"Fail":"N/A", c: d.pf==="P"?"g":d.pf==="F"?"r":"" },
               d.fu==="Y"?"Yes":d.fu==="N"?"No":"N/A"
             ];
           })
         }});
         secs.push({ title: "Detectors & Ventilation", rows: [
-          ["Smoke detectors installed", fi.smokeQty||"â€”"],
-          ["CO detectors installed", fi.coQty||"â€”"],
-          ["Required ventilation ASHRAE 62.2", (fi.ventCFM||"â€”")+" CFM"],
-          ["New exhaust fan installed?", fi.newFan||"â€”"],
-          ["All H&S issues addressed?", fi.hsAddressed||"â€”", fi.hsAddressed==="Yes"?"g":"r"],
+          ["Smoke detectors installed", fi.smokeQty||"—"],
+          ["CO detectors installed", fi.coQty||"—"],
+          ["Required ventilation ASHRAE 62.2", (fi.ventCFM||"—")+" CFM"],
+          ["New exhaust fan installed?", fi.newFan||"—"],
+          ["All H&S issues addressed?", fi.hsAddressed||"—", fi.hsAddressed==="Yes"?"g":"r"],
           ...(fi.hsWhyNot ? [["If no, why not", fi.hsWhyNot]] : [])
         ]});
         secs.push({ title: "Insulation", table: {
           cols: [{label:"Area",w:170},{label:"Pre R-value",w:90},{label:"Post R-value",w:90},{label:"Insulated?",w:90}],
-          rows: FI_INSUL.map(ins => { const d=fi[ins.k]||{}; return [ins.l, d.preR||"â€”", d.postR||"â€”", d.done||"â€”"]; })
+          rows: FI_INSUL.map(ins => { const d=fi[ins.k]||{}; return [ins.l, d.preR||"—", d.postR||"—", d.done||"—"]; })
         }});
-        secs.push({ title: "Combustion Appliances â€” Space Heating and DHW", table: {
+        secs.push({ title: "Combustion Appliances — Space Heating and DHW", table: {
           cols: [{label:"#",w:25},{label:"Equipment Type",w:180},{label:"Vent Type",w:120},{label:"Replaced?",w:70},{label:"Follow-up?",w:70}],
-          rows: [1,2,3].map(n => { const d=fi["equip"+n]||{}; return [String(n), d.type||"â€”", d.vent||"â€”", d.replaced||"â€”", d.fu||"â€”"]; })
+          rows: [1,2,3].map(n => { const d=fi["equip"+n]||{}; return [String(n), d.type||"—", d.vent||"—", d.replaced||"—", d.fu||"—"]; })
         }});
-        secs.push({ title: "Blower Door", rows: [["Pre CFM50", p.preCFM50||"â€”"], ["Post CFM50", p.postCFM50||"â€”"]] });
-        secs.push({ title: "Duct Sealing â€“ Duct Blaster", rows: [["Pre CFM25", fi.preCFM25||"â€”"], ["Post CFM25", fi.postCFM25||"â€”"]] });
-        secs.push({ title: "Direct Installs", rows: [["New thermostat installed?", fi.thermostat||"â€”"]] });
+        secs.push({ title: "Blower Door", rows: [["Pre CFM50", p.preCFM50||"—"], ["Post CFM50", p.postCFM50||"—"]] });
+        secs.push({ title: "Duct Sealing – Duct Blaster", rows: [["Pre CFM25", fi.preCFM25||"—"], ["Post CFM25", fi.postCFM25||"—"]] });
+        secs.push({ title: "Direct Installs", rows: [["New thermostat installed?", fi.thermostat||"—"]] });
         secs.push({ title: "Follow-up Needed", text: fi.followUpNA?"N/A":(fi.followUp||"None") });
-        secs.push({ title: "Contractor Checklist", rows: FI_CONTRACTOR_CK.map(ck => [ck, fi.ck?.[ck]?"â˜‘ Done":"â˜", fi.ck?.[ck]?"g":""]) });
+        secs.push({ title: "Contractor Checklist", rows: FI_CONTRACTOR_CK.map(ck => [ck, fi.ck?.[ck]?"☑ Done":"☐", fi.ck?.[ck]?"g":""]) });
         if (fi.inspectorSig) secs.push({ title: "Inspector", sig: true });
-        zip.file(nm+"_final_inspection.pdf", buildPDF("Home Energy Savings â€“ Retrofits Final Inspection Form", secs));
+        zip.file(nm+"_final_inspection.pdf", buildPDF("Home Energy Savings – Retrofits Final Inspection Form", secs));
       }
 
       // 7. QAQC
-      stepEl.textContent = "7/8 QAQCâ€¦";
+      stepEl.textContent = "7/8 QAQC…";
       {
-        const secs = [{ title: "Inspection Info", rows: [["Date", q.date||"â€”"], ["Inspector", q.inspector||"â€”"]] }];
+        const secs = [{ title: "Inspection Info", rows: [["Date", q.date||"—"], ["Inspector", q.inspector||"—"]] }];
         Object.entries(QAQC_SECTIONS).forEach(([cat, items]) => {
           secs.push({ title: cat, rows: items.map((item, i) => {
             const r = q.results?.[cat+"-"+i]||{};
-            return [(i+1)+". "+item, (r.v||"â€”")+(r.c?" â€” "+r.c:""), r.v==="Y"?"g":r.v==="N"?"r":""];
+            return [(i+1)+". "+item, (r.v||"—")+(r.c?" — "+r.c:""), r.v==="Y"?"g":r.v==="N"?"r":""];
           })});
         });
         secs.push({ title: "Overall Result", rows: [
-          ["Result", q.passed===true?"PASS":q.passed===false?"FAIL":"â€”", q.passed===true?"g":"r"],
+          ["Result", q.passed===true?"PASS":q.passed===false?"FAIL":"—", q.passed===true?"g":"r"],
           ...(q.notes ? [["Notes", q.notes]] : [])
         ]});
         if (q.inspectorSig) secs.push({ title: "Inspector", sig: true });
@@ -518,17 +520,17 @@ export async function exportProjectForms(proj) {
       }
 
       // 8. Activity Log
-      stepEl.textContent = "8/10 Activity Logâ€¦";
+      stepEl.textContent = "8/10 Activity Log…";
       if (p.activityLog?.length) {
         zip.file(nm+"_activity_log.pdf", buildPDF("Activity Log", [
           { title: p.activityLog.length + " Entries", rows:
-            p.activityLog.slice(0,100).map(l => [new Date(l.ts).toLocaleString()+" â€” "+l.by, l.txt])
+            p.activityLog.slice(0,100).map(l => [new Date(l.ts).toLocaleString()+" — "+l.by, l.txt])
           }
         ]));
       }
 
       // 9. HVAC Tune-Up Report
-      stepEl.textContent = "9/10 HVAC Tune-Upâ€¦";
+      stepEl.textContent = "9/10 HVAC Tune-Up…";
       {
         const hvac = p.hvac || {};
         const f2 = hvac.furnace||{}; const w2 = hvac.waterHeater||{}; const ac2 = hvac.condenser||{};
@@ -575,7 +577,7 @@ export async function exportProjectForms(proj) {
       }
 
       // 10. HVAC + Replacement Photos
-      stepEl.textContent = "10/10 HVAC Photosâ€¦";
+      stepEl.textContent = "10/10 HVAC Photos…";
       {
         const hvacPhotoItems = Object.entries(PHOTO_SECTIONS).filter(([cat])=>cat.startsWith("HVAC")).flatMap(([,items])=>items);
         const replPhotoItems = Object.entries(PHOTO_SECTIONS).filter(([cat])=>cat.startsWith("HVAC Replacement")).flatMap(([,items])=>items);
@@ -597,7 +599,7 @@ export async function exportProjectForms(proj) {
         }
       }
 
-      stepEl.textContent = "Compressing ZIPâ€¦";
+      stepEl.textContent = "Compressing ZIP…";
       const blob = await zip.generateAsync({type:"blob"});
       const url = URL.createObjectURL(blob);
       const dl = document.createElement("a"); dl.href = url; dl.download = nm+"_forms.zip";
